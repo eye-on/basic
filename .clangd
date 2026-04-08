@@ -1,0 +1,13 @@
+CompileFlags:
+  Add:
+    - -std=c++20
+    - --target=arm-none-eabi
+    - -nostdinc++
+    - -isystem "C:/Users/19674/AppData/Roaming/Code/User/globalStorage/sigbots.pros/install/pros-toolchain-windows/usr/arm-none-eabi/include"
+    - -isystem "C:/Users/19674/AppData/Roaming/Code/User/globalStorage/sigbots.pros/install/pros-toolchain-windows/usr/arm-none-eabi/include/c++/14.3.1"
+    - -isystem "C:/Users/19674/AppData/Roaming/Code/User/globalStorage/sigbots.pros/install/pros-toolchain-windows/usr/arm-none-eabi/include/c++/14.3.1/arm-none-eabi"
+    - -isystem "C:/Users/19674/AppData/Roaming/Code/User/globalStorage/sigbots.pros/install/pros-toolchain-windows/usr/lib/gcc/arm-none-eabi/14.3.1/include"
+    - -isystem "C:/Users/19674/AppData/Roaming/Code/User/globalStorage/sigbots.pros/install/pros-toolchain-windows/usr/lib/gcc/arm-none-eabi/14.3.1/include-fixed"
+    - -I "pros/apix/include"
+    - -I "pros/include"
+  Compiler: "C:/Users/19674/AppData/Roaming/Code/User/globalStorage/sigbots.pros/install/pros-toolchain-windows/usr/bin/arm-none-eabi-g++.exe"
