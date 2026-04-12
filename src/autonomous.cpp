@@ -10,32 +10,24 @@ void autonomous(){
   up_overhang_motor.spinFor(-350,vex::deg,50,vex::velocityUnits::pct);
   up_overhang_motor.spinFor(-200,vex::deg,50,vex::velocityUnits::pct);
   under_overhang_motor.stop(vex::hold);*/
-
-  /*middle_overhang_motor.spinFor(520,vex::deg,50,vex::velocityUnits::pct,false);
-  vex::this_thread::sleep_for(500);
-  up_overhang_motor.spinFor(-900,vex::deg,50,vex::velocityUnits::pct,false);
-  up_overhang_motor.spinFor(-700,vex::deg,50,vex::velocityUnits::pct);
-  under_overhang_motor.spinFor(900,vex::deg,50,vex::velocityUnits::pct,false);
-  vex::this_thread::sleep_for(500);*/
-
+  middle_overhang_motor.stop(vex::hold);
+  up_overhang_motor.stop(vex::hold);
   
-  vex::this_thread::sleep_for(3000);
   forward_ms(1525,200);
-  //init();
-  turn_deg(-90,turn_1);
-  auto_takein();
+  turn_deg(90,turn_1);
+  //auto_takein();
   forward_ms(1850,150);
-  vex::this_thread::sleep_for(3000);
-  vex::this_thread::sleep_for(3000);
-  auto_takein();
+  //vex::this_thread::sleep_for(3000);
+  //vex::this_thread::sleep_for(3000);
+  //auto_takein();
   vex::this_thread::sleep_for(1000);
-  forward_ms(825,200,vex::directionType::rev);
+  forward_ms(1300,150,vex::directionType::rev);
   //under_overhang_motor.spinFor(-900,vex::deg,50,vex::velocityUnits::pct);
   uper_under_overhang();
   turn_deg(-90,turn_1);
   turn_deg(-90,turn_1);
   vex::this_thread::sleep_for(500);
-  forward_ms(1450,100);
+  forward_ms(1400,100);
   vex::this_thread::sleep_for(500);
   //up_overhang_motor.spinFor(-100,vex::deg,30,vex::velocityUnits::pct);
   auto_up_push();
@@ -44,10 +36,9 @@ void autonomous(){
   forward_ms(800,150,vex::directionType::rev);
   vex::this_thread::sleep_for(500);
   turn_deg(90,turn_1);
-  forward_ms(700,150);
+  forward_ms(900,150);
   turn_deg(-90,turn_1);
   forward_ms(3500,100);
-
 }
 /*forward_ms(1400,200);
   turn_deg(60,turn_1);

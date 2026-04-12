@@ -4,79 +4,18 @@
 
 
 void Position::updateInertialHeading() { 
-    curIMUHeading = deg_to_rad(IMUHeading()); 
+    curIMUHeading_deg = IMUHeading();
+    curIMUHeading_rad = deg_to_rad(IMUHeading()); 
 }
 
-void Position::updateLMileage() {
-    lastLMileage = curLMileage;
-    curLMileage = -deg_to_rad(-motor_bl1.position(vex::degrees)) * WHEEL_TRANSITION_COEFFICIENT;
+void Position::update_ldeg() {
+    last_lrad = cur_lrad;
+    cur_lrad = deg_to_rad(left.position(vex::degrees)); //* WHEEL_TRANSITION_COEFFICIENT;
 }
 
-void Position::updateRMileage() {
-    lastRMileage = curRMileage;
-    curRMileage = -deg_to_rad(-motor_br1.position(vex::degrees)) * WHEEL_TRANSITION_COEFFICIENT;
-}
-
-void Position::updateLSpeed() {
-    lastLSpeed = curLSpeed;
-    double v = (curLMileage - lastLMileage) * 1000 / sampleTime;
-    if (std::abs(v) > 1000 || std::abs(v) < 0.001) {
-        v = 0;
-    }
-    curLSpeed = v;
-}
-
-void Position::updateRSpeed() {
-    lastRSpeed = curRSpeed;
-    double v = (curRMileage - lastRMileage) * 1000 / sampleTime;
-    if (std::abs(v) > 1000 || std::abs(v) < 0.001) {
-        v = 0;
-    }
-    curRSpeed = v;
-}
-
-void Position::updateSelfSpeed() { 
-    selfSpeed = (curLSpeed + curRSpeed) / 2; 
-}
-
-void Position::updateGlobalYSpeed() {
-    lastGlobalYSpeed = globalYSpeed;
-    globalYSpeed = selfSpeed * cos(curIMUHeading);
-    if (std::abs(globalYSpeed) < 0.01) {
-        globalYSpeed = 0;
-    }
-    /*if (abs(globalYSpeed) > 250) {
-        globalYSpeed = lastGlobalYSpeed;
-    }*/
-}
-
-void Position::updateGlobalXSpeed() {
-    lastGlobalXSpeed = globalXSpeed;
-    globalXSpeed = selfSpeed * sin(curIMUHeading);
-    if (std::abs(globalXSpeed) < 0.01) {
-        globalXSpeed = 0;
-    }
-    /*if (abs(globalXSpeed) > 250) {
-        globalXSpeed = lastGlobalXSpeed;
-    }*/
-}
-
-void Position::updateGlobalY() {
-    double d = (globalYSpeed + lastGlobalYSpeed) * sampleTime / 1000 / 2;
-    if (std::abs(d) < 0.001) {
-        return;
-    } else {
-        globalY = globalY + d;
-    }
-}
-
-void Position::updateGlobalX() {
-    double d = (globalXSpeed + lastGlobalXSpeed) * sampleTime / 1000 / 2;
-    if (std::abs(d) < 0.001) {
-        return;
-    } else {
-        globalX = globalX + d;
-    }
+void Position::update_rdeg() {
+    last_rrad = cur_rrad;
+    cur_rrad = deg_to_rad(right.position(vex::degrees)); //* WHEEL_TRANSITION_COEFFICIENT;
 }
 
 void Position::updatePos() {
@@ -86,48 +25,50 @@ void Position::updatePos() {
 
     if (sampleTime < 0.001) {
         // dealing with the situation that sampleTime is too small
-        sampleTime = REFRESH_TIME;
+        sampleTime = REFRESH_TIME_ms;
     }
 
     updateInertialHeading();
-    updateLMileage();
-    updateRMileage();
-    updateLSpeed();
-    updateRSpeed();
-    updateSelfSpeed();
-    updateGlobalYSpeed();
-    updateGlobalXSpeed();
-    updateGlobalY();
-    updateGlobalX();
+    update_ldeg();
+    update_rdeg();
+
+    cur_rad=(cur_lrad+cur_rrad)/2.0;
+    last_rad=(last_lrad+last_rrad)/2.0;
 }
 
-Point Position::getPos() const { return Point(globalX, globalY); }
+//Point Position::getPos() const { return Point(globalX, globalY); }
 
-double Position::getXSpeed() const { return globalXSpeed; }
+//double Position::getXSpeed() const { return globalXSpeed; }
 
-double Position::getYSpeed() const { return globalYSpeed; }
+//double Position::getYSpeed() const { return globalYSpeed; }
 
-double Position::getLMileage() const { return curLMileage; }
+double Position::get_lrad() const { return cur_lrad; }
 
-double Position::getRMileage() const { return curRMileage; }
+double Position::get_rrad() const { return cur_rrad; }
 
-void Position::resetXPosition() { globalX = 0; }
+double Position::get_rad() const{ return cur_rad; }
 
-void Position::resetYPosition() { globalY = 0; }
+double Position::getIMU_rad() const{ return curIMUHeading_rad; }
 
-void Position::setGlobalPosition(double _x, double _y) {
+double Position::getIMU_deg() const{ return curIMUHeading_deg; }
+
+//void Position::resetXPosition() { globalX = 0; }
+
+//void Position::resetYPosition() { globalY = 0; }
+
+/*void Position::setGlobalPosition(double _x, double _y) {
     globalX = _x;
     globalY = _y;
-}
+}*/
 
 void updatePosition() {
     while (true) {
         Position::getInstance()->updatePos();
-        vex::this_thread::sleep_for(REFRESH_TIME);
+        vex::this_thread::sleep_for(REFRESH_TIME_ms);
     }
 }
 
 void Position::reset() {
-    globalX = 0;
-    globalY = 0;
+    left.resetPosition();
+    right.resetPosition();
 }

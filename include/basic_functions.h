@@ -5,24 +5,17 @@
 #include<vector>
 #include<parameters.h>
 
+void init();
 /**
 * @brief 设置电机速度
 * @param base 电机对象
 * @param speed 速度(百分比单位 pct :-100~100)
 */
-void set_motorpower(vex::motor base,double speed,vex::brakeType type=vex::coast);
+void set_motorpower(vex::motor motor,double speed,vex::brakeType type=vex::coast);
+
+void set_motorpower(vex::motor_group motors,double speed,vex::brakeType type=vex::coast);
 
 double function(double input);
-
-//void enable_motor_analog(vex::motor,bool,int=100);
-
-void enable_motor_analog(vex::motor,int,int=DEAD_ZONE,int=100);
-
-//void enable_motor_discrete(vex::motor,bool,int=100);
-
-void enable_motor_discrete(vex::motor,bool&,int=100);
-
-void enable_motor_discrete(std::vector<vex::motor>,bool&,std::vector<int>);
 
 double IMUHeading();
 
@@ -35,7 +28,7 @@ void resetHeading();
   * @example rad2deg(M_PI) 返回180.0
   */
  double rad_to_deg(double rad) ;
- 
+
  /**
   * @brief 角度转弧度转换函数
   * @param deg 以度数为单位的角度值
@@ -43,5 +36,7 @@ void resetHeading();
   * @example deg2rad(180.0) 返回M_PI
   */
  double deg_to_rad(double deg) ;
+
+ double clamp(double value, double min, double max);
 
 #endif

@@ -2,7 +2,7 @@
 #define PARAMETERS_H_
 
 //线程更新时间 ms
-const int REFRESH_TIME = 10;
+const int REFRESH_TIME_ms = 10;
 
 //死区范围
 const int DEAD_ZONE = 10;
@@ -13,10 +13,12 @@ const int DEAD_ZONE = 10;
 // 从“惯性旋转”中获得的原始数据。
 const double IMU_MOD_COEFFICIENT = 3599.9;
 
-// The distance traveled by the wheel when its motor rotates 1 radian
-//const double WHEEL_TRANSITION_COEFFICIENT = 5.27;  // cm/rad
-// 当车轮的电机旋转1弧度时，车轮行驶的距离 cm/rad
-// (1/2*pi)*1*(pi*101.6)==5.08
-const double WHEEL_TRANSITION_COEFFICIENT=40;
+//const double M_PI=3.1416;
+
+const double Wheel_Diameter_cm=9;
+
+const double Wheel_Radius_cm=4.5;
+
+const double Turn_Radius_cm=15;
 
 #endif

@@ -1,12 +1,12 @@
 {
 	"extension": {
-		"version": "0.7.2025041600",
+		"version": "0.8.2026011200",
 		"json": 2
 	},
 	"project": {
 		"name": "basic",
-		"description": "basic control",
-		"creationDate": "Mon, 05 Jan 2026 14:39:17 GMT",
+		"description": "",
+		"creationDate": "2026/1/19 09:21:34",
 		"platform": "V5",
 		"language": "cpp",
 		"slot": 1,

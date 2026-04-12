@@ -39,11 +39,18 @@ extern vex::motor under_motor1;
 extern vex::motor trans_motor1;
 extern vex::motor trans_motor2;
 extern vex::motor trans_motor3;
+extern vex::motor trans_motor4;
 
 extern vex::motor under_overhang_motor;
 extern vex::motor middle_overhang_motor;
 extern vex::motor up_overhang_motor;
 
 extern vex::motor up_motor1;
+
+extern vex::motor_group chassis;
+extern vex::motor_group left_motors;
+extern vex::motor_group right_motors;
+extern vex::motor_group overhang_motors;
+extern vex::motor_group other_motors;
 
 #endif

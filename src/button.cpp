@@ -6,21 +6,21 @@
 #include<cmath>
 
 
-int 
+int
     t;
 int
     A1, A2, A3, A4,
     last_A1,last_A2,last_A3,last_A4;
-bool 
-    L1, L2, R1, R2, 
-    X, Y, A, B, 
-    LEFT, RIGHT, UP, DOWN, 
+bool
+    L1, L2, R1, R2,
+    X, Y, A, B,
+    LEFT, RIGHT, UP, DOWN,
     last_L1, last_L2, last_R1, last_R2,
-    last_X, last_Y, last_A, last_B, 
+    last_X, last_Y, last_A, last_B,
     last_LEFT, last_RIGHT, last_UP, last_DOWN;
-bool 
-    press_X=false, press_Y=false, press_A=false, press_B=false, 
-    press_UP=false, press_DOWN=false, press_LEFT=false, press_RIGHT=false, 
+bool
+    press_X=false, press_Y=false, press_A=false, press_B=false,
+    press_UP=false, press_DOWN=false, press_LEFT=false, press_RIGHT=false,
     press_L1=false, press_L2=false,press_R1=false, press_R2=false;
 
 double rating[4]={0,0,0,0};
@@ -53,7 +53,7 @@ void button_updating_thread(){
         last_RIGHT = RIGHT;
         last_UP = UP;
         last_DOWN = DOWN;
-        
+
 
         //通过遥控器获取当前时间 (毫秒单位 ms)
         t=Brain.timer(vex::timeUnits::msec);
@@ -80,7 +80,7 @@ void button_updating_thread(){
         RIGHT = Controller.ButtonRight.pressing();
         UP = Controller.ButtonUp.pressing();
         DOWN = Controller.ButtonDown.pressing();
-        
+
         // 检测按钮按下事件（当前帧按下且上一帧未按下）
         // 设置对应标志位为true（单次触发，需外部重置）
         if (X && !last_X) press_X = true; //if (!X && last_X) praise_X = true;
@@ -97,6 +97,6 @@ void button_updating_thread(){
         if (R2 && !last_R2) press_R2 = true; //if (!R2 && last_R2) praise_R2 = true;
 
         // 线程休眠，控制更新频率
-        vex::this_thread::sleep_for(REFRESH_TIME);
+        vex::this_thread::sleep_for(REFRESH_TIME_ms);
     }
 }

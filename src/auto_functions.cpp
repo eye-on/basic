@@ -6,7 +6,6 @@
 #include"timer.h"
 #include"position.h"
 #include"pid.h"
-#include<vex_global.h>
 #include<algorithm>
 
 void shake(){
@@ -53,12 +52,13 @@ void forward_ms(double time_ms,double max_rpm,vex::directionType dir){
         //delta_r_rad=Position::getInstance()->get_rrad()-base_r;
         delta=Position::getInstance()->getIMU_deg()-base_deg;
 
-        cur_rpm = max_rpm / acc_time_ms * f_time.getTime_ms();  
+        cur_rpm = max_rpm / acc_time_ms * f_time.getTime_ms(); 
 
         //right_motors.spin(dir,cur_rpm+kp*delta,vex::rpm);
         //left_motors.spin(dir,cur_rpm-kp*delta,vex::rpm);
         Chassis::getInstance()->left_speed=k*cur_rpm;
         Chassis::getInstance()->right_speed=k*cur_rpm;
+
         //chassis.spin(dir,cur_rpm,vex::rpm);
 
 
@@ -70,12 +70,13 @@ void forward_ms(double time_ms,double max_rpm,vex::directionType dir){
         //delta_l_rad=Position::getInstance()->get_lrad()-base_l;
         //delta_r_rad=Position::getInstance()->get_rrad()-base_r;
         delta=Position::getInstance()->getIMU_deg()-base_deg;
-
         //right_motors.spin(dir,cur_rpm+kp*delta,vex::rpm);
         //left_motors.spin(dir,cur_rpm-kp*delta,vex::rpm);
+
+        //chassis.spin(dir,cur_rpm,vex::rpm);
+
         Chassis::getInstance()->left_speed=k*cur_rpm;
         Chassis::getInstance()->right_speed=k*cur_rpm;
-        //chassis.spin(dir,cur_rpm,vex::rpm);
 
         //vex::this_thread::sleep_for(REFRESH_TIME_ms / 2);
     }
@@ -84,14 +85,15 @@ void forward_ms(double time_ms,double max_rpm,vex::directionType dir){
         //delta_l_rad=Position::getInstance()->get_lrad()-base_l;
         //delta_r_rad=Position::getInstance()->get_rrad()-base_r;
         delta=Position::getInstance()->getIMU_deg()-base_deg;
-
         cur_rpm = max_rpm-(max_rpm / slow_time_ms * f_time.getTime_ms());
 
         //right_motors.spin(dir,cur_rpm+kp*delta,vex::rpm);
         //left_motors.spin(dir,cur_rpm-kp*delta,vex::rpm);
+
+        //chassis.spin(dir,cur_rpm,vex::rpm);
+
         Chassis::getInstance()->left_speed=k*cur_rpm;
         Chassis::getInstance()->right_speed=k*cur_rpm;
-        //chassis.spin(dir,cur_rpm,vex::rpm);
 
         //vex::this_thread::sleep_for(REFRESH_TIME_ms / 2);
     }
@@ -204,8 +206,9 @@ void turn_deg(double point_deg,const turn_param& param){
       
       Chassis::getInstance()->left_speed=-cur_rpm;
       Chassis::getInstance()->right_speed=cur_rpm;
-      //right_motors.spin(vex::fwd,cur_rpm,vex::rpm);
+
       //left_motors.spin(vex::fwd,-cur_rpm,vex::rpm);
+      //right_motors.spin(vex::fwd,cur_rpm,vex::rpm);
 
       //vex::this_thread::sleep_for(REFRESH_TIME_ms/4);
     }
@@ -293,25 +296,8 @@ void auto_up_push(){
 }
 
 void uper_under_overhang(){
-  wait(1000, vex::msec);
+  wait(1000,vex::msec);
   under_overhang_motor.spin(vex::fwd,-50,vex::pct);
-  wait(600, vex::msec);
-  under_overhang_motor.stop(vex::hold);
-}
-
-void init(){
-  middle_overhang_motor.spin(vex::fwd,50,vex::pct);
-  wait(1000, vex::msec);
-  //vex::this_thread::sleep_for(1000);
-  middle_overhang_motor.stop(vex::hold);
-
-  up_overhang_motor.spin(vex::fwd,-50,vex::pct);
-  wait(970, vex::msec);
-  //vex::this_thread::sleep_for(970);
-  up_overhang_motor.stop(vex::hold);
-
-  under_overhang_motor.spin(vex::fwd,50,vex::pct);
-  wait(600, vex::msec);
-  //vex::this_thread::sleep_for(600);
+  wait(600,vex::msec);
   under_overhang_motor.stop(vex::hold);
 }
