@@ -13,6 +13,7 @@ constexpr std::array<int, kIndexedMotorCount> kLegacyIntakeSpeeds{{0, 0, -100, 5
 constexpr std::array<int, kIndexedMotorCount> kUnderThrowSpeeds{{-100, 100, -100, 0, 100, 0, 0}};
 constexpr std::array<int, kIndexedMotorCount> kMiddleThrowSpeeds{{-100, 100, -100, 100, -100, -100, 0}};
 constexpr std::array<int, kIndexedMotorCount> kUpperThrowSpeeds{{-100, 100, -100, 100, -100, 100, 100}};
+constexpr std::array<int, kIndexedMotorCount> kSortIntakeSpeeds{{}};
 
 void set_motor_power(vex::motor& motor, double speed, vex::brakeType type = vex::coast) {
   if (speed) {
@@ -40,6 +41,8 @@ const std::array<int, kIndexedMotorCount>& indexed_motor_speeds(const MechanismS
       return kMiddleThrowSpeeds;break;
     case IndexedMechanismMode::kUpperThrow:
       return kUpperThrowSpeeds;break;
+    case IndexedMechanismMode::kSortIntake:
+      return kSortIntakeSpeeds;break;
     case IndexedMechanismMode::kOff:
     default:
       return kOffSpeeds;
