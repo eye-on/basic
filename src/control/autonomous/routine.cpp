@@ -364,40 +364,70 @@ void turn_deg(
       TravelDirection::kAuto);
 }
 
-void update_upper_overhang_mode(RobotHardware& hardware, RobotState& state) {
+void run_overhang_motion(
+    vex::motor& motor,
+    double rotation_deg,
+    double velocity_pct,
+    bool wait_for_completion) {
+  motor.setStopping(vex::hold);
+  motor.spinFor(
+      rotation_deg,
+      vex::deg,
+      velocity_pct,
+      vex::velocityUnits::pct,
+      wait_for_completion);
+  if (wait_for_completion) {
+    motor.stop(vex::hold);
+  }
+}
+
+void wait_for_motor_motion(vex::motor& motor) {
+  while (motor.isSpinning() && !motor.isDone()) {
+    vex::this_thread::sleep_for(kAutonomousLoopDelayMs);
+  }
+  motor.stop(vex::hold);
+}
+
+void update_upper_overhang_mode(
+    RobotHardware& hardware,
+    RobotState& state,
+    bool wait_for_completion = true) {
   OverhangMode& overhang_mode = state.overhang.upper_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    hardware.upper_overhang_motor.spinFor(1500, vex::deg, 50, vex::velocityUnits::pct);
+    run_overhang_motion(hardware.upper_overhang_motor, 1500.0, 50.0, wait_for_completion);
   } else {
     overhang_mode = OverhangMode::Expansion;
-    hardware.upper_overhang_motor.spinFor(-1500, vex::deg, 50, vex::velocityUnits::pct);
+    run_overhang_motion(hardware.upper_overhang_motor, -1500.0, 50.0, wait_for_completion);
   }
-  hardware.upper_overhang_motor.stop(vex::hold);
 }
 
-void update_middle_overhang_mode(RobotHardware& hardware, RobotState& state) {
+void update_middle_overhang_mode(
+    RobotHardware& hardware,
+    RobotState& state,
+    bool wait_for_completion = true) {
   OverhangMode& overhang_mode = state.overhang.middle_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    hardware.middle_overhang_motor.spinFor(-550, vex::deg, 30, vex::velocityUnits::pct);
+    run_overhang_motion(hardware.middle_overhang_motor, -550.0, 30.0, wait_for_completion);
   } else {
     overhang_mode = OverhangMode::Expansion;
-    hardware.middle_overhang_motor.spinFor(550, vex::deg, 30, vex::velocityUnits::pct);
+    run_overhang_motion(hardware.middle_overhang_motor, 550.0, 30.0, wait_for_completion);
   }
-  hardware.middle_overhang_motor.stop(vex::hold);
 }
 
-void update_under_overhang_mode(RobotHardware& hardware, RobotState& state) {
+void update_under_overhang_mode(
+    RobotHardware& hardware,
+    RobotState& state,
+    bool wait_for_completion = true) {
   OverhangMode& overhang_mode = state.overhang.under_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    hardware.under_overhang_motor.spinFor(-750, vex::deg, 30, vex::velocityUnits::pct);
+    run_overhang_motion(hardware.under_overhang_motor, -750.0, 30.0, wait_for_completion);
   } else {
     overhang_mode = OverhangMode::Expansion;
-    hardware.under_overhang_motor.spinFor(750, vex::deg, 30, vex::velocityUnits::pct);
+    run_overhang_motion(hardware.under_overhang_motor, 750.0, 30.0, wait_for_completion);
   }
-  hardware.under_overhang_motor.stop(vex::hold);
 }
 
 }  // namespace
@@ -635,13 +665,13 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   //hardware.show_calibrated();
 
   //update_under_overhang_mode(hardware,state);
-  update_middle_overhang_mode(hardware,state);
-  update_upper_overhang_mode(hardware,state);
+  update_middle_overhang_mode(hardware,state,false);
+  update_upper_overhang_mode(hardware,state,false);
   
   drive_to_laser_distance_mm(hardware,state,competition,525.0);
   //drive_distance_mm(hardware, state, competition, kFirstDriveDistanceMm);
   turn_deg(hardware, state, competition, -90.0);
-  update_under_overhang_mode(hardware,state);
+  update_under_overhang_mode(hardware,state,true);
 
   update_intake_mode(hardware,state);
   drive_to_laser_distance_mm(hardware, state, competition, 135.0, 30.0);
@@ -649,7 +679,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   update_intake_mode(hardware,state);
 
   drive_distance_mm(hardware, state, competition, -320.0);
-  update_under_overhang_mode(hardware,state);
+  update_under_overhang_mode(hardware,state,false);
   turn_deg(hardware, state, competition, 90.0);
   drive_distance_mm(hardware, state, competition, -377.0);
   drive_to_laser_distance_mm(hardware, state, competition, 510.0);
@@ -670,8 +700,9 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   drive_distance_mm(hardware, state, competition, 600.0);
   drive_distance_mm(hardware, state, competition, -577.5);
   turn_deg(hardware, state, competition, 45.0);
-  update_under_overhang_mode(hardware,state);
+  update_under_overhang_mode(hardware,state,false);
   drive_distance_mm(hardware, state, competition, 900.0);
+  wait_for_motor_motion(hardware.under_overhang_motor);
 
   update_middlethrow_mode(hardware,state);
   vex::this_thread::sleep_for(5000);
