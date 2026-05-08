@@ -6,7 +6,7 @@
 
 namespace basic::hardware::robots {
 
-    void sensor_update(RobotHardware& hardware, RobotState& state, vex::color target);
+void sensor_update(RobotHardware& hardware, RobotState& state, const vex::color target, const int wait_fps=5,const int continuous_fps=30);
 
 }  // namespace basic::hardware::robots
 

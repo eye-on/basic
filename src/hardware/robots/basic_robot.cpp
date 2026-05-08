@@ -46,9 +46,6 @@ class BasicRobot final : public basic::app::Robot {
   }
 
   void run_background_tasks(){
-    //print_chassic_data_csv(10);
-    //print_laser_data_csv(10);
-    //print_color_data(10);
     while(true){
       robots::sensor_update(hardware_,state_,vex::color::red);
       vex::this_thread::sleep_for(10);
@@ -56,52 +53,43 @@ class BasicRobot final : public basic::app::Robot {
     
   }
 
-  void print_laser_data_csv(int refresh_time_ms){
+  void print_laser_data_csv(){
+    static const double start_time_ms=hardware_.brain.Timer.time(vex::msec);
     printf("time_ms,distance_mm\n");
-    double start_time_ms=hardware_.brain.Timer.time(vex::msec);
-    while(true){
-      double distance_mm=hardware_.laser_rangefinder.objectDistance(vex::mm);
-      double time_ms=hardware_.brain.Timer.time(vex::msec)-start_time_ms;
-      printf("%.2f,%.2f\n",time_ms,distance_mm);
-      vex::this_thread::sleep_for(refresh_time_ms);
-    }
+    double distance_mm=hardware_.laser_rangefinder.objectDistance(vex::mm);
+    double time_ms=hardware_.brain.Timer.time(vex::msec)-start_time_ms;
+    printf("%.2f,%.2f\n",time_ms,distance_mm);
   }
 
-  void print_chassic_data_csv(int refresh_time_ms){
-    double start_time_ms=hardware_.brain.Timer.time(vex::msec);
+  void print_chassic_data_csv(){
+    static const double start_time_ms=hardware_.brain.Timer.time(vex::msec);
     double fr1=0,fr2=0,fl1=0,fl2=0,
            br1=0,br2=0,bl1=0,bl2=0;
     double heading_deg=hardware_.inertial.heading(vex::deg);
     printf("time_ms,heading_deg,fr1,fr2,fl1,fl2,br1,br2,bl1,bl2\n");
-    while(true){
-      double time_ms=hardware_.brain.Timer.time(vex::msec)-start_time_ms;
-      fr1=hardware_.motor_fr1.velocity(vex::percent);
-      fr2=hardware_.motor_fr2.velocity(vex::percent);
-      fl1=hardware_.motor_fl1.velocity(vex::percent);
-      fl2=hardware_.motor_fl2.velocity(vex::percent);
-      br1=hardware_.motor_br1.velocity(vex::percent);
-      br2=hardware_.motor_br2.velocity(vex::percent);
-      bl1=hardware_.motor_bl1.velocity(vex::percent);
-      bl2=hardware_.motor_bl2.velocity(vex::percent);
-      printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",time_ms,heading_deg,fr1,fr2,fl1,fl2,br1,br2,bl1,bl2);
-      vex::this_thread::sleep_for(refresh_time_ms);
-    }
+    double time_ms=hardware_.brain.Timer.time(vex::msec)-start_time_ms;
+    fr1=hardware_.motor_fr1.velocity(vex::percent);
+    fr2=hardware_.motor_fr2.velocity(vex::percent);
+    fl1=hardware_.motor_fl1.velocity(vex::percent);
+    fl2=hardware_.motor_fl2.velocity(vex::percent);
+    br1=hardware_.motor_br1.velocity(vex::percent);
+    br2=hardware_.motor_br2.velocity(vex::percent);
+    bl1=hardware_.motor_bl1.velocity(vex::percent);
+    bl2=hardware_.motor_bl2.velocity(vex::percent);
+    printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",time_ms,heading_deg,fr1,fr2,fl1,fl2,br1,br2,bl1,bl2);
   }
 
-  void print_color_data(int refresh_time_ms){
+  void print_color_data(){
     hardware_.color_sensor.setLight(vex::ledState::on);
     hardware_.color_sensor.setLightPower(50, vex::percent);
-    while(true){
-      hardware_.controller.Screen.setCursor(1,1);
-      vex::color current_color=hardware_.color_sensor.color();
-      if(current_color==vex::color::red){
-        hardware_.controller.Screen.print("red");
-      }else if(current_color==vex::color::blue){
-        hardware_.controller.Screen.print("blue");
-      }else{
-        hardware_.controller.Screen.print("others");
-      }
-      vex::this_thread::sleep_for(refresh_time_ms);
+    hardware_.controller.Screen.setCursor(1,1);
+    vex::color current_color=hardware_.color_sensor.color();
+    if(current_color==vex::color::red){
+      hardware_.controller.Screen.print("red");
+    }else if(current_color==vex::color::blue){
+      hardware_.controller.Screen.print("blue");
+    }else{
+      hardware_.controller.Screen.print("others");
     }
   }
   void run_driver_control_loop() {
