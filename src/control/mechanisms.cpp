@@ -47,7 +47,7 @@ const std::array<int, kIndexedMotorCount>& indexed_motor_speeds(const MechanismS
 }
 
 void apply_indexed_mode(RobotHardware& hardware, const MechanismState& mechanism) {
-  const std::array<vex::motor*, kIndexedMotorCount> motors{{
+  static const std::array<vex::motor*, kIndexedMotorCount> motors{{
       &hardware.trans_motor1,
       &hardware.trans_motor2,
       &hardware.trans_motor3,
@@ -56,6 +56,7 @@ void apply_indexed_mode(RobotHardware& hardware, const MechanismState& mechanism
       &hardware.middle_motor1,
       &hardware.upper_motor1,
   }};
+
   const std::array<int, kIndexedMotorCount>& speeds = indexed_motor_speeds(mechanism);
   for (std::size_t index = 0; index < kIndexedMotorCount; ++index) {
     set_motor_power(*motors[index], speeds[index]);

@@ -11,6 +11,7 @@ enum class IndexedMechanismMode {
   kUnderTrow,
   kMiddleThrow,
   kUpperThrow,
+  kSortIntake,
 };
 
 enum class OverhangMode{
