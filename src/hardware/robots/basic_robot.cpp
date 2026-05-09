@@ -46,11 +46,12 @@ class BasicRobot final : public basic::app::Robot {
   }
 
   void run_background_tasks(){
+    hardware_.color_sensor.setLight(vex::ledState::on);
+    hardware_.color_sensor.setLightPower(50,vex::percent);
     while(true){
-      robots::sensor_update(hardware_,state_,vex::color::red);
+      robots::sensor_update(hardware_,state_,vex::color::red,2,10);
       vex::this_thread::sleep_for(10);
     }
-    
   }
 
   void print_laser_data_csv(){
@@ -80,9 +81,7 @@ class BasicRobot final : public basic::app::Robot {
   }
 
   void print_color_data(){
-    hardware_.color_sensor.setLight(vex::ledState::on);
-    hardware_.color_sensor.setLightPower(50, vex::percent);
-    hardware_.controller.Screen.setCursor(1,1);
+    hardware_.controller.Screen.setCursor(1,5);
     vex::color current_color=hardware_.color_sensor.color();
     if(current_color==vex::color::red){
       hardware_.controller.Screen.print("red");
