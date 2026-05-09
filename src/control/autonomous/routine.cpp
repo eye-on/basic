@@ -395,10 +395,10 @@ void update_upper_overhang_mode(
   OverhangMode& overhang_mode = state.overhang.upper_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    run_overhang_motion(hardware.upper_overhang_motor, 1500.0, 50.0, wait_for_completion);
+    hardware.upper_overhang_motor.spinFor(1450, vex::deg, 50, vex::velocityUnits::pct);
   } else {
     overhang_mode = OverhangMode::Expansion;
-    run_overhang_motion(hardware.upper_overhang_motor, -1500.0, 50.0, wait_for_completion);
+    hardware.upper_overhang_motor.spinFor(-1450, vex::deg, 50, vex::velocityUnits::pct);
   }
 }
 
