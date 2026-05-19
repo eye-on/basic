@@ -27,7 +27,7 @@ constexpr double kDriveHeadingDeadbandDegrees = 1.0;
 
 constexpr double kLaserDistanceToleranceMm = 10.0;
 constexpr double kLaserDistanceMinSpeedPct = 6.0;
-constexpr double kLaserDistanceMaxSpeedPct = 18.0;
+constexpr double kLaserDistanceMaxSpeedPct = 20.0; //18
 constexpr double kLaserDistanceAccelerationWindowMm = 120.0;
 constexpr double kLaserDistanceDecelerationWindowMm = 180.0;
 constexpr int kLaserDistanceBaseTimeoutMs = 1200;
@@ -43,7 +43,7 @@ constexpr double kTurnApproachWindowDegrees = 12.0;
 constexpr double kGoToPosePositionToleranceMm = 30.0;
 constexpr double kGoToPoseHeadingToleranceDegrees = 3.0;
 constexpr double kGoToPoseMinSpeedPct = 8.0;
-constexpr double kGoToPoseMaxSpeedPct = 24.0;
+constexpr double kGoToPoseMaxSpeedPct = 30.0; //24
 constexpr double kGoToPoseAccelerationWindowMm = 180.0;
 constexpr double kGoToPoseDecelerationWindowMm = 320.0;
 constexpr double kGoToPoseLookaheadMinMm = 80.0;
@@ -395,10 +395,10 @@ void update_upper_overhang_mode(
   OverhangMode& overhang_mode = state.overhang.upper_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    run_overhang_motion(hardware.upper_overhang_motor, 1500.0, 50.0, wait_for_completion);
+    run_overhang_motion(hardware.upper_overhang_motor, 1100.0, 70.0, wait_for_completion);
   } else {
     overhang_mode = OverhangMode::Expansion;
-    run_overhang_motion(hardware.upper_overhang_motor, -1500.0, 50.0, wait_for_completion);
+    run_overhang_motion(hardware.upper_overhang_motor, -1100.0, 70.0, wait_for_completion);
   }
 }
 
@@ -409,10 +409,10 @@ void update_middle_overhang_mode(
   OverhangMode& overhang_mode = state.overhang.middle_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    run_overhang_motion(hardware.middle_overhang_motor, -550.0, 30.0, wait_for_completion);
+    run_overhang_motion(hardware.middle_overhang_motor, -300.0, 50.0, wait_for_completion);
   } else {
     overhang_mode = OverhangMode::Expansion;
-    run_overhang_motion(hardware.middle_overhang_motor, 550.0, 30.0, wait_for_completion);
+    run_overhang_motion(hardware.middle_overhang_motor, 300.0, 50.0, wait_for_completion);
   }
 }
 
@@ -423,10 +423,10 @@ void update_under_overhang_mode(
   OverhangMode& overhang_mode = state.overhang.under_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    run_overhang_motion(hardware.under_overhang_motor, -750.0, 30.0, wait_for_completion);
+    run_overhang_motion(hardware.under_overhang_motor, -250.0, 50.0, wait_for_completion);
   } else {
     overhang_mode = OverhangMode::Expansion;
-    run_overhang_motion(hardware.under_overhang_motor, 750.0, 30.0, wait_for_completion);
+    run_overhang_motion(hardware.under_overhang_motor, 250.0, 50.0, wait_for_completion);
   }
 }
 
@@ -681,7 +681,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   drive_distance_mm(hardware, state, competition, -320.0);
   update_under_overhang_mode(hardware,state,false);
   turn_deg(hardware, state, competition, 90.0);
-  drive_distance_mm(hardware, state, competition, -377.0);
+  //drive_distance_mm(hardware, state, competition, -377.0);
   drive_to_laser_distance_mm(hardware, state, competition, 510.0);
   turn_deg(hardware, state, competition, 90.0);
   drive_distance_mm(hardware, state, competition, 502.0);

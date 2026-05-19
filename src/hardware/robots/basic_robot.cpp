@@ -49,7 +49,7 @@ class BasicRobot final : public basic::app::Robot {
     hardware_.color_sensor.setLight(vex::ledState::on);
     hardware_.color_sensor.setLightPower(50,vex::percent);
     while(true){
-      robots::sensor_update(hardware_,state_,vex::color::red,2,10);
+      robots::sensor_update(hardware_,state_,vex::color::red,2,15);
       vex::this_thread::sleep_for(10);
     }
   }
