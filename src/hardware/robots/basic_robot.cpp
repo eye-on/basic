@@ -49,6 +49,7 @@ class BasicRobot final : public basic::app::Robot {
     hardware_.color_sensor.setLight(vex::ledState::on);
     hardware_.color_sensor.setLightPower(50,vex::percent);
     while(true){
+      robots::mechanism_update(hardware_, state_);
       robots::sensor_update(hardware_,state_,vex::color::red,2,15);
       hardware_.controller.Screen.setCursor(1,1);
       hardware_.controller.Screen.print("%.2f",hardware_.color_sensor.hue());
@@ -96,9 +97,8 @@ class BasicRobot final : public basic::app::Robot {
   void run_driver_control_loop() {
     while (should_run_driver_control()) {
       robots::controller_update(hardware_, state_);
-      //robots::sensor_update(hardware_, state_);
       robots::chassis_update(hardware_, state_);
-      robots::mechanism_update(hardware_, state_);
+      //robots::mechanism_update(hardware_, state_);
       vex::this_thread::sleep_for(robots::kRefreshTime);
     }
 

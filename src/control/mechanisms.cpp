@@ -131,25 +131,25 @@ void mechanism_update(RobotHardware& hardware, RobotState& state) {
 void update_intake_mode(RobotHardware& hardware, RobotState& state){
   MechanismState& mechanism = state.mechanism;
   toggle_indexed_mode(mechanism, IndexedMechanismMode::kLegacyIntake);
-  apply_indexed_mode(hardware, mechanism);
+  //apply_indexed_mode(hardware, mechanism);
 }
 
 void update_underthrow_mode(RobotHardware& hardware, RobotState& state){
   MechanismState& mechanism = state.mechanism;
   toggle_indexed_mode(mechanism, IndexedMechanismMode::kUnderTrow);
-  apply_indexed_mode(hardware, mechanism);
+  //apply_indexed_mode(hardware, mechanism);
 }
 
 void update_middlethrow_mode(RobotHardware& hardware, RobotState& state){
   MechanismState& mechanism = state.mechanism;
   toggle_indexed_mode(mechanism, IndexedMechanismMode::kMiddleThrow);
-  apply_indexed_mode(hardware, mechanism);
+  //apply_indexed_mode(hardware, mechanism);
 }
 
 void update_upperthrow_mode(RobotHardware& hardware, RobotState& state){
   MechanismState& mechanism = state.mechanism;
   toggle_indexed_mode(mechanism, IndexedMechanismMode::kUpperThrow);
-  apply_indexed_mode(hardware, mechanism);
+  //apply_indexed_mode(hardware, mechanism);
 }
 
 }  // namespace basic::hardware::robots
