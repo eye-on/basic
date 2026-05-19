@@ -13,14 +13,14 @@ void sensor_update(RobotHardware& hardware, RobotState& state,
                    const vex::color target,
                    const int wait_frame, const int continuous_frame) {
   IndexedMechanismMode& indexed_mode = state.mechanism.indexed_mode;
-  if(indexed_mode==IndexedMechanismMode::kLegacyIntake){
+  /*if(indexed_mode==IndexedMechanismMode::kLegacyIntake){
     hardware.controller.Screen.setCursor(1,1);
     hardware.controller.Screen.print("off sorting");
   }
   if(indexed_mode==IndexedMechanismMode::kSortIntake){
     hardware.controller.Screen.setCursor(1,1);
     hardware.controller.Screen.print("on sortting");
-  }
+  }*/
   static int current_frame = 0;
   ++current_frame;
   static int start_wait_frame = -1;

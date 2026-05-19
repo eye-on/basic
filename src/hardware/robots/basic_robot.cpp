@@ -50,6 +50,8 @@ class BasicRobot final : public basic::app::Robot {
     hardware_.color_sensor.setLightPower(50,vex::percent);
     while(true){
       robots::sensor_update(hardware_,state_,vex::color::red,2,15);
+      hardware_.controller.Screen.setCursor(1,1);
+      hardware_.controller.Screen.print("%.2f",hardware_.color_sensor.hue());
       vex::this_thread::sleep_for(10);
     }
   }
