@@ -727,6 +727,8 @@ void drive_to_laser_distance_mm(
 }
 
 void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& competition) {
+  constexpr double kSecondThrowPreloadDistanceMm = 60.0;
+  constexpr double kSecondThrowRollingDistanceMm = 53.0;
 
   state.chassis.stop_brake_type = vex::hold;
   reset_autonomous_frame(hardware, state);
@@ -774,10 +776,15 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   drive_distance_mm(hardware, state, competition, 577.5);
   turn_deg(hardware, state, competition, -45.0);
   update_under_overhang_mode(hardware,state,false);
-  drive_distance_mm(hardware, state, competition, 113.0);
+  // The second score still uses the under overhang for final placement, but
+  // it throws through the middle path. Keep preload on the approach and only
+  // switch to middle throw on the last short roll-in to avoid launching early.
+  enable_preload_mode(hardware,state);
+  drive_distance_mm(hardware, state, competition, kSecondThrowPreloadDistanceMm);
   wait_for_motor_motion(hardware.under_overhang_motor);
-
   enable_middlethrow_mode(hardware,state);
+  drive_distance_mm(hardware, state, competition, kSecondThrowRollingDistanceMm);
+
   vex::this_thread::sleep_for(5000);
   disable_indexed_mode(hardware,state);
 
