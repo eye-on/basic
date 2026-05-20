@@ -16,6 +16,8 @@ void update_middlethrow_mode(RobotHardware& hardware, RobotState& state);
 
 void update_upperthrow_mode(RobotHardware& hardware, RobotState& state);
 
+void apply_mechanism_mode(RobotHardware& hardware, RobotState& state);
+
 }  // namespace basic::hardware::robots
 
 #endif

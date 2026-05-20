@@ -7,6 +7,7 @@ namespace basic::hardware::robots {
 
 enum class IndexedMechanismMode {
   kOff,
+  kPreLoad,
   kLegacyIntake,
   kUnderTrow,
   kMiddleThrow,

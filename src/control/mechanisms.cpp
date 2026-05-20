@@ -9,6 +9,7 @@ namespace {
 //trans1 trans2 trans3 trans4 under middle upper
 constexpr std::size_t kIndexedMotorCount = 7;
 constexpr std::array<int, kIndexedMotorCount> kOffSpeeds{{0, 0, 0, 0, 0, 0 ,0}};
+constexpr std::array<int, kIndexedMotorCount> kPreLoadSpeeds{{-100, -100, 0, 0, 0, 0, 0}};
 constexpr std::array<int, kIndexedMotorCount> kLegacyIntakeSpeeds{{0, -80, 40, 40, -100, 80 ,-70}};
 constexpr std::array<int, kIndexedMotorCount> kUnderThrowSpeeds{{-100, -100, 0, 0, 100, 0, 0}};
 constexpr std::array<int, kIndexedMotorCount> kMiddleThrowSpeeds{{-100, -100, 100, 100, -100, -100, 0}};
@@ -124,6 +125,9 @@ void mechanism_update(RobotHardware& hardware, RobotState& state) {
   if (input.press_r1) {
     toggle_indexed_mode(mechanism, IndexedMechanismMode::kUpperThrow);
   }
+  if(input.r2){
+    toggle_indexed_mode(mechanism, IndexedMechanismMode::kPreLoad);
+  }
 
   apply_indexed_mode(hardware, mechanism);
 }
@@ -131,25 +135,29 @@ void mechanism_update(RobotHardware& hardware, RobotState& state) {
 void update_intake_mode(RobotHardware& hardware, RobotState& state){
   MechanismState& mechanism = state.mechanism;
   toggle_indexed_mode(mechanism, IndexedMechanismMode::kLegacyIntake);
-  //apply_indexed_mode(hardware, mechanism);
+  apply_indexed_mode(hardware, mechanism);
 }
 
 void update_underthrow_mode(RobotHardware& hardware, RobotState& state){
   MechanismState& mechanism = state.mechanism;
   toggle_indexed_mode(mechanism, IndexedMechanismMode::kUnderTrow);
-  //apply_indexed_mode(hardware, mechanism);
+  apply_indexed_mode(hardware, mechanism);
 }
 
 void update_middlethrow_mode(RobotHardware& hardware, RobotState& state){
   MechanismState& mechanism = state.mechanism;
   toggle_indexed_mode(mechanism, IndexedMechanismMode::kMiddleThrow);
-  //apply_indexed_mode(hardware, mechanism);
+  apply_indexed_mode(hardware, mechanism);
 }
 
 void update_upperthrow_mode(RobotHardware& hardware, RobotState& state){
   MechanismState& mechanism = state.mechanism;
   toggle_indexed_mode(mechanism, IndexedMechanismMode::kUpperThrow);
-  //apply_indexed_mode(hardware, mechanism);
+  apply_indexed_mode(hardware, mechanism);
+}
+
+void apply_mechanism_mode(RobotHardware& hardware, RobotState& state){
+  apply_indexed_mode(hardware, state.mechanism);
 }
 
 }  // namespace basic::hardware::robots

@@ -430,6 +430,13 @@ void update_under_overhang_mode(
   }
 }
 
+void update_mechanism_mode(RobotHardware& hardware, RobotState& state, int time_ms){
+  for(int i=0;i<=time_ms;i+=kAutonomousLoopDelayMs){
+    apply_mechanism_mode(hardware,state);
+    vex::this_thread::sleep_for(kAutonomousLoopDelayMs);
+  }
+}
+
 }  // namespace
 
 void go_to_pose(
@@ -675,7 +682,8 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
 
   update_intake_mode(hardware,state);
   drive_to_laser_distance_mm(hardware, state, competition, 135.0, 30.0);
-  vex::this_thread::sleep_for(5000);
+  update_mechanism_mode(hardware,state,5000);
+  //vex::this_thread::sleep_for(5000);
   update_intake_mode(hardware,state);
 
   drive_distance_mm(hardware, state, competition, -320.0);
