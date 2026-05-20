@@ -56,6 +56,15 @@ constexpr int kGoToPoseBaseTimeoutMs = 1500;
 constexpr int kGoToPoseTimeoutPerMm = 10;
 constexpr int kGoToPoseTimeoutPerDegreeMs = 40;
 
+constexpr double kMediumMoveDistanceThresholdMm = 300.0;
+constexpr double kLongMoveDistanceThresholdMm = 500.0;
+constexpr double kMediumMoveMaxSpeedPct = 35.0;
+constexpr double kLongMoveMaxSpeedPct = 45.0;
+constexpr double kMediumMoveAccelerationWindowScale = 1.3;
+constexpr double kLongMoveAccelerationWindowScale = 1.6;
+constexpr double kMediumMoveDecelerationWindowScale = 1.25;
+constexpr double kLongMoveDecelerationWindowScale = 1.5;
+
 using DriveMotorArray = std::array<vex::motor*, 8>;
 using SideMotorArray = std::array<vex::motor*, 4>;
 
@@ -113,7 +122,42 @@ double clamp_correction(double correction_pct, double max_abs_correction_pct) {
 
 double smoothstep01(double value) {
   const double clamped = clamp_unit_interval(value);
-  return clamped * clamped * (3.0 - 2.0 * clamped);
+  // Smootherstep gives a softer ramp-in and ramp-out than cubic smoothstep.
+  return clamped * clamped * clamped *
+         (clamped * (clamped * 6.0 - 15.0) + 10.0);
+}
+
+double planned_segment_max_speed_pct(double distance_mm, double default_max_speed_pct) {
+  const double abs_distance_mm = std::fabs(distance_mm);
+  if (abs_distance_mm >= kLongMoveDistanceThresholdMm) {
+    return std::max(default_max_speed_pct, kLongMoveMaxSpeedPct);
+  }
+  if (abs_distance_mm >= kMediumMoveDistanceThresholdMm) {
+    return std::max(default_max_speed_pct, kMediumMoveMaxSpeedPct);
+  }
+  return default_max_speed_pct;
+}
+
+double planned_segment_acceleration_window_mm(double distance_mm, double default_window_mm) {
+  const double abs_distance_mm = std::fabs(distance_mm);
+  if (abs_distance_mm >= kLongMoveDistanceThresholdMm) {
+    return default_window_mm * kLongMoveAccelerationWindowScale;
+  }
+  if (abs_distance_mm >= kMediumMoveDistanceThresholdMm) {
+    return default_window_mm * kMediumMoveAccelerationWindowScale;
+  }
+  return default_window_mm;
+}
+
+double planned_segment_deceleration_window_mm(double distance_mm, double default_window_mm) {
+  const double abs_distance_mm = std::fabs(distance_mm);
+  if (abs_distance_mm >= kLongMoveDistanceThresholdMm) {
+    return default_window_mm * kLongMoveDecelerationWindowScale;
+  }
+  if (abs_distance_mm >= kMediumMoveDistanceThresholdMm) {
+    return default_window_mm * kMediumMoveDecelerationWindowScale;
+  }
+  return default_window_mm;
 }
 
 double planned_linear_speed_pct(
@@ -465,6 +509,12 @@ void go_to_pose(
   const double segment_dx_mm = target_x_mm - start_x_mm;
   const double segment_dy_mm = target_y_mm - start_y_mm;
   const double segment_length_mm = std::hypot(segment_dx_mm, segment_dy_mm);
+  const double go_to_pose_max_speed_pct =
+      planned_segment_max_speed_pct(segment_length_mm, kGoToPoseMaxSpeedPct);
+  const double go_to_pose_acceleration_window_mm =
+      planned_segment_acceleration_window_mm(segment_length_mm, kGoToPoseAccelerationWindowMm);
+  const double go_to_pose_deceleration_window_mm =
+      planned_segment_deceleration_window_mm(segment_length_mm, kGoToPoseDecelerationWindowMm);
   const double base_path_heading_deg = segment_length_mm > 1e-6
                                            ? heading_from_vector_deg(segment_dx_mm, segment_dy_mm)
                                            : state.autonomous.estimated_heading_deg;
@@ -545,9 +595,9 @@ void go_to_pose(
           along_track_mm,
           remaining_for_speed_mm,
           kGoToPoseMinSpeedPct,
-          kGoToPoseMaxSpeedPct,
-          kGoToPoseAccelerationWindowMm,
-          kGoToPoseDecelerationWindowMm);
+          go_to_pose_max_speed_pct,
+          go_to_pose_acceleration_window_mm,
+          go_to_pose_deceleration_window_mm);
       linear_speed_pct = heading_scale > 0.1
                              ? motion_sign * planned_speed_pct * (0.1 + 0.9 * heading_scale)
                              : 0.0;
@@ -565,9 +615,9 @@ void go_to_pose(
           0.0,
           distance_to_target_mm,
           kGoToPoseMinSpeedPct,
-          kGoToPoseMaxSpeedPct,
-          kGoToPoseAccelerationWindowMm,
-          kGoToPoseDecelerationWindowMm);
+          go_to_pose_max_speed_pct,
+          go_to_pose_acceleration_window_mm,
+          go_to_pose_deceleration_window_mm);
       linear_speed_pct = heading_scale > 0.1
                              ? motion_sign * planned_speed_pct * (0.1 + 0.9 * heading_scale)
                              : 0.0;
@@ -622,6 +672,15 @@ void drive_to_laser_distance_mm(
   update_autonomous_pose_estimate(hardware, state, drive_sample);
   const int motion_start_ms = hardware.brain.timer(vex::msec);
   const double initial_distance_error_mm = std::fabs(measured_distance_mm - target_distance_mm);
+  const double laser_motion_max_speed_pct = planned_segment_max_speed_pct(
+      initial_distance_error_mm,
+      laser_max_speed_pct);
+  const double laser_acceleration_window_mm = planned_segment_acceleration_window_mm(
+      initial_distance_error_mm,
+      kLaserDistanceAccelerationWindowMm);
+  const double laser_deceleration_window_mm = planned_segment_deceleration_window_mm(
+      initial_distance_error_mm,
+      kLaserDistanceDecelerationWindowMm);
   const double timeout_ms = laser_distance_timeout_ms(measured_distance_mm - target_distance_mm);
 
   while (should_run_autonomous(competition)) {
@@ -648,9 +707,9 @@ void drive_to_laser_distance_mm(
         traveled_toward_target_mm,
         std::fabs(distance_error_mm),
         kLaserDistanceMinSpeedPct,
-        laser_max_speed_pct,
-        kLaserDistanceAccelerationWindowMm,
-        kLaserDistanceDecelerationWindowMm);
+        laser_motion_max_speed_pct,
+        laser_acceleration_window_mm,
+        laser_deceleration_window_mm);
     const double heading_error_degrees = normalize_angle_deg(
         state.autonomous.target_heading_deg - current_heading_degrees);
     const double heading_correction_pct =
