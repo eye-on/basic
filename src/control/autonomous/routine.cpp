@@ -796,6 +796,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   enable_preload_mode(hardware,state);
   drive_distance_mm(hardware, state, competition, kSecondThrowPreloadDistanceMm);
   wait_for_motor_motion(hardware.under_overhang_motor);
+  enable_preload_mode(hardware,state);
   wait_for_motor_motion(hardware.middle_overhang_motor);
   enable_middlethrow_mode(hardware,state);
   drive_distance_mm(hardware, state, competition, kSecondThrowRollingDistanceMm);
