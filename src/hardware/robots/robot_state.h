@@ -117,6 +117,8 @@ struct RobotState {
   MechanismState mechanism;
   OverhangState overhang;
   AutonomousState autonomous;
+  int blue_balls = 0;
+  int red_balls = 0;
 };
 
 }  // namespace basic::hardware::robots
