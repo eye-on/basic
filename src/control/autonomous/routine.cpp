@@ -472,6 +472,19 @@ void update_middle_overhang_mode(
   }
 }
 
+void partially_collapse_middle_overhang(
+    RobotHardware& hardware,
+    RobotState& state,
+    bool wait_for_completion) {
+  OverhangMode& overhang_mode = state.overhang.middle_overhang_mode;
+  if (overhang_mode == OverhangMode::Expansion) {
+    run_overhang_motion(hardware.middle_overhang_motor, -165.0, 50.0, wait_for_completion);
+  } else if (overhang_mode == OverhangMode::Collapse) {
+    run_overhang_motion(hardware.middle_overhang_motor, 165.0, 50.0, wait_for_completion);
+  }
+  overhang_mode = OverhangMode::Partial;
+}
+
 void update_under_overhang_mode(
     RobotHardware& hardware,
     RobotState& state,
@@ -776,12 +789,14 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   drive_distance_mm(hardware, state, competition, 577.5);
   turn_deg(hardware, state, competition, -45.0);
   update_under_overhang_mode(hardware,state,false);
+  partially_collapse_middle_overhang(hardware,state,false);
   // The second score still uses the under overhang for final placement, but
   // it throws through the middle path. Keep preload on the approach and only
   // switch to middle throw on the last short roll-in to avoid launching early.
   enable_preload_mode(hardware,state);
   drive_distance_mm(hardware, state, competition, kSecondThrowPreloadDistanceMm);
   wait_for_motor_motion(hardware.under_overhang_motor);
+  wait_for_motor_motion(hardware.middle_overhang_motor);
   enable_middlethrow_mode(hardware,state);
   drive_distance_mm(hardware, state, competition, kSecondThrowRollingDistanceMm);
 

@@ -22,6 +22,11 @@ void update_middle_overhang_mode(
     RobotState& state,
     bool wait_for_completion = true);
 
+void partially_collapse_middle_overhang(
+    RobotHardware& hardware,
+    RobotState& state,
+    bool wait_for_completion = true);
+
 void update_under_overhang_mode(
     RobotHardware& hardware,
     RobotState& state,

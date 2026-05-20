@@ -17,6 +17,7 @@ enum class IndexedMechanismMode {
 
 enum class OverhangMode{
   Collapse,
+  Partial,
   Expansion,
 };
 
