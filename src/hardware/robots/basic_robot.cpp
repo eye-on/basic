@@ -46,11 +46,11 @@ class BasicRobot final : public basic::app::Robot {
   }
 
   void run_background_tasks(){
+    hardware_.color_sensor.integrationTime(10);
     hardware_.color_sensor.setLight(vex::ledState::on);
     hardware_.color_sensor.setLightPower(50,vex::percent);
     while(true){
-      
-      robots::sensor_update(hardware_,state_,vex::color::red,2,15);
+      robots::sensor_update(hardware_,state_,vex::color::red,1,7);
       hardware_.controller.Screen.setCursor(1,1);
       hardware_.controller.Screen.print("%.2f",hardware_.color_sensor.hue());
       vex::this_thread::sleep_for(10);

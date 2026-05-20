@@ -27,7 +27,7 @@ constexpr double kDriveHeadingDeadbandDegrees = 1.0;
 
 constexpr double kLaserDistanceToleranceMm = 10.0;
 constexpr double kLaserDistanceMinSpeedPct = 6.0;
-constexpr double kLaserDistanceMaxSpeedPct = 20.0; //18
+constexpr double kLaserDistanceMaxSpeedPct = 30.0; //18
 constexpr double kLaserDistanceAccelerationWindowMm = 120.0;
 constexpr double kLaserDistanceDecelerationWindowMm = 180.0;
 constexpr int kLaserDistanceBaseTimeoutMs = 1200;
@@ -43,7 +43,7 @@ constexpr double kTurnApproachWindowDegrees = 12.0;
 constexpr double kGoToPosePositionToleranceMm = 30.0;
 constexpr double kGoToPoseHeadingToleranceDegrees = 3.0;
 constexpr double kGoToPoseMinSpeedPct = 8.0;
-constexpr double kGoToPoseMaxSpeedPct = 30.0; //24
+constexpr double kGoToPoseMaxSpeedPct = 40.0; //24
 constexpr double kGoToPoseAccelerationWindowMm = 180.0;
 constexpr double kGoToPoseDecelerationWindowMm = 320.0;
 constexpr double kGoToPoseLookaheadMinMm = 80.0;
@@ -388,38 +388,50 @@ void wait_for_motor_motion(vex::motor& motor) {
   motor.stop(vex::hold);
 }
 
+void update_mechanism_mode(RobotHardware& hardware, RobotState& state, int time_ms){
+  int current_time_ms=0;
+  while(true){
+    if(current_time_ms>time_ms) break;
+    apply_indexed_mode(hardware,state);
+    vex::this_thread::sleep_for(kAutonomousLoopDelayMs);
+    current_time_ms+=kAutonomousLoopDelayMs;
+  }
+}
+
+}  // namespace
+
 void update_upper_overhang_mode(
     RobotHardware& hardware,
     RobotState& state,
-    bool wait_for_completion = true) {
+    bool wait_for_completion) {
   OverhangMode& overhang_mode = state.overhang.upper_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    run_overhang_motion(hardware.upper_overhang_motor, 1100.0, 70.0, wait_for_completion);
+    run_overhang_motion(hardware.upper_overhang_motor, 1150.0, 70.0, wait_for_completion);
   } else {
     overhang_mode = OverhangMode::Expansion;
-    run_overhang_motion(hardware.upper_overhang_motor, -1100.0, 70.0, wait_for_completion);
+    run_overhang_motion(hardware.upper_overhang_motor, -1150.0, 70.0, wait_for_completion);
   }
 }
 
 void update_middle_overhang_mode(
     RobotHardware& hardware,
     RobotState& state,
-    bool wait_for_completion = true) {
+    bool wait_for_completion) {
   OverhangMode& overhang_mode = state.overhang.middle_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    run_overhang_motion(hardware.middle_overhang_motor, -300.0, 50.0, wait_for_completion);
+    run_overhang_motion(hardware.middle_overhang_motor, -330.0, 50.0, wait_for_completion);
   } else {
     overhang_mode = OverhangMode::Expansion;
-    run_overhang_motion(hardware.middle_overhang_motor, 300.0, 50.0, wait_for_completion);
+    run_overhang_motion(hardware.middle_overhang_motor, 330.0, 50.0, wait_for_completion);
   }
 }
 
 void update_under_overhang_mode(
     RobotHardware& hardware,
     RobotState& state,
-    bool wait_for_completion = true) {
+    bool wait_for_completion) {
   OverhangMode& overhang_mode = state.overhang.under_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
@@ -429,15 +441,6 @@ void update_under_overhang_mode(
     run_overhang_motion(hardware.under_overhang_motor, 250.0, 50.0, wait_for_completion);
   }
 }
-
-void update_mechanism_mode(RobotHardware& hardware, RobotState& state, int time_ms){
-  for(int i=0;i<=time_ms;i+=kAutonomousLoopDelayMs){
-    apply_mechanism_mode(hardware,state);
-    vex::this_thread::sleep_for(kAutonomousLoopDelayMs);
-  }
-}
-
-}  // namespace
 
 void go_to_pose(
     RobotHardware& hardware,
@@ -675,16 +678,16 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   update_middle_overhang_mode(hardware,state,false);
   update_upper_overhang_mode(hardware,state,false);
   
-  drive_to_laser_distance_mm(hardware,state,competition,525.0);
+  drive_to_laser_distance_mm(hardware,state,competition,535.0);
   //drive_distance_mm(hardware, state, competition, kFirstDriveDistanceMm);
   turn_deg(hardware, state, competition, -90.0);
   update_under_overhang_mode(hardware,state,true);
 
-  update_intake_mode(hardware,state);
+  enable_intake_mode(hardware,state);
   drive_to_laser_distance_mm(hardware, state, competition, 135.0, 30.0);
-  update_mechanism_mode(hardware,state,5000);
+  update_mechanism_mode(hardware,state,4000);
   //vex::this_thread::sleep_for(5000);
-  update_intake_mode(hardware,state);
+  disable_indexed_mode(hardware,state);
 
   drive_distance_mm(hardware, state, competition, -320.0);
   update_under_overhang_mode(hardware,state,false);
@@ -692,12 +695,12 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   //drive_distance_mm(hardware, state, competition, -377.0);
   drive_to_laser_distance_mm(hardware, state, competition, 510.0);
   turn_deg(hardware, state, competition, 90.0);
-  drive_distance_mm(hardware, state, competition, 502.0);
-  
+  enable_preload_mode(hardware,state);
+  drive_distance_mm(hardware, state, competition, 542.0);
 
-  update_upperthrow_mode(hardware,state);
+  enable_upperthrow_mode(hardware,state);
   vex::this_thread::sleep_for(5000);
-  update_upperthrow_mode(hardware,state);
+  disable_indexed_mode(hardware,state);
 
   // drive_distance_mm(hardware, state, competition, -397.5);
   drive_distance_mm(hardware, state, competition, -200.0);
@@ -709,12 +712,12 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   drive_distance_mm(hardware, state, competition, -577.5);
   turn_deg(hardware, state, competition, 45.0);
   update_under_overhang_mode(hardware,state,false);
-  drive_distance_mm(hardware, state, competition, 900.0);
+  drive_distance_mm(hardware, state, competition, 930.0);
   wait_for_motor_motion(hardware.under_overhang_motor);
 
-  update_middlethrow_mode(hardware,state);
+  enable_middlethrow_mode(hardware,state);
   vex::this_thread::sleep_for(5000);
-  update_middlethrow_mode(hardware,state);
+  disable_indexed_mode(hardware,state);
 
   stop_drive(hardware, vex::hold);
 }

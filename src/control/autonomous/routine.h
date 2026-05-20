@@ -12,6 +12,21 @@ enum class TravelDirection {
   kReverse,
 };
 
+void update_upper_overhang_mode(
+    RobotHardware& hardware,
+    RobotState& state,
+    bool wait_for_completion = true);
+
+void update_middle_overhang_mode(
+    RobotHardware& hardware,
+    RobotState& state,
+    bool wait_for_completion = true);
+
+void update_under_overhang_mode(
+    RobotHardware& hardware,
+    RobotState& state,
+    bool wait_for_completion = true);
+
 void go_to_pose(
     RobotHardware& hardware,
     RobotState& state,

@@ -6,7 +6,17 @@
 namespace basic::hardware::robots {
 
 namespace {
-  
+  const int red_hue = 12;
+  const int blue_hue = 213;
+
+  bool hue_within_range(RobotHardware& hardware,int target_hue, int tolerance){
+    if(target_hue <= hardware.color_sensor.hue()+tolerance && 
+      target_hue >= hardware.color_sensor.hue()-tolerance){
+      return true;
+    }else{
+      return false;
+    }
+  }
 }
 
 void sensor_update(RobotHardware& hardware, RobotState& state,
@@ -25,6 +35,7 @@ void sensor_update(RobotHardware& hardware, RobotState& state,
   ++current_frame;
   static int start_wait_frame = -1;
   static int start_sort_frame = -1;
+  static int target_hue = -1;
   if (indexed_mode != IndexedMechanismMode::kLegacyIntake &&
     indexed_mode != IndexedMechanismMode::kSortIntake) {
     start_wait_frame = -1;
@@ -32,8 +43,15 @@ void sensor_update(RobotHardware& hardware, RobotState& state,
     return;
   }
 
+  if(target == vex::color::red){
+    target_hue = red_hue;
+  }
+  if(target == vex::color::blue){
+    target_hue = blue_hue;
+  }
+
   if (indexed_mode == IndexedMechanismMode::kLegacyIntake) {
-    if (hardware.color_sensor.color() == target) {
+    if (hue_within_range(hardware,target_hue,5)) {
       if (start_wait_frame == -1) {
         start_wait_frame = current_frame;
       }
