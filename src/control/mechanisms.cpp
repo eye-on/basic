@@ -144,7 +144,7 @@ void mechanism_update(RobotHardware& hardware, RobotState& state) {
   if (input.press_r1) {
     toggle_indexed_mode(mechanism, IndexedMechanismMode::kUpperThrow);
   }
-  if(input.r2){
+  if (input.press_r2){
     toggle_indexed_mode(mechanism, IndexedMechanismMode::kPreLoad);
   }
 

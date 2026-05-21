@@ -35,56 +35,56 @@ void sensor_update(RobotHardware& hardware, RobotState& state,
   static bool prev_target_detected = false;
   static int sort_required_frames = 0;
 
-    if (indexed_mode != IndexedMechanismMode::kLegacyIntake &&
-        indexed_mode != IndexedMechanismMode::kSortIntake) {
-        start_sort_frame = -1;
+  if (indexed_mode != IndexedMechanismMode::kLegacyIntake &&
+      indexed_mode != IndexedMechanismMode::kSortIntake) {
+    start_sort_frame = -1;
+    start_wait_frame = -1;
+    prev_target_detected = false;
+    return;
+  }
+  int target_hue = -1;
+  if (target == vex::color::red) {
+    target_hue = red_hue;
+  } else if (target == vex::color::blue) {
+    target_hue = blue_hue;
+  } else {
+    return;
+  }
+
+  const int tolerance = 5;
+  bool target_detected = hue_within_range(hardware, target_hue, tolerance);
+
+  if (indexed_mode == IndexedMechanismMode::kLegacyIntake) {
+    if (target_detected) {
+      if (start_wait_frame == -1) {
+        start_wait_frame = current_frame;  
+      }
+      if (current_frame - start_wait_frame >= wait_frames) {
+        indexed_mode = IndexedMechanismMode::kSortIntake;
+        start_sort_frame = current_frame;   
         start_wait_frame = -1;
-        prev_target_detected = false;
-        return;
-    }
-    int target_hue = -1;
-    if (target == vex::color::red) {
-        target_hue = red_hue;
-    } else if (target == vex::color::blue) {
-        target_hue = blue_hue;
+        sort_required_frames = continuous_frame;              
+      }
     } else {
-        return;
+      start_wait_frame = -1;
     }
-
-    const int tolerance = 5;
-    bool target_detected = hue_within_range(hardware, target_hue, tolerance);
-
-    if (indexed_mode == IndexedMechanismMode::kLegacyIntake) {
-        if (target_detected) {
-            if (start_wait_frame == -1) {
-              start_wait_frame = current_frame;  
-            }
-            if (current_frame - start_wait_frame >= wait_frames) {
-              indexed_mode = IndexedMechanismMode::kSortIntake;
-              start_sort_frame = current_frame;   
-              start_wait_frame = -1;
-              sort_required_frames = continuous_frame;              
-            }
-        } else {
-          start_wait_frame = -1;
-        }
+  }
+  else if (indexed_mode == IndexedMechanismMode::kSortIntake) {
+    if (target_detected && !prev_target_detected) {
+      start_sort_frame = current_frame;
+      sort_required_frames = continuous_frame; 
     }
-    else if (indexed_mode == IndexedMechanismMode::kSortIntake) {
-        if (target_detected && !prev_target_detected) {
-            start_sort_frame = current_frame;
-            sort_required_frames = continuous_frame; 
-        }
-        if (!target_detected && sort_required_frames > continuous_frame / 2) {
-            sort_required_frames = continuous_frame / 2;
-        }
-        if (current_frame - start_sort_frame >= sort_required_frames) {
-            indexed_mode = IndexedMechanismMode::kLegacyIntake;
-            start_sort_frame = -1;
-            start_wait_frame = -1;
-            sort_required_frames = 0; 
-            prev_target_detected = target_detected;
-            return;
-        }
+    if (!target_detected && sort_required_frames > continuous_frame / 2) {
+      sort_required_frames = continuous_frame / 2;
+    }
+    if (current_frame - start_sort_frame >= sort_required_frames) {
+      indexed_mode = IndexedMechanismMode::kLegacyIntake;
+      start_sort_frame = -1;
+      start_wait_frame = -1;
+      sort_required_frames = 0; 
+      prev_target_detected = target_detected;
+      return;
+    }
   }
   prev_target_detected = target_detected;
 }
