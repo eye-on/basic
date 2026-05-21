@@ -1042,7 +1042,6 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   turn_deg(hardware, state, competition, -90.0);
   drive_to_laser_distance_mm(hardware, state, competition, 820.0);
   turn_deg(hardware, state, competition, 90.0);
-  update_under_overhang_mode(hardware,state,false);
   drive_distance_mm(hardware, state, competition, 630.0);
   partially_collapse_middle_overhang(hardware, state, true);
   update_under_overhang_mode(hardware,state,false);
