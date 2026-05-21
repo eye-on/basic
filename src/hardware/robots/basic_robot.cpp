@@ -50,7 +50,7 @@ class BasicRobot final : public basic::app::Robot {
     hardware_.color_sensor.setLight(vex::ledState::on);
     hardware_.color_sensor.setLightPower(50,vex::percent);
     while(true){
-      robots::sensor_update(hardware_,state_,vex::color::red,2,10);
+      robots::sensor_update(hardware_,state_,vex::color::red,0,10);
       robots::count_balls_number(hardware_,state_);
       hardware_.controller.Screen.setCursor(1,1);
       hardware_.controller.Screen.print("blue:%d red:%d", state_.blue_balls, state_.red_balls);
