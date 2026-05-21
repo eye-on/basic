@@ -974,14 +974,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
 
   // drive_distance_mm(hardware, state, competition, -397.5);
   drive_distance_mm(hardware, state, competition, -120.0);
-  go_to_relative_pose(
-      hardware,
-      state,
-      competition,
-      -80.0,
-      400.0,
-      -90.0,
-      TravelDirection::kReverse);
+  turn_deg(hardware, state, competition, -90.0);
   drive_to_laser_distance_mm(hardware, state, competition, 820.0);
   turn_deg(hardware, state, competition, 90.0);
   update_under_overhang_mode(hardware,state,false);
