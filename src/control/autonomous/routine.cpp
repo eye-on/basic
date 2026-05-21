@@ -55,6 +55,8 @@ constexpr double kGoToPoseTurnMaxPct = 24.0;
 constexpr int kGoToPoseBaseTimeoutMs = 1500;
 constexpr int kGoToPoseTimeoutPerMm = 10;
 constexpr int kGoToPoseTimeoutPerDegreeMs = 40;
+constexpr double kArcHeadingSlowWindowDegrees = 100.0;
+constexpr double kArcTangentBlend = 0.65;
 
 constexpr double kMediumMoveDistanceThresholdMm = 300.0;
 constexpr double kLongMoveDistanceThresholdMm = 500.0;
@@ -535,6 +537,155 @@ void go_to_relative_pose(
       travel_direction);
 }
 
+void follow_relative_arc(
+    RobotHardware& hardware,
+    RobotState& state,
+    vex::competition& competition,
+    double radius_mm,
+    double sweep_deg,
+    TravelDirection travel_direction) {
+  if (!should_run_autonomous(competition) || radius_mm <= 0.0 || sweep_deg == 0.0) {
+    return;
+  }
+
+  const TravelDirection resolved_direction =
+      travel_direction == TravelDirection::kReverse ? TravelDirection::kReverse : TravelDirection::kForward;
+  const double motion_sign = resolved_direction == TravelDirection::kReverse ? -1.0 : 1.0;
+  const double signed_radius = sweep_deg >= 0.0 ? radius_mm : -radius_mm;
+
+  ensure_autonomous_frame(hardware, state);
+  refresh_autonomous_pose_estimate(hardware, state);
+
+  const double start_heading_deg = state.autonomous.estimated_heading_deg;
+  const double start_x_mm = state.autonomous.estimated_x_mm;
+  const double start_y_mm = state.autonomous.estimated_y_mm;
+  state.autonomous.target_heading_deg = normalize_angle_deg(start_heading_deg + sweep_deg);
+
+  auto local_to_global = [&](double forward_mm, double right_mm, double& x_mm, double& y_mm) {
+    x_mm = start_x_mm + forward_mm * heading_x_component(start_heading_deg) +
+           right_mm * heading_x_component(start_heading_deg + 90.0);
+    y_mm = start_y_mm + forward_mm * heading_y_component(start_heading_deg) +
+           right_mm * heading_y_component(start_heading_deg + 90.0);
+  };
+
+  auto point_on_arc = [&](double sweep_progress_deg, double& x_mm, double& y_mm, double& body_heading_deg) {
+    const double sweep_progress_rad = deg_to_rad(sweep_progress_deg);
+    const double right_mm = motion_sign * signed_radius * (1.0 - std::cos(sweep_progress_rad));
+    const double forward_mm = motion_sign * signed_radius * std::sin(sweep_progress_rad);
+    local_to_global(forward_mm, right_mm, x_mm, y_mm);
+    body_heading_deg = normalize_angle_deg(start_heading_deg + sweep_progress_deg);
+  };
+
+  double target_x_mm = 0.0;
+  double target_y_mm = 0.0;
+  double target_heading_deg = 0.0;
+  point_on_arc(sweep_deg, target_x_mm, target_y_mm, target_heading_deg);
+
+  const double total_arc_length_mm = radius_mm * std::fabs(deg_to_rad(sweep_deg));
+  const double arc_max_speed_pct = planned_segment_max_speed_pct(total_arc_length_mm, kGoToPoseMaxSpeedPct);
+  const double arc_acceleration_window_mm =
+      planned_segment_acceleration_window_mm(total_arc_length_mm, kGoToPoseAccelerationWindowMm);
+  const double arc_deceleration_window_mm =
+      planned_segment_deceleration_window_mm(total_arc_length_mm, kGoToPoseDecelerationWindowMm);
+  const int start_time_ms = hardware.brain.timer(vex::msec);
+  const double timeout_ms = go_to_pose_timeout_ms(total_arc_length_mm, sweep_deg);
+
+  DriveSideRevolutions drive_sample = sample_drive_side_revolutions(hardware);
+  update_autonomous_pose_estimate(hardware, state, drive_sample);
+
+  while (should_run_autonomous(competition)) {
+    const int elapsed_ms = hardware.brain.timer(vex::msec) - start_time_ms;
+    if (elapsed_ms >= timeout_ms) {
+      break;
+    }
+
+    const double current_heading_deg = update_autonomous_pose_estimate(hardware, state, drive_sample);
+    const double current_x_mm = state.autonomous.estimated_x_mm;
+    const double current_y_mm = state.autonomous.estimated_y_mm;
+    const double distance_to_target_mm =
+        std::hypot(target_x_mm - current_x_mm, target_y_mm - current_y_mm);
+    const double final_heading_error_deg =
+        normalize_angle_deg(target_heading_deg - current_heading_deg);
+
+    if (distance_to_target_mm <= kGoToPosePositionToleranceMm &&
+        std::fabs(final_heading_error_deg) <= kGoToPoseHeadingToleranceDegrees) {
+      break;
+    }
+
+    double sweep_progress_deg = normalize_angle_deg(current_heading_deg - start_heading_deg);
+    if (sweep_deg > 0.0) {
+      sweep_progress_deg = clamp_value(sweep_progress_deg, 0.0, sweep_deg);
+    } else {
+      sweep_progress_deg = clamp_value(sweep_progress_deg, sweep_deg, 0.0);
+    }
+
+    const double along_arc_mm = radius_mm * std::fabs(deg_to_rad(sweep_progress_deg));
+    const double remaining_arc_mm = std::max(0.0, total_arc_length_mm - along_arc_mm);
+    const double lookahead_mm = clamp_value(
+        remaining_arc_mm * 0.6,
+        kGoToPoseLookaheadMinMm,
+        kGoToPoseLookaheadMaxMm);
+    const double lookahead_delta_deg = rad_to_deg(lookahead_mm / radius_mm);
+    const double carrot_sweep_deg = sweep_deg > 0.0
+                                        ? std::min(sweep_deg, sweep_progress_deg + lookahead_delta_deg)
+                                        : std::max(sweep_deg, sweep_progress_deg - lookahead_delta_deg);
+
+    double carrot_x_mm = 0.0;
+    double carrot_y_mm = 0.0;
+    double tangent_heading_deg = 0.0;
+    point_on_arc(carrot_sweep_deg, carrot_x_mm, carrot_y_mm, tangent_heading_deg);
+
+    const double carrot_delta_x_mm = carrot_x_mm - current_x_mm;
+    const double carrot_delta_y_mm = carrot_y_mm - current_y_mm;
+    double desired_body_heading_deg = tangent_heading_deg;
+    if (std::hypot(carrot_delta_x_mm, carrot_delta_y_mm) > 1e-6) {
+      double pursuit_body_heading_deg = heading_from_vector_deg(carrot_delta_x_mm, carrot_delta_y_mm);
+      if (motion_sign < 0.0) {
+        pursuit_body_heading_deg = normalize_angle_deg(pursuit_body_heading_deg + 180.0);
+      }
+      desired_body_heading_deg =
+          blend_angle_deg(pursuit_body_heading_deg, tangent_heading_deg, kArcTangentBlend);
+    }
+
+    const double heading_error_deg =
+        normalize_angle_deg(desired_body_heading_deg - current_heading_deg);
+    const double heading_scale = clamp_unit_interval(
+        (kArcHeadingSlowWindowDegrees - std::fabs(heading_error_deg)) /
+        kArcHeadingSlowWindowDegrees);
+    const double planned_speed_pct = planned_linear_speed_pct(
+        along_arc_mm,
+        std::max(remaining_arc_mm, distance_to_target_mm),
+        kGoToPoseMinSpeedPct,
+        arc_max_speed_pct,
+        arc_acceleration_window_mm,
+        arc_deceleration_window_mm);
+
+    double linear_speed_pct =
+        motion_sign * planned_speed_pct * (0.25 + 0.75 * heading_scale);
+    double turn_command_pct = clamp_correction(
+        heading_error_deg * kGoToPoseTurnProportionalGain,
+        kGoToPoseTurnMaxPct);
+    if (distance_to_target_mm <= kGoToPosePositionToleranceMm) {
+      const double rotate_speed_pct = turn_speed_pct(final_heading_error_deg);
+      turn_command_pct = final_heading_error_deg >= 0.0 ? rotate_speed_pct : -rotate_speed_pct;
+      linear_speed_pct = 0.0;
+      if (std::fabs(final_heading_error_deg) <= kTurnToleranceDegrees) {
+        break;
+      }
+    }
+
+    set_drive_power(
+        hardware,
+        linear_speed_pct + 0.5 * turn_command_pct,
+        linear_speed_pct - 0.5 * turn_command_pct);
+    vex::this_thread::sleep_for(kAutonomousLoopDelayMs);
+  }
+
+  stop_drive(hardware, vex::hold);
+  update_autonomous_pose_estimate(hardware, state, drive_sample);
+  settle_after_motion();
+}
+
 void go_to_pose(
     RobotHardware& hardware,
     RobotState& state,
@@ -798,12 +949,11 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
 
   update_under_overhang_mode(hardware,state,false);
   drive_distance_mm(hardware, state, competition, -80.0);
-  go_to_relative_pose(
+  follow_relative_arc(
       hardware,
       state,
       competition,
-      -240.0,
-      180.0,
+      240.0,
       90.0,
       TravelDirection::kReverse);
   drive_to_laser_distance_mm(hardware, state, competition, 510.0);
