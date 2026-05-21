@@ -398,7 +398,9 @@ void turn_deg(
     vex::competition& competition,
     double target_degrees,
     double left_front_bias_pct,
-    double left_back_bias_pct) {
+    double left_back_bias_pct,
+    double min_turn_speed_pct_override = -1.0,
+    double max_turn_speed_pct_override = -1.0) {
   if (!should_run_autonomous(competition) || target_degrees == 0.0) {
     return;
   }
@@ -425,7 +427,14 @@ void turn_deg(
       break;
     }
 
-    const double rotate_speed_pct = turn_speed_pct(final_heading_error_deg);
+    const double rotate_speed_pct = min_turn_speed_pct_override > 0.0
+                                        ? clamp_value(
+                                              std::fabs(final_heading_error_deg) * kTurnProportionalGain,
+                                              min_turn_speed_pct_override,
+                                              max_turn_speed_pct_override > 0.0
+                                                  ? max_turn_speed_pct_override
+                                                  : kTurnMaxSpeedPct)
+                                        : turn_speed_pct(final_heading_error_deg);
     const double turn_command_pct = final_heading_error_deg >= 0.0 ? rotate_speed_pct : -rotate_speed_pct;
     const double left_pct = turn_command_pct;
     const double right_pct = -turn_command_pct;
@@ -1020,7 +1029,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   // drive_to_laser_distance_mm(hardware, state, competition, 510.0);
   // enable_preload_mode(hardware,state);
   // turn_deg(hardware, state, competition, 90.0);
-  turn_deg(hardware, state, competition, 180.0);
+  turn_deg(hardware, state, competition, 180.0, 0.0, 0.0, 6.0, 35.0);
   drive_distance_mm(hardware, state, competition, 542.0);
 
   enable_upperthrow_mode(hardware,state);
