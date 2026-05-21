@@ -6,8 +6,8 @@
 namespace basic::hardware::robots {
 
 namespace {
-  const int red_hue = 12;
-  const int blue_hue = 213;
+  const int red_hue = 7;
+  const int blue_hue = 217;
   const int nothing_hue = 50;
 
   bool hue_within_range(RobotHardware& hardware,int target_hue, int tolerance){
