@@ -796,14 +796,26 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   //vex::this_thread::sleep_for(5000);
   disable_indexed_mode(hardware,state);
 
-  drive_distance_mm(hardware, state, competition, -320.0);
   update_under_overhang_mode(hardware,state,false);
-  turn_deg(hardware, state, competition, 90.0);
-  //drive_distance_mm(hardware, state, competition, -377.0);
+  drive_distance_mm(hardware, state, competition, -80.0);
+  go_to_relative_pose(
+      hardware,
+      state,
+      competition,
+      -240.0,
+      180.0,
+      90.0,
+      TravelDirection::kReverse);
   drive_to_laser_distance_mm(hardware, state, competition, 510.0);
-  turn_deg(hardware, state, competition, 90.0);
   enable_preload_mode(hardware,state);
-  drive_distance_mm(hardware, state, competition, 542.0);
+  go_to_relative_pose(
+      hardware,
+      state,
+      competition,
+      0.0,
+      542.0,
+      90.0,
+      TravelDirection::kForward);
 
   enable_upperthrow_mode(hardware,state);
   vex::this_thread::sleep_for(3000);
