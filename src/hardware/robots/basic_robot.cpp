@@ -53,7 +53,9 @@ class BasicRobot final : public basic::app::Robot {
       robots::sensor_update(hardware_,state_,vex::color::red,0,10);
       robots::count_balls_number(hardware_,state_);
       hardware_.controller.Screen.setCursor(1,1);
-      hardware_.controller.Screen.print("blue:%d red:%d", state_.blue_balls, state_.red_balls);
+      hardware_.controller.Screen.print("%.2f", hardware_.color_sensor.hue());
+      /*hardware_.controller.Screen.setCursor(1,1);
+      hardware_.controller.Screen.print("blue:%d red:%d", state_.blue_balls, state_.red_balls);*/
       vex::this_thread::sleep_for(10);
     }
   }
