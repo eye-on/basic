@@ -41,6 +41,15 @@ void go_to_pose(
     double target_heading_deg,
     TravelDirection travel_direction = TravelDirection::kAuto);
 
+void go_to_relative_pose(
+    RobotHardware& hardware,
+    RobotState& state,
+    vex::competition& competition,
+    double forward_offset_mm,
+    double right_offset_mm,
+    double target_heading_delta_deg,
+    TravelDirection travel_direction = TravelDirection::kAuto);
+
 void drive_to_laser_distance_mm(
     RobotHardware& hardware,
     RobotState& state,

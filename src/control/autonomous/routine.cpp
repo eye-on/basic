@@ -37,7 +37,7 @@ constexpr double kTurnToleranceDegrees = 1.5;
 constexpr double kTurnProportionalGain = 0.6;
 constexpr double kTurnMinSpeedPct = 10.0;
 constexpr double kTurnApproachMinSpeedPct = 4.0;
-constexpr double kTurnMaxSpeedPct = 35.0;
+constexpr double kTurnMaxSpeedPct = 45.0;
 constexpr double kTurnApproachWindowDegrees = 12.0;
 
 constexpr double kGoToPosePositionToleranceMm = 30.0;
@@ -501,6 +501,40 @@ void update_under_overhang_mode(
   }
 }
 
+void go_to_relative_pose(
+    RobotHardware& hardware,
+    RobotState& state,
+    vex::competition& competition,
+    double forward_offset_mm,
+    double right_offset_mm,
+    double target_heading_delta_deg,
+    TravelDirection travel_direction) {
+  if (!should_run_autonomous(competition)) {
+    return;
+  }
+
+  ensure_autonomous_frame(hardware, state);
+  refresh_autonomous_pose_estimate(hardware, state);
+
+  const double start_heading_deg = state.autonomous.estimated_heading_deg;
+  const double target_x_mm =
+      state.autonomous.estimated_x_mm +
+      forward_offset_mm * heading_x_component(start_heading_deg) +
+      right_offset_mm * heading_x_component(start_heading_deg + 90.0);
+  const double target_y_mm =
+      state.autonomous.estimated_y_mm +
+      forward_offset_mm * heading_y_component(start_heading_deg) +
+      right_offset_mm * heading_y_component(start_heading_deg + 90.0);
+  go_to_pose(
+      hardware,
+      state,
+      competition,
+      target_x_mm,
+      target_y_mm,
+      normalize_angle_deg(start_heading_deg + target_heading_delta_deg),
+      travel_direction);
+}
+
 void go_to_pose(
     RobotHardware& hardware,
     RobotState& state,
@@ -772,13 +806,19 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   drive_distance_mm(hardware, state, competition, 542.0);
 
   enable_upperthrow_mode(hardware,state);
-  vex::this_thread::sleep_for(5000);
+  vex::this_thread::sleep_for(3000);
   disable_indexed_mode(hardware,state);
 
   // drive_distance_mm(hardware, state, competition, -397.5);
-  drive_distance_mm(hardware, state, competition, -200.0);
-  turn_deg(hardware, state, competition, -90.0);
-  drive_distance_mm(hardware, state, competition, -400.0);
+  drive_distance_mm(hardware, state, competition, -120.0);
+  go_to_relative_pose(
+      hardware,
+      state,
+      competition,
+      -80.0,
+      400.0,
+      -90.0,
+      TravelDirection::kReverse);
   drive_to_laser_distance_mm(hardware, state, competition, 820.0);
   turn_deg(hardware, state, competition, 90.0);
   update_under_overhang_mode(hardware,state,false);
@@ -787,12 +827,12 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   turn_deg(hardware, state, competition, 90.0);
   drive_distance_mm(hardware, state, competition, 577.5);
   enable_preload_mode(hardware,state);
-  turn_deg(hardware, state, competition, 45.0);
+  turn_deg(hardware, state, competition, -45.0);
   drive_distance_mm(hardware, state, competition, 113.0);
   wait_for_motor_motion(hardware.under_overhang_motor);
 
   enable_middlethrow_mode(hardware,state);
-  vex::this_thread::sleep_for(5000);
+  vex::this_thread::sleep_for(3000);
   disable_indexed_mode(hardware,state);
 
   stop_drive(hardware, vex::hold);
