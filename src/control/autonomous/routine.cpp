@@ -14,7 +14,7 @@ namespace {
 constexpr double kMillimetersPerWheelRevolution = 212.8;
 constexpr double kPi = 3.14159265358979323846;
 constexpr int kAutonomousLoopDelayMs = 10;
-constexpr int kAutonomousSettleDelayMs = 150;
+constexpr int kAutonomousSettleDelayMs = 75;
 
 constexpr double kRobotLengthMm = 365.0;
 constexpr double kRobotWidthMm = 380.0;
@@ -396,8 +396,67 @@ void turn_deg(
     RobotHardware& hardware,
     RobotState& state,
     vex::competition& competition,
+    double target_degrees,
+    double left_front_bias_pct,
+    double left_back_bias_pct) {
+  if (!should_run_autonomous(competition) || target_degrees == 0.0) {
+    return;
+  }
+
+  ensure_autonomous_frame(hardware, state);
+  refresh_autonomous_pose_estimate(hardware, state);
+  state.autonomous.target_heading_deg =
+      normalize_angle_deg(state.autonomous.target_heading_deg + target_degrees);
+
+  const int start_time_ms = hardware.brain.timer(vex::msec);
+  const double timeout_ms = go_to_pose_timeout_ms(0.0, target_degrees);
+
+  while (should_run_autonomous(competition)) {
+    const int elapsed_ms = hardware.brain.timer(vex::msec) - start_time_ms;
+    if (elapsed_ms >= timeout_ms) {
+      break;
+    }
+
+    const double current_heading_deg = local_inertial_heading_deg(hardware);
+    state.autonomous.estimated_heading_deg = current_heading_deg;
+    const double final_heading_error_deg =
+        normalize_angle_deg(state.autonomous.target_heading_deg - current_heading_deg);
+    if (std::fabs(final_heading_error_deg) <= kTurnToleranceDegrees) {
+      break;
+    }
+
+    const double rotate_speed_pct = turn_speed_pct(final_heading_error_deg);
+    const double turn_command_pct = final_heading_error_deg >= 0.0 ? rotate_speed_pct : -rotate_speed_pct;
+    const double left_pct = turn_command_pct;
+    const double right_pct = -turn_command_pct;
+
+    velocitycontrol(hardware.motor_fl1, left_pct + left_front_bias_pct, vex::pct);
+    velocitycontrol(hardware.motor_fl2, left_pct + left_front_bias_pct, vex::pct);
+    velocitycontrol(hardware.motor_bl1, left_pct + left_back_bias_pct, vex::pct);
+    velocitycontrol(hardware.motor_bl2, left_pct + left_back_bias_pct, vex::pct);
+    velocitycontrol(hardware.motor_fr1, right_pct, vex::pct);
+    velocitycontrol(hardware.motor_fr2, right_pct, vex::pct);
+    velocitycontrol(hardware.motor_br1, right_pct, vex::pct);
+    velocitycontrol(hardware.motor_br2, right_pct, vex::pct);
+    vex::this_thread::sleep_for(kAutonomousLoopDelayMs);
+  }
+
+  stop_drive(hardware, vex::hold);
+  refresh_autonomous_pose_estimate(hardware, state);
+  settle_after_motion();
+}
+
+void turn_deg(
+    RobotHardware& hardware,
+    RobotState& state,
+    vex::competition& competition,
     double target_degrees) {
   if (!should_run_autonomous(competition) || target_degrees == 0.0) {
+    return;
+  }
+
+  if (target_degrees > 90.0) {
+    turn_deg(hardware, state, competition, target_degrees, 5.0, -5.0);
     return;
   }
 
