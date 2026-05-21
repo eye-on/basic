@@ -552,10 +552,10 @@ void partially_collapse_middle_overhang(
   OverhangMode& overhang_mode = state.overhang.middle_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    run_overhang_motion(hardware.middle_overhang_motor, -165.0, 50.0, wait_for_completion);
+    run_overhang_motion(hardware.middle_overhang_motor, -100.0, 50.0, wait_for_completion);
   } else if (overhang_mode == OverhangMode::Collapse) {
     overhang_mode = OverhangMode::Expansion;
-    run_overhang_motion(hardware.middle_overhang_motor, 165.0, 50.0, wait_for_completion);
+    run_overhang_motion(hardware.middle_overhang_motor, 100.0, 50.0, wait_for_completion);
   }
   //overhang_mode = OverhangMode::Partial;
 }
@@ -1008,7 +1008,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   update_upper_overhang_mode(hardware,state,false);
   update_under_overhang_mode(hardware,state,false);
   
-  drive_to_laser_distance_mm(hardware,state,competition,535.0);
+  drive_to_laser_distance_mm(hardware,state,competition,515.0);
   turn_deg(hardware, state, competition, -90.0);
   
   enable_intake_mode(hardware,state);
@@ -1031,8 +1031,8 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   // enable_preload_mode(hardware,state);
   // turn_deg(hardware, state, competition, 90.0);
   turn_deg(hardware, state, competition, 180.0, 0.0, 0.0, 6.0, 35.0);
+  update_under_overhang_mode(hardware,state,false);
   drive_distance_mm(hardware, state, competition,302.0);
-
   enable_upperthrow_mode(hardware,state);
   vex::this_thread::sleep_for(3000);
   disable_indexed_mode(hardware,state);
@@ -1042,9 +1042,10 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   turn_deg(hardware, state, competition, -90.0);
   drive_to_laser_distance_mm(hardware, state, competition, 820.0);
   turn_deg(hardware, state, competition, 90.0);
-  update_under_overhang_mode(hardware,state,false);
+  
   drive_distance_mm(hardware, state, competition, 600.0);
   partially_collapse_middle_overhang(hardware, state, true);
+  update_under_overhang_mode(hardware,state,false);
   turn_deg(hardware, state, competition, 90.0);
   drive_distance_mm(hardware, state, competition, 577.5);
   enable_preload_mode(hardware,state);
