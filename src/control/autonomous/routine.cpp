@@ -40,7 +40,7 @@ constexpr double kTurnToleranceDegrees = 1.5;
 constexpr double kTurnProportionalGain = 0.6;
 constexpr double kTurnMinSpeedPct = 10.0;
 constexpr double kTurnApproachMinSpeedPct = 4.0;
-constexpr double kTurnMaxSpeedPct = 45.0;
+constexpr double kTurnMaxSpeedPct = 60.0;
 constexpr double kTurnApproachWindowDegrees = 12.0;
 
 constexpr double kGoToPosePositionToleranceMm = 30.0;
