@@ -11,7 +11,7 @@ namespace {
 constexpr std::size_t kIndexedMotorCount = 6;
 constexpr std::array<int, kIndexedMotorCount> kOffSpeeds{{0, 0, 0, 0, 0 ,0}};
 constexpr std::array<int, kIndexedMotorCount> kPreLoadSpeeds{{-100, -100, 0, 0, 0, 0}};
-constexpr std::array<int, kIndexedMotorCount> kLegacyIntakeSpeeds{{0, -80, 40, -100, 80 ,-70}};
+constexpr std::array<int, kIndexedMotorCount> kLegacyIntakeSpeeds{{0, -80, 40, -100, 60 ,-60}};
 constexpr std::array<int, kIndexedMotorCount> kUnderThrowSpeeds{{-100, -100, 0, 100, 0, 0}};
 constexpr std::array<int, kIndexedMotorCount> kMiddleThrowSpeeds{{-100, -100, 100, -100, -100, 0}};
 constexpr std::array<int, kIndexedMotorCount> kUpperThrowSpeeds{{-100, -100, 100, -100, 100, 100}};
