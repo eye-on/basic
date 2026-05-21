@@ -1032,7 +1032,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   // turn_deg(hardware, state, competition, 90.0);
   turn_deg(hardware, state, competition, 180.0, 0.0, 0.0, 6.0, 35.0);
   update_under_overhang_mode(hardware,state,false);
-  drive_distance_mm(hardware, state, competition,302.0);
+  drive_distance_mm(hardware, state, competition,352.0);
   enable_upperthrow_mode(hardware,state);
   vex::this_thread::sleep_for(3000);
   disable_indexed_mode(hardware,state);
@@ -1047,7 +1047,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   partially_collapse_middle_overhang(hardware, state, true);
   update_under_overhang_mode(hardware,state,false);
   turn_deg(hardware, state, competition, 90.0);
-  drive_distance_mm(hardware, state, competition, 607.5);
+  drive_distance_mm(hardware, state, competition, 557.5);
   enable_preload_mode(hardware,state);
   turn_deg(hardware, state, competition, -45.0);
   drive_distance_mm(hardware, state, competition, 170.0);
