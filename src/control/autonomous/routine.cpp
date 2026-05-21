@@ -1016,6 +1016,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   update_mechanism_mode(hardware,state,4000);
   //vex::this_thread::sleep_for(5000);
   disable_indexed_mode(hardware,state);
+  run_overhang_motion(hardware.under_overhang_motor, -50.0, 50.0, true);
 
   drive_distance_mm(hardware, state, competition, - 320.0 );
   // update_under_overhang_mode(hardware,state,false);
