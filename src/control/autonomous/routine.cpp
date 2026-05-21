@@ -753,7 +753,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   
   drive_to_laser_distance_mm(hardware,state,competition,535.0);
   //drive_distance_mm(hardware, state, competition, kFirstDriveDistanceMm);
-  turn_deg(hardware, state, competition, -90.0);
+  turn_deg(hardware, state, competition, 90.0);
   update_under_overhang_mode(hardware,state,true);
 
   enable_intake_mode(hardware,state);
@@ -764,10 +764,10 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
 
   drive_distance_mm(hardware, state, competition, -320.0);
   update_under_overhang_mode(hardware,state,false);
-  turn_deg(hardware, state, competition, 90.0);
+  turn_deg(hardware, state, competition, -90.0);
   //drive_distance_mm(hardware, state, competition, -377.0);
   drive_to_laser_distance_mm(hardware, state, competition, 510.0);
-  turn_deg(hardware, state, competition, 90.0);
+  turn_deg(hardware, state, competition, -90.0);
   enable_preload_mode(hardware,state);
   drive_distance_mm(hardware, state, competition, 542.0);
 
