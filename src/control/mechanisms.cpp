@@ -8,14 +8,14 @@ namespace basic::hardware::robots {
 
 namespace {
 //trans1 trans2 trans3 trans4 under middle upper
-constexpr std::size_t kIndexedMotorCount = 7;
-constexpr std::array<int, kIndexedMotorCount> kOffSpeeds{{0, 0, 0, 0, 0, 0 ,0}};
-constexpr std::array<int, kIndexedMotorCount> kPreLoadSpeeds{{-100, -100, 0, 0, 0, 0, 0}};
-constexpr std::array<int, kIndexedMotorCount> kLegacyIntakeSpeeds{{0, -80, 40, 40, -100, 80 ,-70}};
-constexpr std::array<int, kIndexedMotorCount> kUnderThrowSpeeds{{-100, -100, 0, 0, 100, 0, 0}};
-constexpr std::array<int, kIndexedMotorCount> kMiddleThrowSpeeds{{-100, -100, 100, 100, -100, -100, 0}};
-constexpr std::array<int, kIndexedMotorCount> kUpperThrowSpeeds{{-100, -100, 100, 100, -100, 100, 100}};
-constexpr std::array<int, kIndexedMotorCount> kSortIntakeSpeeds{{0, -80, 90, 90, -100, 100 ,-100}};
+constexpr std::size_t kIndexedMotorCount = 6;
+constexpr std::array<int, kIndexedMotorCount> kOffSpeeds{{0, 0, 0, 0, 0 ,0}};
+constexpr std::array<int, kIndexedMotorCount> kPreLoadSpeeds{{-100, -100, 0, 0, 0, 0}};
+constexpr std::array<int, kIndexedMotorCount> kLegacyIntakeSpeeds{{0, -80, 40, -100, 60 ,-60}};
+constexpr std::array<int, kIndexedMotorCount> kUnderThrowSpeeds{{-100, -100, 0, 100, 0, 0}};
+constexpr std::array<int, kIndexedMotorCount> kMiddleThrowSpeeds{{-100, -100, 100, -100, -100, 0}};
+constexpr std::array<int, kIndexedMotorCount> kUpperThrowSpeeds{{-100, -100, 100, -100, 100, 100}};
+constexpr std::array<int, kIndexedMotorCount> kSortIntakeSpeeds{{0, -80, 90, -100, 100 ,-100}};
 
 void set_motor_power(vex::motor& motor, double speed, vex::brakeType type = vex::coast) {
   if (speed) {
@@ -58,7 +58,6 @@ void apply_indexed_mode(RobotHardware& hardware, const MechanismState& mechanism
       &hardware.trans_motor1,
       &hardware.trans_motor2,
       &hardware.trans_motor3,
-      &hardware.trans_motor4,
       &hardware.under_motor1,
       &hardware.middle_motor1,
       &hardware.upper_motor1,
