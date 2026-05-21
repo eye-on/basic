@@ -16,6 +16,9 @@ constexpr double kPi = 3.14159265358979323846;
 constexpr int kAutonomousLoopDelayMs = 10;
 constexpr int kAutonomousSettleDelayMs = 150;
 
+constexpr double kRobotLengthMm = 365.0;
+constexpr double kRobotWidthMm = 380.0;
+
 constexpr double kDriveMinSpeedPct = 12.0;
  double kDriveMaxSpeedPct = 22.5;
 constexpr double kDriveAccelerationWindowMm = 180.0;
@@ -935,37 +938,46 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   //update_under_overhang_mode(hardware,state);
   update_middle_overhang_mode(hardware,state,false);
   update_upper_overhang_mode(hardware,state,false);
+
+  constexpr double intake_arc_entry_straight_mm = 120.0;
+  constexpr double intake_arc_radius_mm = kRobotWidthMm * 0.5 + 50.0;
+  constexpr double intake_laser_target_distance_mm = 135.0;
   
   drive_to_laser_distance_mm(hardware,state,competition,535.0);
-  //drive_distance_mm(hardware, state, competition, kFirstDriveDistanceMm);
-  turn_deg(hardware, state, competition, -90.0);
+  drive_distance_mm(hardware, state, competition, intake_arc_entry_straight_mm);
+  follow_relative_arc(
+      hardware,
+      state,
+      competition,
+      intake_arc_radius_mm,
+      -90.0,
+      TravelDirection::kForward);
   update_under_overhang_mode(hardware,state,true);
 
   enable_intake_mode(hardware,state);
-  drive_to_laser_distance_mm(hardware, state, competition, 135.0, 30.0);
+  drive_to_laser_distance_mm(
+      hardware,
+      state,
+      competition,
+      intake_laser_target_distance_mm,
+      30.0);
   update_mechanism_mode(hardware,state,4000);
   //vex::this_thread::sleep_for(5000);
   disable_indexed_mode(hardware,state);
 
   update_under_overhang_mode(hardware,state,false);
-  drive_distance_mm(hardware, state, competition, -80.0);
+  drive_distance_mm(hardware, state, competition, - (320.0 - (kRobotWidthMm * 0.5 + 50.0)));
   follow_relative_arc(
       hardware,
       state,
       competition,
-      240.0,
+      kRobotWidthMm * 0.5 + 50.0,
       90.0,
       TravelDirection::kReverse);
   drive_to_laser_distance_mm(hardware, state, competition, 510.0);
   enable_preload_mode(hardware,state);
-  go_to_relative_pose(
-      hardware,
-      state,
-      competition,
-      0.0,
-      542.0,
-      90.0,
-      TravelDirection::kForward);
+  turn_deg(hardware, state, competition, 90.0);
+  drive_distance_mm(hardware, state, competition, 542.0);
 
   enable_upperthrow_mode(hardware,state);
   vex::this_thread::sleep_for(3000);
