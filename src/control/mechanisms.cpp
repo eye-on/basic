@@ -116,9 +116,9 @@ void update_overhang(RobotHardware& hardware, RobotState& state, const Controlle
   if(input.press_left){
     autonomous::partially_collapse_middle_overhang(hardware,state,false);
   }
-  if(input.press_up){
+  /*if(input.press_up){
     autonomous::update_upper_overhang_mode(hardware,state,false);
-  }
+  }*/
 }
 
 }  // namespace

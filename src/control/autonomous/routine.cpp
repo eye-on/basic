@@ -37,7 +37,7 @@ constexpr double kTurnToleranceDegrees = 1.5;
 constexpr double kTurnProportionalGain = 0.6;
 constexpr double kTurnMinSpeedPct = 10.0;
 constexpr double kTurnApproachMinSpeedPct = 4.0;
-constexpr double kTurnMaxSpeedPct = 30.0;
+constexpr double kTurnMaxSpeedPct = 35.0;
 constexpr double kTurnApproachWindowDegrees = 12.0;
 
 constexpr double kGoToPosePositionToleranceMm = 30.0;
@@ -478,11 +478,13 @@ void partially_collapse_middle_overhang(
     bool wait_for_completion) {
   OverhangMode& overhang_mode = state.overhang.middle_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
+    overhang_mode = OverhangMode::Collapse;
     run_overhang_motion(hardware.middle_overhang_motor, -165.0, 50.0, wait_for_completion);
   } else if (overhang_mode == OverhangMode::Collapse) {
+    overhang_mode = OverhangMode::Expansion;
     run_overhang_motion(hardware.middle_overhang_motor, 165.0, 50.0, wait_for_completion);
   }
-  overhang_mode = OverhangMode::Partial;
+  //overhang_mode = OverhangMode::Partial;
 }
 
 void update_under_overhang_mode(
