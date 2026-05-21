@@ -938,20 +938,9 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   //update_under_overhang_mode(hardware,state);
   update_middle_overhang_mode(hardware,state,false);
   update_upper_overhang_mode(hardware,state,false);
-
-  constexpr double intake_arc_entry_straight_mm = 120.0;
-  constexpr double intake_arc_radius_mm = kRobotWidthMm * 0.5 + 50.0;
-  constexpr double intake_laser_target_distance_mm = 135.0;
   
-  drive_to_laser_distance_mm(hardware,state,competition,535.0 - 240.0);
-  drive_distance_mm(hardware, state, competition, intake_arc_entry_straight_mm);
-  follow_relative_arc(
-      hardware,
-      state,
-      competition,
-      intake_arc_radius_mm,
-      -90.0,
-      TravelDirection::kForward);
+  drive_to_laser_distance_mm(hardware,state,competition,535.0);
+  turn_deg(hardware, state, competition, -90.0);
   update_under_overhang_mode(hardware,state,true);
 
   enable_intake_mode(hardware,state);
@@ -959,7 +948,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
       hardware,
       state,
       competition,
-      intake_laser_target_distance_mm,
+      135.0,
       30.0);
   update_mechanism_mode(hardware,state,4000);
   //vex::this_thread::sleep_for(5000);
