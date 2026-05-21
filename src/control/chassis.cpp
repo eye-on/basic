@@ -41,12 +41,12 @@ void chassis_update(RobotHardware& hardware, RobotState& state) {
   const SensorState& sensors = state.sensors;
   (void)sensors;
 
-  const double axis2 = dynamic_smooth(input.axis2, input.last_axis2, input.rating[1]);
-  const double axis4 = dynamic_smooth(input.axis4, input.last_axis4, input.rating[3]);
-  double front_left = axis2 + axis4;
-  double front_right = axis2 - axis4;
-  double back_left = axis2 + axis4;
-  double back_right = axis2 - axis4;
+  const double axis3 = dynamic_smooth(input.axis3, input.last_axis3, input.rating[2]);
+  const double axis1 = dynamic_smooth(input.axis1, input.last_axis1, input.rating[0]);
+  double front_left = axis3 + axis1;
+  double front_right = axis3 - axis1;
+  double back_left = axis3 + axis1;
+  double back_right = axis3 - axis1;
 
   const double maxpct = std::max({std::fabs(front_left), std::fabs(front_right), std::fabs(back_left), std::fabs(back_right)});
   if (maxpct > 100) {

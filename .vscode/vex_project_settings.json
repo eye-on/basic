@@ -4,8 +4,8 @@
 		"json": 2
 	},
 	"project": {
-		"name": "basic",
-		"description": "basic control",
+		"name": "left",
+		"description": "red",
 		"creationDate": "Mon, 05 Jan 2026 14:39:17 GMT",
 		"platform": "V5",
 		"language": "cpp",
