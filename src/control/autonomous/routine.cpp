@@ -944,12 +944,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   turn_deg(hardware, state, competition, -90.0);
   
   enable_intake_mode(hardware,state);
-  drive_to_laser_distance_mm(
-      hardware,
-      state,
-      competition,
-      135.0,
-      30.0);
+  drive_to_laser_distance_mm(hardware, state, competition,135.0, 30.0);
   update_mechanism_mode(hardware,state,4000);
   //vex::this_thread::sleep_for(5000);
   disable_indexed_mode(hardware,state);
