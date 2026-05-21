@@ -479,10 +479,10 @@ void partially_collapse_middle_overhang(
   OverhangMode& overhang_mode = state.overhang.middle_overhang_mode;
   if (overhang_mode == OverhangMode::Expansion) {
     overhang_mode = OverhangMode::Collapse;
-    run_overhang_motion(hardware.middle_overhang_motor, -165.0, 50.0, wait_for_completion);
+    run_overhang_motion(hardware.middle_overhang_motor, -100.0, 50.0, wait_for_completion);
   } else if (overhang_mode == OverhangMode::Collapse) {
     overhang_mode = OverhangMode::Expansion;
-    run_overhang_motion(hardware.middle_overhang_motor, 165.0, 50.0, wait_for_completion);
+    run_overhang_motion(hardware.middle_overhang_motor, 100.0, 50.0, wait_for_completion);
   }
   //overhang_mode = OverhangMode::Partial;
 }
@@ -751,25 +751,25 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   update_middle_overhang_mode(hardware,state,false);
   update_upper_overhang_mode(hardware,state,false);
   
-  drive_to_laser_distance_mm(hardware,state,competition,535.0);
+  drive_to_laser_distance_mm(hardware, state, competition, 535.0, 25);
   //drive_distance_mm(hardware, state, competition, kFirstDriveDistanceMm);
-  turn_deg(hardware, state, competition, -90.0);
+  turn_deg(hardware, state, competition, 90.0);
   update_under_overhang_mode(hardware,state,true);
 
   enable_intake_mode(hardware,state);
   drive_to_laser_distance_mm(hardware, state, competition, 135.0, 30.0);
-  update_mechanism_mode(hardware,state,4000);
+  update_mechanism_mode(hardware, state, 4000);
   //vex::this_thread::sleep_for(5000);
   disable_indexed_mode(hardware,state);
 
   drive_distance_mm(hardware, state, competition, -320.0);
   update_under_overhang_mode(hardware,state,false);
-  turn_deg(hardware, state, competition, 90.0);
+  turn_deg(hardware, state, competition, -90.0);
   //drive_distance_mm(hardware, state, competition, -377.0);
-  drive_to_laser_distance_mm(hardware, state, competition, 510.0);
-  turn_deg(hardware, state, competition, 90.0);
-  enable_preload_mode(hardware,state);
-  drive_distance_mm(hardware, state, competition, 542.0);
+  drive_to_laser_distance_mm(hardware, state, competition, 400.0 ,30);
+  turn_deg(hardware, state, competition, -90.0);
+  //enable_preload_mode(hardware,state);
+  drive_distance_mm(hardware, state, competition, 505.0);
 
   enable_upperthrow_mode(hardware,state);
   vex::this_thread::sleep_for(5000);
@@ -777,12 +777,13 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
 
   // drive_distance_mm(hardware, state, competition, -397.5);
   drive_distance_mm(hardware, state, competition, -200.0);
-  turn_deg(hardware, state, competition, -90.0);
-  drive_distance_mm(hardware, state, competition, -400.0);
-  drive_to_laser_distance_mm(hardware, state, competition, 820.0);
   turn_deg(hardware, state, competition, 90.0);
-  drive_distance_mm(hardware, state, competition, 600.0);
-  drive_distance_mm(hardware, state, competition, -577.5);
+  //drive_distance_mm(hardware, state, competition, -200.0);
+  drive_to_laser_distance_mm(hardware, state, competition, 200.0);
+  turn_deg(hardware, state, competition, -90.0);
+  drive_distance_mm(hardware, state, competition, 700.0);
+  partially_collapse_middle_overhang(hardware,state);
+  /*drive_distance_mm(hardware, state, competition, -577.5);
   turn_deg(hardware, state, competition, 45.0);
   update_under_overhang_mode(hardware,state,false);
   enable_preload_mode(hardware,state);
@@ -791,7 +792,7 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
 
   enable_middlethrow_mode(hardware,state);
   vex::this_thread::sleep_for(5000);
-  disable_indexed_mode(hardware,state);
+  disable_indexed_mode(hardware,state);*/
 
   stop_drive(hardware, vex::hold);
 }
