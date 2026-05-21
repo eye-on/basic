@@ -98,13 +98,13 @@ void update_middle_overhang(RobotHardware& hardware, const ControllerInputState&
 }
 
 void update_upper_overhang(RobotHardware& hardware, const ControllerInputState& input) {
-  if (input.up) {
+  if (input.x) {
     velocitycontrol(hardware.upper_overhang_motor, -50, vex::pct);
   }
-  if (input.down) {
+  if (input.b) {
     velocitycontrol(hardware.upper_overhang_motor, 50, vex::pct);
   }
-  if (!input.up && !input.down) {
+  if (!input.x && !input.b) {
     stopcontrol(hardware.upper_overhang_motor, vex::hold);
   }
 }
@@ -114,7 +114,7 @@ void update_overhang(RobotHardware& hardware, RobotState& state, const Controlle
     autonomous::update_under_overhang_mode(hardware,state,false);
   }
   if(input.press_left){
-    autonomous::update_middle_overhang_mode(hardware,state,false);
+    autonomous::partially_collapse_middle_overhang(hardware,state,false);
   }
   if(input.press_up){
     autonomous::update_upper_overhang_mode(hardware,state,false);
@@ -130,6 +130,7 @@ void mechanism_update(RobotHardware& hardware, RobotState& state) {
   update_middle_overhang(hardware, input);
   update_under_overhang(hardware, input);*/
 
+  update_upper_overhang(hardware, input);
   update_overhang(hardware,state,input);
   
   if (input.press_a) {
