@@ -29,7 +29,6 @@ struct RobotHardware {
   vex::motor trans_motor1{vex::PORT12, vex::ratio6_1, true};
   vex::motor trans_motor2{vex::PORT1, vex::ratio6_1, true};
   vex::motor trans_motor3{vex::PORT15, vex::ratio18_1, true};
-  vex::motor trans_motor4{vex::PORT15, vex::ratio18_1, true};
 
   vex::motor under_overhang_motor{vex::PORT18, vex::ratio18_1, true}; 
   vex::motor upper_overhang_motor{vex::PORT2, vex::ratio18_1, true};
