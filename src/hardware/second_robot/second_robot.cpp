@@ -2,8 +2,8 @@
 
 #include "control/motor_control.h"
 #include "control/second_robot/autonomous/routine.h"
-#include "control/second_robot/chassis.h"
-#include "control/second_robot/mechanisms.h"
+#include "control/second_robot/chassis/chassis.h"
+#include "control/second_robot/mechanisms/mechanisms.h"
 #include "hardware/second_robot/robot_hardware.h"
 #include "hardware/second_robot/robot_state.h"
 #include "hardware/second_robot/sensors.h"

@@ -1,4 +1,4 @@
-#include "control/second_robot/mechanisms.h"
+#include "control/second_robot/mechanisms/mechanisms.h"
 
 #include "control/motor_control.h"
 

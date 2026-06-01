@@ -1,7 +1,7 @@
 #include "control/second_robot/autonomous/routine.h"
 
 #include "control/motor_control.h"
-#include "control/second_robot/mechanisms.h"
+#include "control/second_robot/mechanisms/mechanisms.h"
 
 #include <algorithm>
 #include <array>
