@@ -1,10 +1,10 @@
-#ifndef BASIC_SRC_CONTROL_SECOND_ROBOT_AUTONOMOUS_ROUTINE_H_
-#define BASIC_SRC_CONTROL_SECOND_ROBOT_AUTONOMOUS_ROUTINE_H_
+#ifndef BASIC_SRC_HARDWARE_SECOND_ROBOT_AUTONOMOUS_H_
+#define BASIC_SRC_HARDWARE_SECOND_ROBOT_AUTONOMOUS_H_
 
 #include "hardware/second_robot/robot_hardware.h"
 #include "hardware/second_robot/robot_state.h"
 
-namespace basic::control::second_robot::autonomous {
+namespace basic::hardware::second_robot::autonomous {
 
 enum class TravelDirection {
   kAuto,
@@ -31,6 +31,6 @@ void run_routine(
     basic::hardware::second_robot::RobotState& state,
     vex::competition& competition);
 
-}  // namespace basic::control::second_robot::autonomous
+}  // namespace basic::hardware::second_robot::autonomous
 
 #endif

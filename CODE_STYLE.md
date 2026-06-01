@@ -1,130 +1,328 @@
-# Basic 项目当前代码结构
+# Basic 当前代码规范与结构说明
 
-本文档描述仓库当前的代码边界。现在的原则不是“所有模块都各有一套公共头文件”，而是“只公开真正的程序契约，其余实现尽量与定义同址并留在 `.cpp` 内部”。
+本文档描述当前仓库的代码边界与放置规则。
 
-## 根目录
+当前结构的核心原则是：
+
+1. 底盘归底盘模块。
+2. 执行机构归执行机构模块。
+3. 机器人专属装配只放在 `src/hardware/*_robot/`。
+4. `src/control/` 只保留共享控制工具与算法。
+5. `include/` 只放公共接口与程序级契约。
+
+## 根目录结构
 
 ```text
 basic/
-├── CODE_STYLE.md
-├── makefile
-├── include/
-├── src/
-├── build/
-└── vex/
+├─ CODE_STYLE.md
+├─ makefile
+├─ include/
+├─ src/
+├─ build/
+└─ vex/
 ```
 
-- `makefile`：VEX V5 工程构建入口。
-- `include/`：只放真实的外部契约。
-- `src/`：实现文件，优先在此处收纳内部实现。
-- `build/`：构建产物目录。
-- `vex/`：VEX 工具链相关 make 规则。
+- `makefile`：VEX 工程构建入口
+- `include/`：公共接口头文件
+- `src/`：实现文件与项目内部实现
+- `build/`：构建产物
+- `vex/`：VEX 工具链规则
 
-## 当前头文件结构
+## `include/` 当前归类
+
+现在 `include/` 下的头文件按职责分组。
 
 ```text
 include/
-├── vex.h
-├── app/
-│   └── robot.h
-└── hardware/
-    └── robot_selector.h
+├─ vex.h
+├─ device_config.h
+├─ app/
+│  └─ robot.h
+├─ hardware/
+│  └─ robot_selector.h
+├─ chassis/
+│  ├─ arcade_drive.h
+│  ├─ old_chassis.h
+│  └─ second_chassis.h
+└─ mechanism/
+   ├─ indexed_intake.h
+   └─ roller_shooter.h
 ```
 
-- `include/vex.h`
-  - 引入 VEX SDK 头文件。
-  - 定义 `COMPETITION` 宏。
+### 各类头文件职责
 
-- `include/app/robot.h`
-  - 声明程序级抽象接口 `basic::app::Robot`。
-  - 这是主程序与具体机器人实现之间的契约。
+#### `include/vex.h`
 
-- `include/hardware/robot_selector.h`
-  - 声明 `basic::hardware::get_current_robot()`。
-  - 这是主程序获取当前机器人实现的唯一入口。
+- 引入 VEX SDK
+- 放项目级宏
 
-## 当前源文件结构
+#### `include/device_config.h`
+
+- 放最底层的设备配置结构
+- 例如：
+  - `MotorConfig`
+  - `DigitalOutConfig`
+
+#### `include/app/robot.h`
+
+- 定义程序级机器人抽象接口 `basic::app::Robot`
+- 主程序只依赖这个接口，不依赖具体机器人实现
+
+#### `include/hardware/robot_selector.h`
+
+- 定义当前机器人选择逻辑
+- 声明 `get_current_robot()`
+
+#### `include/chassis/`
+
+这一组头文件都属于底盘驱动接口。
+
+- `arcade_drive.h`
+  - 共享底盘内核
+  - 是底层通用模板，不是直接面向具体机器人命名的最终接口
+
+- `old_chassis.h`
+  - 原底盘模块的对外接口
+  - 当前 `basic_robot` 装配它
+
+- `second_chassis.h`
+  - `second_robot` 底盘模块的对外接口
+
+#### `include/mechanism/`
+
+这一组头文件都属于执行机构接口。
+
+- `indexed_intake.h`
+  - 原车执行机构模块接口
+
+- `roller_shooter.h`
+  - `second_robot` 执行机构模块接口
+
+## `src/` 当前结构
 
 ```text
 src/
-├── control/
-│   ├── chassis.h
-│   ├── chassis.cpp
-│   ├── mechanisms.h
-│   ├── mechanisms.cpp
-│   └── adrc/
-│       └── controller.cpp
-├── executer/
-│   └── main.cpp
-├── hardware/
-│   ├── robot_hardware.h
-│   ├── sensors.h
-│   ├── sensors.cpp
-│   └── robots/
-│       ├── basic_robot.cpp
-│       └── robot_state.h
-└── input/
-    ├── controller.h
-    └── controller.cpp
+├─ executer/
+│  └─ main.cpp
+├─ hardware/
+│  ├─ robot_selector.cpp
+│  ├─ shared/
+│  │  └─ state_types.h
+│  ├─ basic_robot/
+│  │  ├─ autonomous.h
+│  │  ├─ autonomous.cpp
+│  │  ├─ basic_robot.cpp
+│  │  ├─ robot_hardware.h
+│  │  ├─ robot_state.h
+│  │  ├─ sensors.h
+│  │  └─ sensors.cpp
+│  └─ second_robot/
+│     ├─ autonomous.h
+│     ├─ autonomous.cpp
+│     ├─ second_robot.cpp
+│     ├─ robot_hardware.h
+│     ├─ robot_state.h
+│     ├─ sensors.h
+│     └─ sensors.cpp
+├─ input/
+│  ├─ controller.h
+│  └─ controller.cpp
+├─ mechanism/
+│  ├─ indexed_intake.cpp
+│  └─ roller_shooter.cpp
+└─ control/
+   ├─ motor_control.h
+   ├─ motor_control.cpp
+   ├─ autonomous/
+   │  └─ README.md
+   ├─ adrc/
+   └─ kalman/
 ```
 
-- `src/executer/main.cpp`
-  - 程序入口。
-  - 负责获取机器人、初始化、启动后台线程并注册 `competition` 回调。
+## 各层职责
 
-- `src/hardware/robots/basic_robot.cpp`
-  - 只负责装配 `BasicRobot`。
-  - 持有 `RobotHardware` 和 `RobotState`，并决定功能模块的调用顺序。
+### `src/executer/`
 
-- `src/hardware/robot_hardware.h`
-  - 定义当前机器人使用的全部外部硬件对象。
-  - 这是硬件注册点，不对 `include/` 暴露。
+- 只放程序入口
+- 不放机器人专属控制逻辑
 
-- `src/hardware/robots/robot_state.h`
-  - 定义模块之间共享的运行时状态。
-  - 模块之间通过 `RobotState` 传值，不直接互相调用。
+### `src/hardware/shared/`
 
-- `src/input/controller.h`
-  - 声明输入模块的私有入口。
+- 放共享状态定义
+- 比如控制器输入状态、传感器状态、自动状态
 
-- `src/input/controller.cpp`
-  - 更新手柄输入状态并写入 `RobotState`。
+### `src/hardware/basic_robot/` 与 `src/hardware/second_robot/`
 
-- `src/hardware/sensors.h`
-  - 声明传感器模块的私有入口。
+这是机器人身份唯一应该出现的地方。
 
-- `src/hardware/sensors.cpp`
-  - 更新传感器状态并写入 `RobotState`。
+这里只负责：
 
-- `src/control/chassis.h`
-  - 声明底盘控制模块的私有入口。
+- 装配底盘模块
+- 装配执行机构模块
+- 绑定端口与方向
+- 定义机器人专属 autonomous
+- 定义机器人专属 sensors
+- 维护机器人生命周期入口
 
-- `src/control/chassis.cpp`
-  - 读取 `RobotState` 中的输入与传感器值，计算并下发底盘输出。
+不负责保存可复用的底盘实现或执行机构实现。
 
-- `src/control/mechanisms.h`
-  - 声明机构控制模块的私有入口，对外封装4种机构动作的控制接口
+### `src/mechanism/`
 
-- `src/control/mechanisms.cpp`
-  - 读取 `RobotState` 中的输入值，更新机构动作。
+- 放共享执行机构实现
+- 当前包括：
+  - `indexed_intake.cpp`
+  - `roller_shooter.cpp`
 
-- `src/control/adrc/controller.cpp`
-  - ADRC 控制相关实现。
-  - 目前仍独立存在，但不参与主机器人装配边界。
+如果某个执行机构以后可以被不同机器人复用，它的实现就应该放这里。
 
-## 当前边界规则
+### `src/control/`
 
-- `include/` 只保留真正跨编译单元且具备程序级意义的契约。
-- 只在一个机器人实现内部使用的共享类型，优先放在 `src/` 下的私有头中。
-- 只在一个 `.cpp` 内部使用的辅助类型、函数和常量，必须留在该 `.cpp` 中。
-- 不再新增跨模块裸 `free function` 入口。
-- 如果某个行为只服务一个拥有者，就让定义和实现与拥有者同址。
-- 功能模块之间通过共享状态协作，而不是通过散落在不同命名空间中的函数互调。
+- 只放共享控制工具与算法
+- 当前包括：
+  - `motor_control`
+  - `adrc`
+  - `kalman`
 
-## 实际执行原则
+不要再在这里新增机器人专属 `chassis.cpp` 或 `mechanisms.cpp`。
 
-创建新文件前先问自己：
+## 命名规则
 
-“这是一个新的程序边界，还是某个已有实现对象的内部细节？”
+### 底盘命名
 
-如果它不是新的边界，就优先放回已有实现文件内部，或者放进 `src/` 下的私有实现，而不是扩张 `include/`。
+不要再使用“某机器人目录下一个泛化的 `chassis.cpp`”这种方式。
+
+当前显式底盘名是：
+
+- `old_chassis`
+- `second_chassis`
+
+新底盘模块也应采用“模块自身名字”，而不是“挂在机器人名下的通用 chassis 文件名”。
+
+### 执行机构命名
+
+执行机构也应以模块本身命名：
+
+- `indexed_intake`
+- `roller_shooter`
+
+不要再新增泛化的机器人专属 `mechanisms.cpp` 适配层。
+
+### 机器人装配命名
+
+机器人装配层保持显式命名：
+
+- `basic_robot.cpp`
+- `second_robot.cpp`
+- `robot_hardware.h`
+- `robot_state.h`
+- `autonomous.h`
+- `autonomous.cpp`
+
+## 文件放置规则
+
+### 什么应该放进 `include/`
+
+只有以下内容应该放进 `include/`：
+
+- 可复用模块的公共接口
+- 程序级抽象接口
+- 跨模块共享且具有公共意义的配置结构
+
+不要把所有内部辅助头文件都塞进 `include/`。
+
+### 什么应该放进 `include/chassis/`
+
+如果头文件回答的是：
+
+- 这个底盘模块如何初始化
+- 这个底盘模块如何更新
+- 这个底盘模块暴露什么状态与接口
+
+那它就属于 `include/chassis/`。
+
+### 什么应该放进 `include/mechanism/`
+
+如果头文件回答的是：
+
+- 这个执行机构模块如何初始化
+- 这个执行机构模块如何更新
+- 这个执行机构模块暴露什么状态与接口
+
+那它就属于 `include/mechanism/`。
+
+### 什么应该放进 `src/hardware/*_robot/`
+
+如果代码回答的是：
+
+- 这台机器人装配了哪些模块
+- 这些模块接了哪些端口
+- 这台机器人怎样接手柄输入
+- 这台机器人跑什么 autonomous
+
+那它属于 `src/hardware/*_robot/`。
+
+### 什么应该放进 `src/mechanism/`
+
+如果代码回答的是：
+
+- 一个可复用执行机构内部如何工作
+- 如何解释它的命令
+- 如何维护它自己的状态
+
+那它属于 `src/mechanism/`。
+
+### 什么应该放进 `src/control/`
+
+如果代码回答的是：
+
+- 一个通用控制器如何工作
+- 一个通用滤波器如何工作
+- 一个通用控制工具如何工作
+
+那它属于 `src/control/`。
+
+## 实际修改入口
+
+### 修改 old 车底盘
+
+- `include/chassis/old_chassis.h`
+- `src/hardware/basic_robot/basic_robot.cpp`
+
+### 修改 second_robot 底盘
+
+- `include/chassis/second_chassis.h`
+- `src/hardware/second_robot/second_robot.cpp`
+
+### 修改 old 车执行机构
+
+- `include/mechanism/indexed_intake.h`
+- `src/mechanism/indexed_intake.cpp`
+
+### 修改 second_robot 执行机构
+
+- `include/mechanism/roller_shooter.h`
+- `src/mechanism/roller_shooter.cpp`
+
+### 修改机器人装配
+
+- `src/hardware/basic_robot/robot_hardware.h`
+- `src/hardware/second_robot/robot_hardware.h`
+
+### 修改 autonomous
+
+- `src/hardware/basic_robot/autonomous.cpp`
+- `src/hardware/second_robot/autonomous.cpp`
+
+## 总结
+
+当前结构不是：
+
+- 每个机器人在 `src/control/` 下各带一套底盘和执行机构控制文件
+
+当前结构是：
+
+- 公共底盘接口放进 `include/chassis/`
+- 公共执行机构接口放进 `include/mechanism/`
+- 共享执行机构实现放进 `src/mechanism/`
+- 共享控制工具放进 `src/control/`
+- 机器人身份只保留在 `src/hardware/*_robot/`

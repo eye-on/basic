@@ -1,13 +1,12 @@
 #include "hardware/robot_selector.h"
 
-#include "control/basic_robot/autonomous/routine.h"
-#include "control/basic_robot/chassis.h"
-#include "control/basic_robot/mechanisms.h"
-#include "control/motor_control.h"
 #include "hardware/basic_robot/robot_hardware.h"
 #include "hardware/basic_robot/robot_state.h"
+#include "hardware/basic_robot/autonomous.h"
 #include "hardware/basic_robot/sensors.h"
 #include "input/controller.h"
+#include "chassis/old_chassis.h"
+#include "mechanism/indexed_intake.h"
 
 namespace basic::hardware::basic_robot {
 
@@ -56,8 +55,14 @@ class BasicRobot final : public basic::app::Robot {
   void run_driver_control_loop() {
     while (should_run_driver_control()) {
       basic::input::controller_update(hardware_.brain, hardware_.controller, state_.controller);
-      basic::control::basic_robot::chassis_update(hardware_, state_);
-      basic::control::basic_robot::mechanism_update(hardware_, state_);
+      basic::chassis::old_chassis_update(
+          hardware_.old_chassis,
+          basic::chassis::old_chassis_command_from_controller(
+              state_.controller,
+              basic::chassis::old_chassis_state(hardware_.old_chassis).stop_brake_type));
+      basic::mechanism::indexed_intake_update(
+          hardware_.intake,
+          basic::mechanism::indexed_intake_command_from_controller(state_.controller));
       vex::this_thread::sleep_for(kRefreshTime);
     }
 
@@ -69,7 +74,7 @@ class BasicRobot final : public basic::app::Robot {
       return;
     }
 
-    basic::control::basic_robot::autonomous::run_routine(hardware_, state_, *competition_);
+    basic::hardware::basic_robot::autonomous::run_routine(hardware_, state_, *competition_);
     stop_all_outputs(vex::hold);
   }
 
@@ -79,29 +84,8 @@ class BasicRobot final : public basic::app::Robot {
 
   void stop_all_outputs(vex::brakeType drive_brake_type) {
     state_.controller = basic::hardware::shared::ControllerInputState{};
-    state_.chassis = ChassisState{};
-    state_.chassis.stop_brake_type = drive_brake_type;
-    state_.mechanism = MechanismState{};
-
-    basic::control::stopcontrol(hardware_.motor_fl1, state_.chassis.stop_brake_type);
-    basic::control::stopcontrol(hardware_.motor_fl2, state_.chassis.stop_brake_type);
-    basic::control::stopcontrol(hardware_.motor_fr1, state_.chassis.stop_brake_type);
-    basic::control::stopcontrol(hardware_.motor_fr2, state_.chassis.stop_brake_type);
-    basic::control::stopcontrol(hardware_.motor_bl1, state_.chassis.stop_brake_type);
-    basic::control::stopcontrol(hardware_.motor_bl2, state_.chassis.stop_brake_type);
-    basic::control::stopcontrol(hardware_.motor_br1, state_.chassis.stop_brake_type);
-    basic::control::stopcontrol(hardware_.motor_br2, state_.chassis.stop_brake_type);
-
-    basic::control::stopcontrol(hardware_.trans_motor1);
-    basic::control::stopcontrol(hardware_.trans_motor2);
-    basic::control::stopcontrol(hardware_.trans_motor3);
-    basic::control::stopcontrol(hardware_.under_motor1);
-    basic::control::stopcontrol(hardware_.middle_motor1);
-    basic::control::stopcontrol(hardware_.upper_motor1);
-
-    basic::control::stopcontrol(hardware_.under_overhang_motor, vex::hold);
-    basic::control::stopcontrol(hardware_.middle_overhang_motor, vex::hold);
-    basic::control::stopcontrol(hardware_.upper_overhang_motor, vex::hold);
+    basic::chassis::old_chassis_stop(hardware_.old_chassis, drive_brake_type);
+    basic::mechanism::indexed_intake_stop(hardware_.intake, vex::coast, vex::hold);
   }
 
   RobotHardware hardware_;

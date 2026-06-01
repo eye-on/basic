@@ -1,13 +1,14 @@
-#include "control/second_robot/autonomous/routine.h"
+#include "hardware/second_robot/autonomous.h"
 
 #include "control/motor_control.h"
-#include "control/second_robot/mechanisms.h"
+#include "chassis/second_chassis.h"
+#include "mechanism/roller_shooter.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 
-namespace basic::control::second_robot::autonomous {
+namespace basic::hardware::second_robot::autonomous {
 
 namespace {
 
@@ -15,7 +16,7 @@ using basic::control::stopcontrol;
 using basic::control::velocitycontrol;
 using basic::hardware::second_robot::RobotHardware;
 using basic::hardware::second_robot::RobotState;
-using basic::hardware::second_robot::ShooterMode;
+using basic::mechanism::RollerShooterMode;
 
 constexpr double kMillimetersPerWheelRevolution = 194.47;
 constexpr double kAutonomousLoopDelayMs = 5.0;
@@ -39,28 +40,28 @@ using SideMotorArray = std::array<vex::motor*, 3>;
 
 DriveMotorArray drive_motors(RobotHardware& hardware) {
   return {{
-      &hardware.left_front_motor,
-      &hardware.left_middle_motor,
-      &hardware.left_back_motor,
-      &hardware.right_front_motor,
-      &hardware.right_middle_motor,
-      &hardware.right_back_motor,
+      &basic::chassis::second_chassis_left_motors(hardware.second_chassis)[0],
+      &basic::chassis::second_chassis_left_motors(hardware.second_chassis)[1],
+      &basic::chassis::second_chassis_left_motors(hardware.second_chassis)[2],
+      &basic::chassis::second_chassis_right_motors(hardware.second_chassis)[0],
+      &basic::chassis::second_chassis_right_motors(hardware.second_chassis)[1],
+      &basic::chassis::second_chassis_right_motors(hardware.second_chassis)[2],
   }};
 }
 
 SideMotorArray left_drive_motors(RobotHardware& hardware) {
   return {{
-      &hardware.left_front_motor,
-      &hardware.left_middle_motor,
-      &hardware.left_back_motor,
+      &basic::chassis::second_chassis_left_motors(hardware.second_chassis)[0],
+      &basic::chassis::second_chassis_left_motors(hardware.second_chassis)[1],
+      &basic::chassis::second_chassis_left_motors(hardware.second_chassis)[2],
   }};
 }
 
 SideMotorArray right_drive_motors(RobotHardware& hardware) {
   return {{
-      &hardware.right_front_motor,
-      &hardware.right_middle_motor,
-      &hardware.right_back_motor,
+      &basic::chassis::second_chassis_right_motors(hardware.second_chassis)[0],
+      &basic::chassis::second_chassis_right_motors(hardware.second_chassis)[1],
+      &basic::chassis::second_chassis_right_motors(hardware.second_chassis)[2],
   }};
 }
 
@@ -217,36 +218,36 @@ void turn_to_heading_deg(
 }
 
 void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& competition) {
-  state.chassis.stop_brake_type = vex::hold;
+  basic::chassis::second_chassis_state(hardware.second_chassis).stop_brake_type = vex::hold;
   state.autonomous = basic::hardware::shared::AutonomousState{};
   hardware.inertial.resetRotation();
 
   drive_distance_mm(hardware, state, competition, 970.0, 50.0);
   turn_to_heading_deg(hardware, state, competition, 45.0, 12.0);
-  basic::control::second_robot::set_shooter_mode(hardware, state, ShooterMode::kMiddleShot, 100.0);
+  basic::mechanism::roller_shooter_set_mode(hardware.shooter, RollerShooterMode::kMiddleShot, 100.0);
   drive_distance_mm(hardware, state, competition, 70.0, 100.0);
   vex::this_thread::sleep_for(500);
-  basic::control::second_robot::set_shooter_mode(hardware, state, ShooterMode::kOff, 0.0);
+  basic::mechanism::roller_shooter_set_mode(hardware.shooter, RollerShooterMode::kOff, 0.0);
 
   drive_distance_mm(hardware, state, competition, -1230.0, 40.0);
   turn_to_heading_deg(hardware, state, competition, 180.0, 10.0);
-  state.mechanism.descore_open = true;
-  set_toggle_state(hardware.descore, state.mechanism.descore_open);
+  basic::mechanism::roller_shooter_set_descore(hardware.shooter, true);
+  set_toggle_state(hardware.shooter.descore(), true);
   vex::this_thread::sleep_for(300);
-  basic::control::second_robot::set_shooter_mode(hardware, state, ShooterMode::kRoller, 80.0);
+  basic::mechanism::roller_shooter_set_mode(hardware.shooter, RollerShooterMode::kRoller, 80.0);
   drive_distance_mm(hardware, state, competition, 410.0, 30.0);
   vex::this_thread::sleep_for(500);
-  basic::control::second_robot::set_shooter_mode(hardware, state, ShooterMode::kOff, 0.0);
+  basic::mechanism::roller_shooter_set_mode(hardware.shooter, RollerShooterMode::kOff, 0.0);
 
   drive_distance_mm(hardware, state, competition, -550.0, 50.0);
-  state.mechanism.descore_open = false;
-  set_toggle_state(hardware.descore, state.mechanism.descore_open);
+  basic::mechanism::roller_shooter_set_descore(hardware.shooter, false);
+  set_toggle_state(hardware.shooter.descore(), false);
   vex::this_thread::sleep_for(300);
   turn_to_heading_deg(hardware, state, competition, -1.0, 10.0);
   drive_distance_mm(hardware, state, competition, 165.0, 70.0);
-  basic::control::second_robot::set_shooter_mode(hardware, state, ShooterMode::kLongShot, 100.0);
+  basic::mechanism::roller_shooter_set_mode(hardware.shooter, RollerShooterMode::kLongShot, 100.0);
   vex::this_thread::sleep_for(1000);
-  basic::control::second_robot::set_shooter_mode(hardware, state, ShooterMode::kOff, 0.0);
+  basic::mechanism::roller_shooter_set_mode(hardware.shooter, RollerShooterMode::kOff, 0.0);
   drive_distance_mm(hardware, state, competition, 50.0, 100.0);
   drive_distance_mm(hardware, state, competition, -50.0, 100.0);
 
@@ -257,4 +258,4 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   stop_drive(hardware, vex::hold);
 }
 
-}  // namespace basic::control::second_robot::autonomous
+}  // namespace basic::hardware::second_robot::autonomous

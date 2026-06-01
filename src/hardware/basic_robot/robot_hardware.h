@@ -1,46 +1,53 @@
 #ifndef BASIC_SRC_HARDWARE_BASIC_ROBOT_ROBOT_HARDWARE_H_
 #define BASIC_SRC_HARDWARE_BASIC_ROBOT_ROBOT_HARDWARE_H_
 
+#include "chassis/old_chassis.h"
+#include "mechanism/indexed_intake.h"
 #include "vex.h"
 
 namespace basic::hardware::basic_robot {
 
 inline constexpr bool kIsBlue = false;
 inline constexpr int kRefreshTime = 10;
-inline constexpr int kDeadZone = 10;
 inline constexpr int kSensorLoopDelay = 50;
 
 struct RobotHardware {
-  vex::motor motor_fr1{vex::PORT9, vex::ratio6_1, true};
-  vex::motor motor_fr2{vex::PORT8, vex::ratio6_1, false};
-
-  vex::motor motor_br1{vex::PORT6, vex::ratio6_1, true};
-  vex::motor motor_br2{vex::PORT7, vex::ratio6_1, false};
-
-  vex::motor motor_fl1{vex::PORT1, vex::ratio6_1, true};
-  vex::motor motor_fl2{vex::PORT2, vex::ratio6_1, false};
-
-  vex::motor motor_bl1{vex::PORT3, vex::ratio6_1, false};
-  vex::motor motor_bl2{vex::PORT5, vex::ratio6_1, true};
-
-  vex::motor middle_motor1{vex::PORT16, vex::ratio6_1, true};
-  vex::motor under_motor1{vex::PORT4, vex::ratio18_1, true};
-  vex::motor upper_motor1{vex::PORT10, vex::ratio6_1, true};
-
-  vex::motor trans_motor1{vex::PORT19, vex::ratio6_1, true};
-  vex::motor trans_motor2{vex::PORT12, vex::ratio6_1, true};
-  vex::motor trans_motor3{vex::PORT18, vex::ratio18_1, true};
-  vex::motor trans_motor4{vex::PORT14, vex::ratio6_1, true};
-
-  vex::motor under_overhang_motor{vex::PORT20, vex::ratio6_1, true};
-  vex::motor upper_overhang_motor{vex::PORT15, vex::ratio6_1, true};
-  vex::motor middle_overhang_motor{vex::PORT17, vex::ratio6_1, true};
-
   vex::distance laser_rangefinder{vex::PORT13};
   vex::optical color_sensor{vex::PORT17};
   vex::brain brain;
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{vex::PORT11};
+  basic::chassis::OldChassis old_chassis;
+  basic::mechanism::IndexedIntake intake;
+
+  RobotHardware()
+      : old_chassis(basic::chassis::old_chassis_init({
+            {{
+                {vex::PORT1, vex::ratio6_1, true},
+                {vex::PORT2, vex::ratio6_1, false},
+                {vex::PORT3, vex::ratio6_1, false},
+                {vex::PORT5, vex::ratio6_1, true},
+            }},
+            {{
+                {vex::PORT9, vex::ratio6_1, true},
+                {vex::PORT8, vex::ratio6_1, false},
+                {vex::PORT6, vex::ratio6_1, true},
+                {vex::PORT7, vex::ratio6_1, false},
+            }},
+            10,
+        })),
+        intake(basic::mechanism::indexed_intake_init({
+            {vex::PORT19, vex::ratio6_1, true},
+            {vex::PORT12, vex::ratio6_1, true},
+            {vex::PORT18, vex::ratio18_1, true},
+            {vex::PORT14, vex::ratio6_1, true},
+            {vex::PORT4, vex::ratio18_1, true},
+            {vex::PORT16, vex::ratio6_1, true},
+            {vex::PORT10, vex::ratio6_1, true},
+            {vex::PORT20, vex::ratio6_1, true},
+            {vex::PORT17, vex::ratio6_1, true},
+            {vex::PORT15, vex::ratio6_1, true},
+        })) {}
 
   void calibrate_inertial_sensor() {
     inertial.calibrate();

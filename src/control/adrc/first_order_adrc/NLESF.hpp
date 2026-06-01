@@ -1,11 +1,11 @@
-#ifndef ADRC_NLESF_HPP_
-#define ADRC_NLESF_HPP_
+#ifndef FIRST_ORDER_ADRC_NLESF_HPP_
+#define FIRST_ORDER_ADRC_NLESF_HPP_
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace adrc {
+namespace first_order_adrc {
 
 class NLESF {
  public:
@@ -43,7 +43,7 @@ class NLESF {
     return std::pow(abs_e, alpha) * sign(e);
   }
 
-  Output compute(double e1, double e2, double z3, double b0) const {
+  Output compute(double e1, double e2, double z2, double b0) const {
     const double kEps = 1e-9;
     const double safe_b0 =
         (std::fabs(b0) < kEps) ? ((b0 >= 0.0) ? kEps : -kEps) : b0;
@@ -51,7 +51,7 @@ class NLESF {
     Output output;
     output.u0 = cfg_.k1 * fal(e1, cfg_.alpha1, cfg_.delta) +
                 cfg_.k2 * fal(e2, cfg_.alpha2, cfg_.delta);
-    output.u = clamp_value((output.u0 - z3) / safe_b0, cfg_.u_min, cfg_.u_max);
+    output.u = clamp_value((output.u0 - z2) / safe_b0, cfg_.u_min, cfg_.u_max);
     return output;
   }
 
@@ -79,6 +79,6 @@ class NLESF {
   Config cfg_;
 };
 
-}  // namespace adrc
+}  // namespace first_order_adrc
 
 #endif

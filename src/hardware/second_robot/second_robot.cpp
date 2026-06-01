@@ -1,15 +1,12 @@
 #include "hardware/robot_selector.h"
 
-#include "control/motor_control.h"
-#include "control/second_robot/autonomous/routine.h"
-#include "control/second_robot/chassis.h"
-#include "control/second_robot/mechanisms.h"
+#include "hardware/second_robot/autonomous.h"
 #include "hardware/second_robot/robot_hardware.h"
 #include "hardware/second_robot/robot_state.h"
 #include "hardware/second_robot/sensors.h"
 #include "input/controller.h"
-
-#include <array>
+#include "chassis/second_chassis.h"
+#include "mechanism/roller_shooter.h"
 
 namespace basic::hardware::second_robot {
 
@@ -58,8 +55,14 @@ class SecondRobot final : public basic::app::Robot {
   void run_driver_control_loop() {
     while (should_run_driver_control()) {
       basic::input::controller_update(hardware_.brain, hardware_.controller, state_.controller);
-      basic::control::second_robot::chassis_update(hardware_, state_);
-      basic::control::second_robot::mechanism_update(hardware_, state_);
+      basic::chassis::second_chassis_update(
+          hardware_.second_chassis,
+          basic::chassis::second_chassis_command_from_controller(
+              state_.controller,
+              basic::chassis::second_chassis_state(hardware_.second_chassis).stop_brake_type));
+      basic::mechanism::roller_shooter_update(
+          hardware_.shooter,
+          basic::mechanism::roller_shooter_command_from_controller(state_.controller));
       vex::this_thread::sleep_for(kRefreshTime);
     }
 
@@ -71,7 +74,7 @@ class SecondRobot final : public basic::app::Robot {
       return;
     }
 
-    basic::control::second_robot::autonomous::run_routine(hardware_, state_, *competition_);
+    basic::hardware::second_robot::autonomous::run_routine(hardware_, state_, *competition_);
     stop_all_outputs(vex::hold);
   }
 
@@ -81,29 +84,8 @@ class SecondRobot final : public basic::app::Robot {
 
   void stop_all_outputs(vex::brakeType drive_brake_type) {
     state_.controller = basic::hardware::shared::ControllerInputState{};
-    state_.chassis = ChassisState{};
-    state_.chassis.stop_brake_type = drive_brake_type;
-    state_.mechanism = MechanismState{};
-
-    const std::array<vex::motor*, 6> drive_motors{{
-        &hardware_.left_front_motor,
-        &hardware_.left_middle_motor,
-        &hardware_.left_back_motor,
-        &hardware_.right_front_motor,
-        &hardware_.right_middle_motor,
-        &hardware_.right_back_motor,
-    }};
-    for (vex::motor* motor : drive_motors) {
-      basic::control::stopcontrol(*motor, drive_brake_type);
-    }
-
-    basic::control::stopcontrol(hardware_.roller_lower_motor, vex::coast);
-    basic::control::stopcontrol(hardware_.roller_middle_motor, vex::coast);
-    basic::control::stopcontrol(hardware_.roller_upper_motor, vex::coast);
-
-    hardware_.descore.set(false);
-    hardware_.hook.set(false);
-    hardware_.store.set(false);
+    basic::chassis::second_chassis_stop(hardware_.second_chassis, drive_brake_type);
+    basic::mechanism::roller_shooter_stop(hardware_.shooter);
   }
 
   RobotHardware hardware_;

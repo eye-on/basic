@@ -1,10 +1,10 @@
-#ifndef ADRC_ESO_HPP_
-#define ADRC_ESO_HPP_
+#ifndef FIRST_ORDER_ADRC_ESO_HPP_
+#define FIRST_ORDER_ADRC_ESO_HPP_
 
 #include <algorithm>
 #include <cmath>
 
-namespace adrc {
+namespace first_order_adrc {
 
 class ESO {
  public:
@@ -40,9 +40,9 @@ class ESO {
     cfg_ = cfg;
     sanitize_config();
     if (cfg_.auto_beta) {
-      cfg_.beta1 = 3.0 * cfg_.w0;
-      cfg_.beta2 = 3.0 * cfg_.w0 * cfg_.w0;
-      cfg_.beta3 = cfg_.w0 * cfg_.w0 * cfg_.w0;
+      cfg_.beta1 = 2.0 * cfg_.w0;
+      cfg_.beta2 = cfg_.w0 * cfg_.w0;
+      cfg_.beta3 = 0.0;
     }
   }
 
@@ -57,10 +57,10 @@ class ESO {
 
   Output update(double y, double u) {
     const double e = state_.z1 - y;
-    state_.z1 += cfg_.h * (state_.z2 - cfg_.beta1 * e);
-    state_.z2 += cfg_.h * (state_.z3 + cfg_.b0 * u - cfg_.beta2 * e);
-    state_.z3 += cfg_.h * (-cfg_.beta3 * e);
-    state_.z3 = clamp_value(state_.z3, -cfg_.z3_limit, cfg_.z3_limit);
+    state_.z1 += cfg_.h * (state_.z2 + cfg_.b0 * u - cfg_.beta1 * e);
+    state_.z2 += cfg_.h * (-cfg_.beta2 * e);
+    state_.z2 = clamp_value(state_.z2, -cfg_.z3_limit, cfg_.z3_limit);
+    state_.z3 = 0.0;
 
     Output output;
     output.z1 = state_.z1;
@@ -84,7 +84,7 @@ class ESO {
     cfg_.w0 = std::max(cfg_.w0, kEps);
     cfg_.beta1 = std::max(cfg_.beta1, kEps);
     cfg_.beta2 = std::max(cfg_.beta2, kEps);
-    cfg_.beta3 = std::max(cfg_.beta3, kEps);
+    cfg_.beta3 = std::max(cfg_.beta3, 0.0);
     cfg_.z3_limit = std::max(cfg_.z3_limit, 0.0);
   }
 
@@ -92,6 +92,6 @@ class ESO {
   State state_;
 };
 
-}  // namespace adrc
+}  // namespace first_order_adrc
 
 #endif

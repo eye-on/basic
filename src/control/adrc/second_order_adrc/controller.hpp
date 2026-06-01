@@ -1,5 +1,5 @@
-#ifndef ADRC_CONTROLLER_HPP_
-#define ADRC_CONTROLLER_HPP_
+#ifndef SECOND_ORDER_ADRC_CONTROLLER_HPP_
+#define SECOND_ORDER_ADRC_CONTROLLER_HPP_
 
 #include <limits>
 
@@ -7,7 +7,7 @@
 #include "NLESF.hpp"
 #include "TD.hpp"
 
-namespace adrc {
+namespace second_order_adrc {
 
 class Controller {
  public:
@@ -61,6 +61,6 @@ class Controller {
   double last_u_ = 0.0;
 };
 
-}  // namespace adrc
+}  // namespace second_order_adrc
 
 #endif

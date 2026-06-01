@@ -1,11 +1,11 @@
-#ifndef ADRC_TD_HPP_
-#define ADRC_TD_HPP_
+#ifndef SECOND_ORDER_ADRC_TD_HPP_
+#define SECOND_ORDER_ADRC_TD_HPP_
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace adrc {
+namespace second_order_adrc {
 
 class TD {
  public:
@@ -98,6 +98,6 @@ class TD {
   State state_;
 };
 
-}  // namespace adrc
+}  // namespace second_order_adrc
 
 #endif

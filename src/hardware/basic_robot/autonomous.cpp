@@ -1,19 +1,19 @@
-#include "control/basic_robot/autonomous/routine.h"
+#include "hardware/basic_robot/autonomous.h"
 
-#include "control/basic_robot/mechanisms.h"
 #include "control/motor_control.h"
+#include "chassis/old_chassis.h"
+#include "mechanism/indexed_intake.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 
-namespace basic::control::basic_robot::autonomous {
+namespace basic::hardware::basic_robot::autonomous {
 
 namespace {
 
 using basic::control::stopcontrol;
 using basic::control::velocitycontrol;
-using basic::hardware::basic_robot::OverhangMode;
 using basic::hardware::basic_robot::RobotHardware;
 using basic::hardware::basic_robot::RobotState;
 
@@ -72,32 +72,32 @@ struct DriveSideRevolutions {
 
 DriveMotorArray drive_motors(RobotHardware& hardware) {
   return {{
-      &hardware.motor_fl1,
-      &hardware.motor_fl2,
-      &hardware.motor_fr1,
-      &hardware.motor_fr2,
-      &hardware.motor_bl1,
-      &hardware.motor_bl2,
-      &hardware.motor_br1,
-      &hardware.motor_br2,
+      &basic::chassis::old_chassis_left_motors(hardware.old_chassis)[0],
+      &basic::chassis::old_chassis_left_motors(hardware.old_chassis)[1],
+      &basic::chassis::old_chassis_right_motors(hardware.old_chassis)[0],
+      &basic::chassis::old_chassis_right_motors(hardware.old_chassis)[1],
+      &basic::chassis::old_chassis_left_motors(hardware.old_chassis)[2],
+      &basic::chassis::old_chassis_left_motors(hardware.old_chassis)[3],
+      &basic::chassis::old_chassis_right_motors(hardware.old_chassis)[2],
+      &basic::chassis::old_chassis_right_motors(hardware.old_chassis)[3],
   }};
 }
 
 SideMotorArray left_drive_motors(RobotHardware& hardware) {
   return {{
-      &hardware.motor_fl1,
-      &hardware.motor_fl2,
-      &hardware.motor_bl1,
-      &hardware.motor_bl2,
+      &basic::chassis::old_chassis_left_motors(hardware.old_chassis)[0],
+      &basic::chassis::old_chassis_left_motors(hardware.old_chassis)[1],
+      &basic::chassis::old_chassis_left_motors(hardware.old_chassis)[2],
+      &basic::chassis::old_chassis_left_motors(hardware.old_chassis)[3],
   }};
 }
 
 SideMotorArray right_drive_motors(RobotHardware& hardware) {
   return {{
-      &hardware.motor_fr1,
-      &hardware.motor_fr2,
-      &hardware.motor_br1,
-      &hardware.motor_br2,
+      &basic::chassis::old_chassis_right_motors(hardware.old_chassis)[0],
+      &basic::chassis::old_chassis_right_motors(hardware.old_chassis)[1],
+      &basic::chassis::old_chassis_right_motors(hardware.old_chassis)[2],
+      &basic::chassis::old_chassis_right_motors(hardware.old_chassis)[3],
   }};
 }
 
@@ -371,39 +371,25 @@ void turn_deg(
 }
 
 void update_upper_overhang_mode(RobotHardware& hardware, RobotState& state) {
-  OverhangMode& overhang_mode = state.overhang.upper_overhang_mode;
-  if (overhang_mode == OverhangMode::Expansion) {
-    overhang_mode = OverhangMode::Collapse;
-    hardware.upper_overhang_motor.spinFor(1500, vex::deg, 50, vex::velocityUnits::pct);
-  } else {
-    overhang_mode = OverhangMode::Expansion;
-    hardware.upper_overhang_motor.spinFor(-1500, vex::deg, 50, vex::velocityUnits::pct);
-  }
-  hardware.upper_overhang_motor.stop(vex::hold);
+  (void)state;
+  basic::mechanism::indexed_intake_toggle_upper_overhang(hardware.intake);
 }
 
 void update_middle_overhang_mode(RobotHardware& hardware, RobotState& state) {
-  OverhangMode& overhang_mode = state.overhang.middle_overhang_mode;
-  if (overhang_mode == OverhangMode::Expansion) {
-    overhang_mode = OverhangMode::Collapse;
-    hardware.middle_overhang_motor.spinFor(-550, vex::deg, 30, vex::velocityUnits::pct);
-  } else {
-    overhang_mode = OverhangMode::Expansion;
-    hardware.middle_overhang_motor.spinFor(550, vex::deg, 30, vex::velocityUnits::pct);
-  }
-  hardware.middle_overhang_motor.stop(vex::hold);
+  (void)state;
+  basic::mechanism::indexed_intake_toggle_middle_overhang(hardware.intake);
 }
 
 void update_under_overhang_mode(RobotHardware& hardware, RobotState& state) {
-  OverhangMode& overhang_mode = state.overhang.under_overhang_mode;
-  if (overhang_mode == OverhangMode::Expansion) {
-    overhang_mode = OverhangMode::Collapse;
-    hardware.under_overhang_motor.spinFor(-750, vex::deg, 30, vex::velocityUnits::pct);
-  } else {
-    overhang_mode = OverhangMode::Expansion;
-    hardware.under_overhang_motor.spinFor(750, vex::deg, 30, vex::velocityUnits::pct);
-  }
-  hardware.under_overhang_motor.stop(vex::hold);
+  (void)state;
+  basic::mechanism::indexed_intake_toggle_under_overhang(hardware.intake);
+}
+
+void toggle_intake_mode(
+    RobotHardware& hardware,
+    basic::mechanism::IndexedIntakeMode mode) {
+  basic::mechanism::indexed_intake_toggle_mode(hardware.intake, mode);
+  basic::mechanism::indexed_intake_apply_mode(hardware.intake);
 }
 
 }  // namespace
@@ -634,7 +620,7 @@ void drive_to_laser_distance_mm(
 }
 
 void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& competition) {
-  state.chassis.stop_brake_type = vex::hold;
+  basic::chassis::old_chassis_state(hardware.old_chassis).stop_brake_type = vex::hold;
   reset_autonomous_frame(hardware, state);
 
   update_middle_overhang_mode(hardware, state);
@@ -644,10 +630,10 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   turn_deg(hardware, state, competition, -90.0);
   update_under_overhang_mode(hardware, state);
 
-  update_intake_mode(hardware, state);
+  toggle_intake_mode(hardware, basic::mechanism::IndexedIntakeMode::kLegacyIntake);
   drive_to_laser_distance_mm(hardware, state, competition, 135.0, 30.0);
   vex::this_thread::sleep_for(5000);
-  update_intake_mode(hardware, state);
+  toggle_intake_mode(hardware, basic::mechanism::IndexedIntakeMode::kLegacyIntake);
 
   drive_distance_mm(hardware, state, competition, -320.0);
   update_under_overhang_mode(hardware, state);
@@ -657,9 +643,9 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   turn_deg(hardware, state, competition, 90.0);
   drive_distance_mm(hardware, state, competition, 502.0);
 
-  update_upperthrow_mode(hardware, state);
+  toggle_intake_mode(hardware, basic::mechanism::IndexedIntakeMode::kUpperThrow);
   vex::this_thread::sleep_for(5000);
-  update_upperthrow_mode(hardware, state);
+  toggle_intake_mode(hardware, basic::mechanism::IndexedIntakeMode::kUpperThrow);
 
   drive_distance_mm(hardware, state, competition, -200.0);
   turn_deg(hardware, state, competition, -90.0);
@@ -672,11 +658,11 @@ void run_routine(RobotHardware& hardware, RobotState& state, vex::competition& c
   update_under_overhang_mode(hardware, state);
   drive_distance_mm(hardware, state, competition, 900.0);
 
-  update_middlethrow_mode(hardware, state);
+  toggle_intake_mode(hardware, basic::mechanism::IndexedIntakeMode::kMiddleThrow);
   vex::this_thread::sleep_for(5000);
-  update_middlethrow_mode(hardware, state);
+  toggle_intake_mode(hardware, basic::mechanism::IndexedIntakeMode::kMiddleThrow);
 
   stop_drive(hardware, vex::hold);
 }
 
-}  // namespace basic::control::basic_robot::autonomous
+}  // namespace basic::hardware::basic_robot::autonomous

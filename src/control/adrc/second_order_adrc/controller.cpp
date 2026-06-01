@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace adrc {
+namespace second_order_adrc {
 
 Controller::Controller() : Controller(Config()) {}
 
@@ -66,4 +66,4 @@ void Controller::sanitize_config() {
   cfg_.eso.b0 = cfg_.b0;
 }
 
-}  // namespace adrc
+}  // namespace second_order_adrc

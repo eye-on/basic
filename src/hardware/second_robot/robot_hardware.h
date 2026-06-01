@@ -1,33 +1,44 @@
 #ifndef BASIC_SRC_HARDWARE_SECOND_ROBOT_ROBOT_HARDWARE_H_
 #define BASIC_SRC_HARDWARE_SECOND_ROBOT_ROBOT_HARDWARE_H_
 
+#include "chassis/second_chassis.h"
+#include "mechanism/roller_shooter.h"
 #include "vex.h"
 
 namespace basic::hardware::second_robot {
 
 inline constexpr int kRefreshTime = 10;
-inline constexpr int kDeadZone = 10;
 inline constexpr int kSensorLoopDelay = 50;
 
 struct RobotHardware {
-  vex::motor left_front_motor{vex::PORT1, vex::ratio6_1, true};
-  vex::motor left_middle_motor{vex::PORT2, vex::ratio6_1, true};
-  vex::motor left_back_motor{vex::PORT3, vex::ratio6_1, true};
-
-  vex::motor right_front_motor{vex::PORT6, vex::ratio6_1, false};
-  vex::motor right_middle_motor{vex::PORT13, vex::ratio6_1, false};
-  vex::motor right_back_motor{vex::PORT17, vex::ratio6_1, false};
-
-  vex::motor roller_lower_motor{vex::PORT14, vex::ratio6_1, false};
-  vex::motor roller_middle_motor{vex::PORT15, vex::ratio6_1, true};
-  vex::motor roller_upper_motor{vex::PORT19, vex::ratio6_1, true};
-
   vex::brain brain;
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{vex::PORT7};
-  vex::digital_out descore{brain.ThreeWirePort.F};
-  vex::digital_out hook{brain.ThreeWirePort.E};
-  vex::digital_out store{brain.ThreeWirePort.H};
+  basic::chassis::SecondChassis second_chassis;
+  basic::mechanism::RollerShooter shooter;
+
+  RobotHardware()
+      : second_chassis(basic::chassis::second_chassis_init({
+            {{
+                {vex::PORT1, vex::ratio6_1, true},
+                {vex::PORT2, vex::ratio6_1, true},
+                {vex::PORT3, vex::ratio6_1, true},
+            }},
+            {{
+                {vex::PORT6, vex::ratio6_1, false},
+                {vex::PORT13, vex::ratio6_1, false},
+                {vex::PORT17, vex::ratio6_1, false},
+            }},
+            10,
+        })),
+        shooter(basic::mechanism::roller_shooter_init({
+            {vex::PORT14, vex::ratio6_1, false},
+            {vex::PORT15, vex::ratio6_1, true},
+            {vex::PORT19, vex::ratio6_1, true},
+            {brain.ThreeWirePort.F},
+            {brain.ThreeWirePort.E},
+            {brain.ThreeWirePort.H},
+        })) {}
 
   void calibrate_inertial_sensor() {
     inertial.calibrate();
