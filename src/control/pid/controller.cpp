@@ -74,7 +74,6 @@ double Pid::p_d(double kd, double deriv) {
 
 Pid::Result Pid::update(double expection, double measurement) {
   Result result;
-  result.ctrl = ctrl_;
   
   if (!std::isfinite(expection) || !std::isfinite(measurement)) {
     return result;
