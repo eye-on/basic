@@ -20,48 +20,52 @@ struct RobotHardware {
             // 右前轮组 (fr): motor1, motor2
             {
                 {vex::PORT12, vex::ratio6_1, true}, // motor1_config
-                {vex::PORT20, vex::ratio6_1, false} // motor2_config
+                {vex::PORT20, vex::ratio6_1, true}  // motor2_config
             },
             // 左前轮组 (fl): motor1, motor2
             {
-                {vex::PORT3, vex::ratio6_1, false}, // motor1_config
+                {vex::PORT3, vex::ratio6_1, true}, // motor1_config
                 {vex::PORT4, vex::ratio6_1, true}  // motor2_config
             },
             // 右后轮组 (br): motor1, motor2
             {
                 {vex::PORT5, vex::ratio6_1, true}, // motor1_config
-                {vex::PORT6, vex::ratio6_1, false} // motor2_config
+                {vex::PORT6, vex::ratio6_1, true} // motor2_config
             },
             // 左后轮组 (bl): motor1, motor2
             {
-                {vex::PORT7, vex::ratio6_1, false}, // motor1_config
+                {vex::PORT7, vex::ratio6_1, true}, // motor1_config
                 {vex::PORT8, vex::ratio6_1, true}  // motor2_config
             },
             // 速度PID配置
             {
                 basic::control::pid::Mode::kLinear, // mode
-                2.0,   // kp
-                0.5,   // ki
-                0.1,   // kd
-                1.0,   // log_gain
+                0.5,   // kp
+                0.005,   // ki
+                0.001,   // kd
+                0.0,   // log_gain
+                0.0, // log_base
+                0.0,   // log_offset
                 -100.0, // out_min
                 100.0,  // out_max
                 -1000.0, // i_term_min
                 1000.0,  // i_term_max
-                5.0,    // deadzone
+                3,    // deadzone
             },
             // 航向PID配置
             {
-                basic::control::pid::Mode::kLinear, // mode
-                2.0,   // kp
-                0.5,   // ki
-                0.1,   // kd
-                1.0,   // log_gain
-                -180.0, // out_min
-                180.0,  // out_max
+                basic::control::pid::Mode::kLogarithmic, // mode
+                0.0,   // kp
+                0.0,   // ki
+                0.0,   // kd
+                200,   // log_gain
+                360, // log_base
+                0.0,   // log_offset
+                -100, // out_min
+                100,  // out_max
                 -1000.0, // i_term_min
                 1000.0,  // i_term_max
-                1.0,    // deadzone
+                1,    // deadzone
             },
             10, // deadzone
         })) {}

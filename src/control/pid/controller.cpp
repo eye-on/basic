@@ -42,7 +42,9 @@ void Pid::set_calculator(Calculator calc) {
 void Pid::update_calculator() {
   switch (cfg_.mode) {
     case Mode::kLogarithmic:
-      calculator_ = p_logarithmic;
+      calculator_ = [this](double kp, double log_gain, double err) {
+        return p_logarithmic(kp, log_gain, err);
+      };
       break;
     case Mode::kLinear:
     default:
@@ -61,7 +63,7 @@ double Pid::p_logarithmic(double kp, double log_gain, double err) {
   }
   const double sign = err >= 0.0 ? 1.0 : -1.0;
   const double abs_err = std::fabs(err);
-  return kp * sign * (log_gain * std::log1p(abs_err));
+  return sign * (log_gain * std::log1p(abs_err / cfg_.log_base + cfg_.log_offset) + kp);
 }
 
 double Pid::p_i(double ki, double integral) {
@@ -84,6 +86,7 @@ Pid::Result Pid::update(double expection, double measurement) {
     err = 0.0;
   }
 
+  // 位置式
   i_ = clamp(i_ + err, cfg_.i_term_min, cfg_.i_term_max);
   
   d_ = err - err_;
@@ -124,6 +127,12 @@ void Pid::sanitize_config() {
   }
   if (cfg_.deadzone < 0.0 || !std::isfinite(cfg_.deadzone)) {
     cfg_.deadzone = 0.0;
+  }
+  if (cfg_.log_base <= 0.0 || !std::isfinite(cfg_.log_base)) {
+    cfg_.log_base = 100.0;
+  }
+  if (cfg_.log_offset < 0.0 || !std::isfinite(cfg_.log_offset)) {
+    cfg_.log_offset = 1.0;
   }
 
 }

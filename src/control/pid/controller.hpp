@@ -1,16 +1,22 @@
 #ifndef BASIC_SRC_CONTROL_PID_CONTROLLER_HPP_
 #define BASIC_SRC_CONTROL_PID_CONTROLLER_HPP_
 
+#include <functional>
 #include <limits>
 
 namespace basic::control::pid {
+
+enum class Type {
+  kPosition,
+  kIncremental,
+};
 
 enum class Mode {
   kLinear,
   kLogarithmic,
 };
 
-using Calculator = double (*)(double kp, double log_gain, double err);
+using Calculator = std::function<double(double kp, double log_gain, double err)>;
 
 class Pid {
  public:
@@ -20,6 +26,8 @@ class Pid {
     double ki = 0.0;
     double kd = 0.0;
     double log_gain = 1.0;
+    double log_base = 100.0;
+    double log_offset = 1.0;
     double out_min = -std::numeric_limits<double>::infinity();
     double out_max = std::numeric_limits<double>::infinity();
     double i_term_min = -std::numeric_limits<double>::infinity();
@@ -58,7 +66,7 @@ class Pid {
   void update_calculator();
 
   static double p_linear(double kp, double log_gain, double err);
-  static double p_logarithmic(double kp, double log_gain, double err);
+  double p_logarithmic(double kp, double log_gain, double err);
   static double p_i(double ki, double integral);
   static double p_d(double kd, double deriv);
 

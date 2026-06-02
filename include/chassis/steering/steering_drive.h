@@ -23,8 +23,8 @@ enum class ControllerAxis {
 };
 
 struct ArcadeDriveCommand {
-  int input_velocity_pct{0};
-  int input_heading_degrees{0};
+  double input_velocity_pct{0.0};
+  double input_heading_degrees{0.0};
   vex::brakeType stop_brake_type{vex::coast};
 };
 
@@ -51,12 +51,10 @@ namespace detail {
 inline Wheel_Unit make_wheel_unit(const Wheel_Unit_Config& wheel_unit_config){
   vex::motor motor1{wheel_unit_config.motor1_config.port, wheel_unit_config.motor1_config.gear_ratio, wheel_unit_config.motor1_config.reversed};
   vex::motor motor2{wheel_unit_config.motor2_config.port, wheel_unit_config.motor2_config.gear_ratio, wheel_unit_config.motor2_config.reversed};
-  motor1.resetPosition();
-  motor2.resetPosition();
-  const double initial_m1 = basic::control::get_position(motor1, vex::deg);
-  const double initial_m2 = basic::control::get_position(motor2, vex::deg);
-  
-  
+  vex::this_thread::sleep_for(10);
+  const double initial_m1 = motor1.position(vex::deg);
+  const double initial_m2 = motor2.position(vex::deg);
+
   return Wheel_Unit{
       std::move(motor1),
       std::move(motor2),
@@ -148,9 +146,9 @@ inline void steering_update(SteeringDrive& chassis, const ArcadeDriveCommand& co
   chassis.state().stop_brake_type = command.stop_brake_type;
   
   wheel_unit_control(chassis.fr(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
-  wheel_unit_control(chassis.fl(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
-  wheel_unit_control(chassis.br(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
-  wheel_unit_control(chassis.bl(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
+  //wheel_unit_control(chassis.fl(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
+  //wheel_unit_control(chassis.br(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
+  //wheel_unit_control(chassis.bl(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
 }
 
 }//namespace basic::chassis::steering
