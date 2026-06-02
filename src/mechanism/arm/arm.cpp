@@ -21,7 +21,7 @@ void spin_to_angle(
   motor.spinToPosition(target_angle, angle_units, speed, speed_units, false);
 }
 
-ArmJointAngles motor_positions_to_joint_angles(const Arm& mechanism) {
+ArmJointAngles motor_positions_to_joint_angles(Arm& mechanism) {
   const auto& mapping = mechanism.config().ik_config.motor_mapping;
 
   ArmJointAngles motor_angles;
