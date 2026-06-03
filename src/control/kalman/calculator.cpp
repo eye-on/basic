@@ -15,10 +15,23 @@ KalmanCalculator::KalmanCalculator(double process_noise, double measurement_nois
   reset();
 }
 
+KalmanCalculator::KalmanCalculator(double A, double B, double process_noise,
+                                   double measurement_noise, double K,
+                                   double initial_covariance)
+    : A_(A),
+      B_(B),
+      K_(std::max(K, 0.0)),
+      process_noise_(sanitize_positive(process_noise)),
+      measurement_noise_(sanitize_positive(measurement_noise)),
+      initial_covariance_(sanitize_positive(initial_covariance)) {
+  reset();
+}
+
 void KalmanCalculator::reset() {
   estimate_ = kNan;
   covariance_ = initial_covariance_;
   is_initialized_ = false;
+  predicted_ = false;
 }
 
 void KalmanCalculator::reset(double initial_estimate, double covariance) {
@@ -29,6 +42,14 @@ void KalmanCalculator::reset(double initial_estimate, double covariance) {
     covariance_ = initial_covariance_;
   }
   is_initialized_ = std::isfinite(initial_estimate);
+  predicted_ = false;
+}
+
+void KalmanCalculator::predict(double input) {
+  if (!is_initialized_) return;
+  estimate_ = A_ * estimate_ + B_ * input;
+  covariance_ = std::max(A_ * A_ * covariance_ + process_noise_, kMinPositive);
+  predicted_ = true;
 }
 
 double KalmanCalculator::update(double measurement) {
@@ -40,15 +61,26 @@ double KalmanCalculator::update(double measurement) {
     estimate_ = measurement;
     covariance_ = initial_covariance_;
     is_initialized_ = true;
+    predicted_ = false;
     return estimate_;
   }
 
-  covariance_ = std::max(covariance_ + process_noise_, kMinPositive);
-  const double kalman_gain = covariance_ / (covariance_ + measurement_noise_);
+  if (!predicted_) {
+    covariance_ = std::max(covariance_ + process_noise_, kMinPositive);
+  }
+  predicted_ = false;
+
+  const double kalman_gain = (K_ > kMinPositive)
+      ? K_
+      : covariance_ / (covariance_ + measurement_noise_);
   estimate_ += kalman_gain * (measurement - estimate_);
   covariance_ = std::max((1.0 - kalman_gain) * covariance_, kMinPositive);
   return estimate_;
 }
+
+void KalmanCalculator::set_A(double A) { A_ = A; }
+void KalmanCalculator::set_B(double B) { B_ = B; }
+void KalmanCalculator::set_K(double K) { K_ = std::max(K, 0.0); }
 
 void KalmanCalculator::set_process_noise(double process_noise) {
   process_noise_ = sanitize_positive(process_noise);

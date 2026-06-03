@@ -81,7 +81,7 @@ private:
 };//class SteeringDrive
 
 inline SteeringDrive steering_init(const SteeringDriveConfig& config){
-  printf("target_velocity_pct,target_heading_degrees,velocity_result.ctrl,heading_result.ctrl,velocity,heading\n");
+  printf("motor1_output,motor2_output,motor1_input,motor2_input\n");
   return SteeringDrive(config);
 }
 

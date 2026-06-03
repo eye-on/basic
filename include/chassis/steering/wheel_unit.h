@@ -32,8 +32,10 @@ class Wheel_Unit {
   double heading{0.0};
   const double initial_angle_m1;
   const double initial_angle_m2;
-  basic::control::kalman::KalmanCalculator velocity_filter{1, 5e-2};
-  basic::control::kalman::KalmanCalculator heading_filter{0.005, 1e-4};
+  basic::control::kalman::KalmanCalculator m1_angle_filter{0.005, 1e-4};
+  basic::control::kalman::KalmanCalculator m2_angle_filter{0.005, 1e-4};
+  basic::control::kalman::KalmanCalculator m1_velocity_filter{0.902649, 0.097258, 1.2703, 0.0259, 0.9803, 100};
+  basic::control::kalman::KalmanCalculator m2_velocity_filter{0.902649, 0.097258, 1.2703, 0.0259, 0.9803, 100};
   basic::control::pid::Pid velocity_pid;
   basic::control::pid::Pid heading_pid;
   first_order_adrc::Controller adrc1;
@@ -56,17 +58,24 @@ public:
         adrc2(a2_cfg) {}
 
   void update() {
-    const double m1_angle = motor1.position(vex::deg) - initial_angle_m1;
-    const double m2_angle = motor2.position(vex::deg) - initial_angle_m2;
+    const double m1_angle_raw = motor1.position(vex::deg) - initial_angle_m1;
+    const double m2_angle_raw = motor2.position(vex::deg) - initial_angle_m2;
 
-    const double m1_velocity = motor1.velocity(vex::pct);
-    const double m2_velocity = motor2.velocity(vex::pct);
+    const double m1_velocity_raw = motor1.velocity(vex::pct);
+    const double m2_velocity_raw = motor2.velocity(vex::pct);
+
+    const double m1_angle = m1_angle_filter.update(m1_angle_raw);
+    const double m2_angle = m2_angle_filter.update(m2_angle_raw);
+    const double m1_velocity = m1_velocity_filter.update(m1_velocity_raw);
+    const double m2_velocity = m2_velocity_filter.update(m2_velocity_raw);
+
+    printf("%.2f,%.2f,", m1_velocity, m2_velocity);
 
     const double steer_angle = (m1_angle + m2_angle) * 0.5 * kSteerGearRatio;
 
     const double wheel_velocity = (m1_velocity - m2_velocity) * kWheelGearRatio * 0.5;
 
-    velocity = velocity_filter.update(wheel_velocity);
+    velocity = wheel_velocity;
     heading = steer_angle;
   }
 
@@ -79,13 +88,13 @@ public:
     const auto heading_result = heading_pid.update(target_heading_degrees, heading);
     const double motor1_output = velocity_result.ctrl + heading_result.ctrl;
     const double motor2_output = -velocity_result.ctrl + heading_result.ctrl;
-    printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
-      target_velocity_pct,target_heading_degrees,velocity_result.ctrl,heading_result.ctrl,velocity,heading);
 
-    //basic::control::adrc_velocity_control(motor1, motor1_output, adrc1);
-    //basic::control::adrc_velocity_control(motor2, motor2_output, adrc2);
-    basic::control::velocitycontrol(motor1, motor1_output);
-    basic::control::velocitycontrol(motor2, motor2_output);
+    printf("%.2f,%.2f\n",motor1_output,motor2_output);
+
+    basic::control::adrc_velocity_control(motor1, motor1_output, adrc1);
+    basic::control::adrc_velocity_control(motor2, motor2_output, adrc2);
+    //basic::control::velocitycontrol(motor1, motor1_output);
+    //basic::control::velocitycontrol(motor2, motor2_output);
   }
 };
 

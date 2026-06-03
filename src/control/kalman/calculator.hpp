@@ -10,13 +10,20 @@ class KalmanCalculator {
   KalmanCalculator();
   KalmanCalculator(double process_noise, double measurement_noise,
                    double initial_covariance = 1.0);
+  KalmanCalculator(double A, double B, double process_noise,
+                   double measurement_noise, double K = 0.0,
+                   double initial_covariance = 1.0);
 
   void reset();
   void reset(double initial_estimate,
              double covariance = std::numeric_limits<double>::quiet_NaN());
 
+  void predict(double input = 0.0);
   double update(double measurement);
 
+  void set_A(double A);
+  void set_B(double B);
+  void set_K(double K);
   void set_process_noise(double process_noise);
   void set_measurement_noise(double measurement_noise);
   void set_initial_covariance(double initial_covariance);
@@ -31,6 +38,9 @@ class KalmanCalculator {
 
   static double sanitize_positive(double value);
 
+  double A_ = 1.0;
+  double B_ = 0.0;
+  double K_ = 0.0;
   double process_noise_ = 1e-3;
   double measurement_noise_ = 1e-2;
   double initial_covariance_ = 1.0;
@@ -38,6 +48,7 @@ class KalmanCalculator {
   double estimate_ = kNan;
   double covariance_ = 1.0;
   bool is_initialized_ = false;
+  bool predicted_ = false;
 };
 
 }  // namespace basic::control::kalman

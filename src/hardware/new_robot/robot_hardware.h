@@ -11,7 +11,7 @@ inline constexpr int kSensorLoopDelay = 50;
 
 inline constexpr basic::control::pid::Pid::Config kVeloPidCfg{
     basic::control::pid::Mode::kLinear,
-    0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.7, 0.0, 0.0, 0.0, 0.0, 0.0,
     -100.0, 100.0, -10.0, 10.0, 3};
 
 inline constexpr basic::control::pid::Pid::Config kHeadingPidCfg{
@@ -19,11 +19,7 @@ inline constexpr basic::control::pid::Pid::Config kHeadingPidCfg{
     1, 0.0, 0.0, 0.0, 0.0, 0.0,
     -100, 100, -1000.0, 1000.0, 1};
 
-inline constexpr first_order_adrc::Controller::Config kAdrcCfg{
-    {200.0, 0.01, 100.0, 200.0},
-    {0.01, 1.0, 50.0, true},
-    {50.0, 5.0, 0.75, 1.25, 0.01, -100.0, 100.0},
-    1.0, 1.0, -100.0, 100.0};
+inline constexpr first_order_adrc::Controller::Config kAdrcCfg;
 
 struct RobotHardware {
   vex::brain brain;
