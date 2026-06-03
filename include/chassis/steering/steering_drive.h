@@ -41,39 +41,8 @@ struct SteeringDriveConfig {
   Wheel_Unit_Config fl;
   Wheel_Unit_Config br;
   Wheel_Unit_Config bl;
-  basic::control::pid::Pid::Config velocity_pid_config;
-  basic::control::pid::Pid::Config heading_pid_config;
   int deadzone{10};
 };
-
-namespace detail {
-
-inline Wheel_Unit make_wheel_unit(const Wheel_Unit_Config& wheel_unit_config){
-  vex::motor motor1{wheel_unit_config.motor1_config.port, wheel_unit_config.motor1_config.gear_ratio, wheel_unit_config.motor1_config.reversed};
-  vex::motor motor2{wheel_unit_config.motor2_config.port, wheel_unit_config.motor2_config.gear_ratio, wheel_unit_config.motor2_config.reversed};
-  vex::this_thread::sleep_for(10);
-  const double initial_m1 = motor1.position(vex::deg);
-  const double initial_m2 = motor2.position(vex::deg);
-
-  return Wheel_Unit{
-      std::move(motor1),
-      std::move(motor2),
-      0.0,
-      0.0,
-      0.0,
-      initial_m1,
-      initial_m2,
-  };
-}
-
-inline double shape_input(double input_pct) {
-  const bool negative = input_pct < 0.0;
-  const double normalized = std::abs(input_pct) * 0.01;
-  const double shaped = normalized * normalized * (3.0 - 2.0 * normalized) * 100.0;
-  return negative ? -shaped : shaped;
-}
-
-}//namespace detail
 
 class SteeringDrive {
 public:
@@ -82,8 +51,6 @@ public:
         fl_(detail::make_wheel_unit(config.fl)),
         br_(detail::make_wheel_unit(config.br)),
         bl_(detail::make_wheel_unit(config.bl)),
-        velocity_pid_(config.velocity_pid_config),
-        heading_pid_(config.heading_pid_config),
         deadzone_(config.deadzone) {
   }
 
@@ -104,23 +71,17 @@ public:
   Wheel_Unit& bl() { return bl_; }
   const Wheel_Unit& bl() const { return bl_; }
 
-  basic::control::pid::Pid& velocity_pid() { return velocity_pid_; }
-  const basic::control::pid::Pid& velocity_pid() const { return velocity_pid_; }
-  basic::control::pid::Pid& heading_pid() { return heading_pid_; }
-  const basic::control::pid::Pid& heading_pid() const { return heading_pid_; }
-
 private:
   Wheel_Unit fr_;
   Wheel_Unit fl_;
   Wheel_Unit br_;
   Wheel_Unit bl_;
-  basic::control::pid::Pid velocity_pid_;
-  basic::control::pid::Pid heading_pid_;
   int deadzone_;
   SteeringDriveState state_;
 };//class SteeringDrive
 
 inline SteeringDrive steering_init(const SteeringDriveConfig& config){
+  printf("target_velocity_pct,target_heading_degrees,velocity_result.ctrl,heading_result.ctrl,velocity,heading\n");
   return SteeringDrive(config);
 }
 
@@ -145,10 +106,10 @@ inline void steering_update(SteeringDrive& chassis, const ArcadeDriveCommand& co
   chassis.state().target_heading_degrees = command.input_heading_degrees;
   chassis.state().stop_brake_type = command.stop_brake_type;
   
-  wheel_unit_control(chassis.fr(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
-  //wheel_unit_control(chassis.fl(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
-  //wheel_unit_control(chassis.br(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
-  //wheel_unit_control(chassis.bl(), command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type, chassis.velocity_pid(), chassis.heading_pid());
+  chassis.fr().control(command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type);
+  //chassis.fl().control(command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type);
+  //chassis.br().control(command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type);
+  //chassis.bl().control(command.input_velocity_pct, command.input_heading_degrees, command.stop_brake_type);
 }
 
 }//namespace basic::chassis::steering

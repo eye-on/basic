@@ -13,7 +13,6 @@ using NewChassisConfig = basic::chassis::steering::SteeringDriveConfig;
 using NewChassisState = basic::chassis::steering::SteeringDriveState;
 using WheelUnit = basic::chassis::steering::Wheel_Unit;
 using WheelUnitConfig = basic::chassis::steering::Wheel_Unit_Config;
-using PidConfig = basic::control::pid::Pid::Config;
 
 
 inline NewChassis new_chassis_init(const NewChassisConfig& config) {
@@ -109,22 +108,6 @@ inline WheelUnit& new_chassis_bl(NewChassis& chassis) {
 
 inline const WheelUnit& new_chassis_bl(const NewChassis& chassis) {
   return chassis.bl();
-}
-
-inline basic::control::pid::Pid& new_chassis_velocity_pid(NewChassis& chassis) {
-  return chassis.velocity_pid();
-}
-
-inline const basic::control::pid::Pid& new_chassis_velocity_pid(const NewChassis& chassis) {
-  return chassis.velocity_pid();
-}
-
-inline basic::control::pid::Pid& new_chassis_heading_pid(NewChassis& chassis) {
-  return chassis.heading_pid();
-}
-
-inline const basic::control::pid::Pid& new_chassis_heading_pid(const NewChassis& chassis) {
-  return chassis.heading_pid();
 }
 
 }  // namespace basic::chassis

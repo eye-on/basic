@@ -9,6 +9,22 @@ namespace basic::hardware::new_robot {
 inline constexpr int kRefreshTime = 10;
 inline constexpr int kSensorLoopDelay = 50;
 
+inline constexpr basic::control::pid::Pid::Config kVeloPidCfg{
+    basic::control::pid::Mode::kLinear,
+    0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
+    -100.0, 100.0, -10.0, 10.0, 3};
+
+inline constexpr basic::control::pid::Pid::Config kHeadingPidCfg{
+    basic::control::pid::Mode::kLinear,
+    1, 0.0, 0.0, 0.0, 0.0, 0.0,
+    -100, 100, -1000.0, 1000.0, 1};
+
+inline constexpr first_order_adrc::Controller::Config kAdrcCfg{
+    {200.0, 0.01, 100.0, 200.0},
+    {0.01, 1.0, 50.0, true},
+    {50.0, 5.0, 0.75, 1.25, 0.01, -100.0, 100.0},
+    1.0, 1.0, -100.0, 100.0};
+
 struct RobotHardware {
   vex::brain brain;
   vex::controller controller{vex::controllerType::primary};
@@ -17,55 +33,41 @@ struct RobotHardware {
 
   RobotHardware()
       : new_chassis(basic::chassis::new_chassis_init({
-            // 右前轮组 (fr): motor1, motor2
+            // 右前轮组 (fr)
             {
-                {vex::PORT12, vex::ratio6_1, true}, // motor1_config
-                {vex::PORT20, vex::ratio6_1, true}  // motor2_config
+                {vex::PORT12, vex::ratio6_1, true},
+                {vex::PORT20, vex::ratio6_1, true},
+                kVeloPidCfg,
+                kHeadingPidCfg,
+                kAdrcCfg,
+                kAdrcCfg,
             },
-            // 左前轮组 (fl): motor1, motor2
+            // 左前轮组 (fl)
             {
-                {vex::PORT3, vex::ratio6_1, true}, // motor1_config
-                {vex::PORT4, vex::ratio6_1, true}  // motor2_config
+                {vex::PORT3, vex::ratio6_1, true},
+                {vex::PORT4, vex::ratio6_1, true},
+                kVeloPidCfg,
+                kHeadingPidCfg,
+                kAdrcCfg,
+                kAdrcCfg,
             },
-            // 右后轮组 (br): motor1, motor2
+            // 右后轮组 (br)
             {
-                {vex::PORT5, vex::ratio6_1, true}, // motor1_config
-                {vex::PORT6, vex::ratio6_1, true} // motor2_config
+                {vex::PORT5, vex::ratio6_1, true},
+                {vex::PORT6, vex::ratio6_1, true},
+                kVeloPidCfg,
+                kHeadingPidCfg,
+                kAdrcCfg,
+                kAdrcCfg,
             },
-            // 左后轮组 (bl): motor1, motor2
+            // 左后轮组 (bl)
             {
-                {vex::PORT7, vex::ratio6_1, true}, // motor1_config
-                {vex::PORT8, vex::ratio6_1, true}  // motor2_config
-            },
-            // 速度PID配置
-            {
-                basic::control::pid::Mode::kLinear, // mode
-                0.5,   // kp
-                0.005,   // ki
-                0.001,   // kd
-                0.0,   // log_gain
-                0.0, // log_base
-                0.0,   // log_offset
-                -100.0, // out_min
-                100.0,  // out_max
-                -1000.0, // i_term_min
-                1000.0,  // i_term_max
-                3,    // deadzone
-            },
-            // 航向PID配置
-            {
-                basic::control::pid::Mode::kLogarithmic, // mode
-                0.0,   // kp
-                0.0,   // ki
-                0.0,   // kd
-                200,   // log_gain
-                360, // log_base
-                0.0,   // log_offset
-                -100, // out_min
-                100,  // out_max
-                -1000.0, // i_term_min
-                1000.0,  // i_term_max
-                1,    // deadzone
+                {vex::PORT7, vex::ratio6_1, true},
+                {vex::PORT8, vex::ratio6_1, true},
+                kVeloPidCfg,
+                kHeadingPidCfg,
+                kAdrcCfg,
+                kAdrcCfg,
             },
             10, // deadzone
         })) {}

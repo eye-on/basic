@@ -42,9 +42,7 @@ void Pid::set_calculator(Calculator calc) {
 void Pid::update_calculator() {
   switch (cfg_.mode) {
     case Mode::kLogarithmic:
-      calculator_ = [this](double kp, double log_gain, double err) {
-        return p_logarithmic(kp, log_gain, err);
-      };
+      calculator_ = p_logarithmic;
       break;
     case Mode::kLinear:
     default:
@@ -53,17 +51,17 @@ void Pid::update_calculator() {
   }
 }
 
-double Pid::p_linear(double kp, double /* log_gain */, double err) {
-  return kp * err;
+double Pid::p_linear(const Config& cfg, double err) {
+  return cfg.kp * err;
 }
 
-double Pid::p_logarithmic(double kp, double log_gain, double err) {
+double Pid::p_logarithmic(const Config& cfg, double err) {
   if (std::fabs(err) < 1e-9) {
     return 0.0;
   }
   const double sign = err >= 0.0 ? 1.0 : -1.0;
   const double abs_err = std::fabs(err);
-  return sign * (log_gain * std::log1p(abs_err / cfg_.log_base + cfg_.log_offset) + kp);
+  return sign * (cfg.log_gain * std::log1p(abs_err / cfg.log_base + cfg.log_offset) + cfg.kp);
 }
 
 double Pid::p_i(double ki, double integral) {
@@ -91,7 +89,7 @@ Pid::Result Pid::update(double expection, double measurement) {
   
   d_ = err - err_;
 
-  result.p = calculator_(cfg_.kp, cfg_.log_gain, err);
+  result.p = calculator_(cfg_, err);
   result.i = p_i(cfg_.ki, i_);
   result.d = p_d(cfg_.kd, d_);
   result.ctrl = clamp(result.p + result.i + result.d, cfg_.out_min, cfg_.out_max);

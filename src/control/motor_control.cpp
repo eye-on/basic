@@ -57,6 +57,15 @@ void stopcontrol(vex::motor& motor, vex::brakeType mode) {
   motor.stop(mode);
 }
 
+void adrc_velocity_control(
+    vex::motor& motor,
+    double target_velocity,
+    first_order_adrc::Controller& adrc) {
+  const double current_velocity = motor.velocity(vex::pct);
+  const auto result = adrc.update(target_velocity, current_velocity);
+  basic::control::velocitycontrol(motor, result.control, vex::pct);
+}
+
 double get_position(vex::motor& motor, vex::rotationUnits units) {
   return motor.position(units);
 }

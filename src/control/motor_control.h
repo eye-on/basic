@@ -1,6 +1,7 @@
 #ifndef BASIC_SRC_CONTROL_MOTOR_CONTROL_H_
 #define BASIC_SRC_CONTROL_MOTOR_CONTROL_H_
 
+#include "control/adrc/first_order_adrc/controller.hpp"
 #include "vex.h"
 
 namespace basic::control {
@@ -14,6 +15,11 @@ void velocitycontrol(vex::motor& motor, double velocity, vex::velocityUnits unit
 
 void torquecontrol(vex::motor& motor, double torque_nm);
 void stopcontrol(vex::motor& motor, vex::brakeType mode = vex::coast);
+
+void adrc_velocity_control(
+    vex::motor& motor,
+    double target_velocity,
+    first_order_adrc::Controller& adrc);
 
 double get_position(vex::motor& motor, vex::rotationUnits units = vex::deg);
 double get_revolutions(vex::motor& motor);
