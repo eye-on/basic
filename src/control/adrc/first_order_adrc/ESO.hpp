@@ -9,7 +9,7 @@ namespace first_order_adrc {
 class ESO {
  public:
   struct Config {
-    double h = 0.001;
+    double h = 0.01;
     double b0 = 1.0;
     double w0 = 80.0;
     bool auto_beta = true;

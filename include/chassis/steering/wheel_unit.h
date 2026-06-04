@@ -69,8 +69,6 @@ public:
     const double m1_velocity = m1_velocity_filter.update(m1_velocity_raw);
     const double m2_velocity = m2_velocity_filter.update(m2_velocity_raw);
 
-    printf("%.2f,%.2f,", m1_velocity, m2_velocity);
-
     const double steer_angle = (m1_angle + m2_angle) * 0.5 * kSteerGearRatio;
 
     const double wheel_velocity = (m1_velocity - m2_velocity) * kWheelGearRatio * 0.5;
@@ -89,12 +87,15 @@ public:
     const double motor1_output = velocity_result.ctrl + heading_result.ctrl;
     const double motor2_output = -velocity_result.ctrl + heading_result.ctrl;
 
-    printf("%.2f,%.2f\n",motor1_output,motor2_output);
+    //const double motor1_output = target_velocity_pct + target_heading_degrees;
+    //const double motor2_output = -target_velocity_pct + target_heading_degrees;
 
-    basic::control::adrc_velocity_control(motor1, motor1_output, adrc1);
-    basic::control::adrc_velocity_control(motor2, motor2_output, adrc2);
-    //basic::control::velocitycontrol(motor1, motor1_output);
-    //basic::control::velocitycontrol(motor2, motor2_output);
+    printf("%.2f,",motor1_output);
+
+    //basic::control::adrc_velocity_control(motor1, motor1_output, adrc1);
+    //basic::control::adrc_velocity_control(motor2, motor2_output, adrc2);
+    basic::control::velocitycontrol(motor1, motor1_output);
+    basic::control::velocitycontrol(motor2, motor2_output);
   }
 };
 

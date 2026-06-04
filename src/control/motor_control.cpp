@@ -63,6 +63,7 @@ void adrc_velocity_control(
     first_order_adrc::Controller& adrc) {
   const double current_velocity = motor.velocity(vex::pct);
   const auto result = adrc.update(target_velocity, current_velocity);
+  printf("%.2f,%.2f\n",result.control,current_velocity);
   basic::control::velocitycontrol(motor, result.control, vex::pct);
 }
 

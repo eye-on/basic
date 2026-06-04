@@ -81,7 +81,7 @@ private:
 };//class SteeringDrive
 
 inline SteeringDrive steering_init(const SteeringDriveConfig& config){
-  printf("motor1_output,motor2_output,motor1_input,motor2_input\n");
+  printf("target,adrc_output,measurement\n");
   return SteeringDrive(config);
 }
 
