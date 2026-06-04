@@ -5,6 +5,12 @@
 
 namespace basic::mechanism::arm {
 
+constexpr double kArmPi = 3.14159265358979323846;
+
+constexpr double arm_degrees_to_radians(double degrees) {
+  return degrees * kArmPi / 180.0;
+}
+
 enum class ArmIkStatus {
   kSuccess,
   kSingularBaseAxis,
@@ -32,12 +38,18 @@ struct ArmJointAngles {
 };
 
 struct ArmJointLimit {
+  // Allowed joint interval in radians.
+  // If min <= max, the valid set is [min, max].
+  // If min > max, the valid set wraps across the -pi/pi seam.
   double min{-3.14159265358979323846};
   double max{3.14159265358979323846};
 };
 
 struct ArmMotorMapping {
   double direction{1.0};
+  // Encoder/command units per radian of joint motion after all gearing.
+  double units_per_radian{180.0 / kArmPi};
+  // Encoder reading in motor units that corresponds to geometric joint angle 0.
   double zero_offset{0.0};
 };
 
@@ -46,7 +58,15 @@ struct ArmIkConfig {
   double l2e{0.0};
   double rho_epsilon{1e-6};
   bool clamp_unreachable_target{false};
-  std::array<ArmJointLimit, 4> joint_limits{};
+  // Set to -1 to solve a mirrored assembly in the same software frame.
+  int coordinate_sign{1};
+  // Order: q1 base yaw, q2 shoulder pitch, q3 elbow relative angle, q4 forearm roll.
+  std::array<ArmJointLimit, 4> joint_limits{{
+      ArmJointLimit{-kArmPi, kArmPi},
+      ArmJointLimit{0.0, kArmPi},
+      ArmJointLimit{arm_degrees_to_radians(29.0), -arm_degrees_to_radians(71.0)},
+      ArmJointLimit{-kArmPi, kArmPi},
+  }};
   std::array<double, 4> continuity_weights{{1.0, 1.0, 1.0, 0.0}};
   std::array<ArmMotorMapping, 4> motor_mapping{};
 };
@@ -55,6 +75,9 @@ struct ArmIkSolution {
   ArmIkStatus status{ArmIkStatus::kNoValidSolution};
   ArmElbowBranch branch{ArmElbowBranch::kPositive};
   bool reachable{false};
+  bool within_distance_workspace{false};
+  bool within_joint_limits{false};
+  bool clamped_target{false};
   bool used_previous_q1{false};
   ArmPoint target{};
   ArmPoint solved_target{};

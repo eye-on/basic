@@ -30,7 +30,7 @@
 这套逆解默认机械臂满足以下假设：
 
 - `q1`：肩部方位角
-- `q2`：肩部俯仰角
+- `q2`：肩部极角，按大臂相对 `+z` 方向定义
 - `q3`：肘部相对角，`q3 = 0` 表示大臂小臂共线伸直
 - `q4`：小臂绕自身轴线滚转
 
@@ -38,6 +38,14 @@
 
 - 大臂和小臂始终在同一个平面内运动
 - 这个运动平面始终垂直于肩部安装平面
+- 肩关节实际包含两个自由度
+  - `q1` 为绕 `z` 轴的底座旋转
+- `q2` 为绕一条位于 `xoy` 平面内的轴做俯仰旋转
+- `q2` 不是连续全周关节，而是只能在一个半圆范围内运动
+  - 这里的半圆不是“绕 `q2` 转轴的 `[-pi/2, pi/2]`”
+  - 而是以 `z` 轴为参考的半圆
+  - 落实到几何关节角定义时，推荐直接把 `q2` 约束为 `[0, pi]`
+- `q3` 也存在机械限位；当前实物范围尚未最终确定，但已知其可动区大于 `270°` 且小于 `360°`
 
 因此位置逆解可以拆成：
 
@@ -71,6 +79,7 @@ struct ArmIkConfig {
   double l2e;
   double rho_epsilon;
   bool clamp_unreachable_target;
+  int coordinate_sign;
   std::array<ArmJointLimit, 4> joint_limits;
   std::array<double, 4> continuity_weights;
   std::array<ArmMotorMapping, 4> motor_mapping;
@@ -83,9 +92,65 @@ struct ArmIkConfig {
 - `l2e`：有效小臂长度
 - `rho_epsilon`：靠近基座轴线时判断奇异的阈值
 - `clamp_unreachable_target`：不可达时是否裁剪到工作空间边界
+- `coordinate_sign`：坐标镜像符号，取 `+1` 为默认装配，取 `-1` 为镜像装配
 - `joint_limits`：几何关节角限位
 - `continuity_weights`：分支连续性代价权重
 - `motor_mapping`：几何角到电机角的方向和零位映射
+
+### 3.1 镜像装配
+
+同一套连杆和关节定义可以通过 `coordinate_sign` 复用到镜像装配：
+
+- `coordinate_sign = +1`
+  - 按默认坐标求解
+- `coordinate_sign = -1`
+  - 先把输入目标点 `(x, y, z)` 整体取反后再做逆解
+
+这样可以在不改主体公式的前提下，为左右镜像安装的机械臂复用同一套求解流程。
+
+### 3.2 关节限位表达
+
+当前代码里的关节限位使用：
+
+```cpp
+struct ArmJointLimit {
+  double min;
+  double max;
+};
+```
+
+角度单位与逆解内部一致，均为弧度。
+
+- 若 `min <= max`
+  - 有效区间直接解释为闭区间 `[min, max]`
+  - 适合表达大臂这种不跨角度断点的半圆限位
+  - 当前推荐将 `q2` 直接配置为 `[0, pi]`
+- 若 `min > max`
+  - 有效区间解释为“跨过 `-pi/pi` 断点的环形区间”
+  - 也就是 `angle >= min` 或 `angle <= max`
+  - 适合表达小臂这种可动区大于 `270°`、但又不是整圈 `360°` 的限位
+
+因此当前推荐约定是：
+
+- `joint_limits[0]`
+  - `q1`，肩部绕 `z` 轴旋转
+- `joint_limits[1]`
+  - `q2`，大臂俯仰限位
+- `joint_limits[2]`
+  - `q3`，小臂相对角限位
+  - 当前默认按机构实物限位设置为：
+    - 正向屈臂极限：小臂距离大臂 `29°`
+    - 反向极限：小臂距离大臂 `71°`
+  - 由于实际可动区不是简单的 `[-71°, +29°]` 线性区间，而是跨过角度断点的环形区间
+  - 因此对应几何限位写成：
+    - `q3_min = +29°`
+    - `q3_max = -71°`
+  - 这里 `min > max` 的含义是：
+    - 允许区间为 `[29°, 180°] U [-180°, -71°]`
+    - 等价于从 `29°` 连续转到 `289°`
+    - 总运动范围为 `260°`
+- `joint_limits[3]`
+  - `q4`，末端滚转限位
 
 ## 4. 逆解核心公式
 
@@ -157,13 +222,29 @@ enum class ArmElbowBranch {
 
 ### 4.3 肩部俯仰角 `q2`
 
-按标准二连杆公式：
+先定义：
 
 ```text
 alpha = atan2(z, rho)
 beta  = atan2(l2e * s3, l1 + l2e * c3)
-q2    = alpha - beta
 ```
+
+其中：
+
+- `alpha` 是目标方向相对 `xoy` 平面的仰角
+- `q2` 按相对 `+z` 方向的极角定义
+
+因此当前实现使用：
+
+```text
+q2 = pi / 2 - alpha + beta
+```
+
+在这一定义下：
+
+- 大臂朝 `+z` 时，`q2` 接近 `0`
+- 大臂水平时，`q2` 接近 `pi / 2`
+- 大臂朝 `-z` 时，`q2` 接近 `pi`
 
 ### 4.4 小臂滚转角 `q4`
 
@@ -192,6 +273,12 @@ q2    = alpha - beta
 3. 代价更小的一组作为最终解
 4. 如果两组都超限，则返回 `kNoValidSolution`
 
+这里的限位检查按“环形角度区间”进行，不是简单线性比较。
+因此：
+
+- 大臂 `q2` 可以直接配置成普通半圆区间
+- 小臂 `q3` 如果实际可动区跨过 `-pi/pi` 断点，可以用 `min > max` 来表达
+
 代价函数在 `joint_cost(...)` 中定义：
 
 ```text
@@ -216,7 +303,7 @@ std::array<double, 4> continuity_weights
 
 即默认只用 `q1/q2/q3` 的连续性做分支选择，不用 `q4`。
 
-## 6. 不可达点处理
+## 6. 位置点可达性判定
 
 工作空间判定条件为：
 
@@ -230,6 +317,13 @@ abs(l1 - l2e) <= d <= l1 + l2e
 target_distance = sqrt(x^2 + y^2 + z^2)
 ```
 
+当前实现把“目标点能否到达”拆成两层：
+
+1. 距离工作空间是否可达
+2. 是否存在满足关节限位的姿态解
+
+### 6.1 距离工作空间
+
 若超出工作空间：
 
 - `clamp_unreachable_target == false`
@@ -240,11 +334,25 @@ target_distance = sqrt(x^2 + y^2 + z^2)
   - 将目标点沿原点到目标点方向裁剪到最近的工作空间边界
   - 再基于裁剪后的点求逆解
 
+### 6.2 姿态与关节限位
+
+即使距离上可达，目标点仍可能因为关节限位而不可达。
+当前实现会同时计算两组肘部分支，并检查：
+
+- `q2` 是否落在 `[0, pi]`
+- `q3` 是否落在肘部机械限位区间
+- 其他关节是否满足各自的配置限位
+
+如果距离上可达，但两组分支都不满足关节限位，则该点仍然视为不可达。
+
 返回结果里：
 
 - `target` 是原始输入目标
 - `solved_target` 是真正参与逆解的点
-- `reachable` 表示原始点是否本来就在工作空间内
+- `reachable` 表示原始输入目标点是否精确可达
+- `within_distance_workspace` 表示目标点距离是否落在二连杆工作空间内
+- `within_joint_limits` 表示最终选中的解是否满足关节限位
+- `clamped_target` 表示是否先被裁剪到距离工作空间边界后再求解
 
 ## 7. 几何角与电机角映射
 
@@ -259,10 +367,20 @@ struct ArmJointAngles {
 };
 ```
 
+当前电机映射配置为：
+
+```cpp
+struct ArmMotorMapping {
+  double direction;
+  double units_per_radian;
+  double zero_offset;
+};
+```
+
 再按下面公式映射到电机角：
 
 ```text
-motor = direction * joint + zero_offset
+motor = direction * units_per_radian * joint + zero_offset
 ```
 
 对应配置：
@@ -270,6 +388,7 @@ motor = direction * joint + zero_offset
 ```cpp
 struct ArmMotorMapping {
   double direction;
+  double units_per_radian;
   double zero_offset;
 };
 ```
@@ -281,6 +400,16 @@ ArmJointAngles arm_inverse_kinematics_map_to_motor(...)
 ```
 
 `arm_update(...)` 发给电机的就是 `solution.motor_angles`。
+
+这套映射可以直接支持电机单圈原始编码标定：
+
+- 若 `command_units = vex::deg`
+  - 默认可令 `units_per_radian = 180 / pi`
+- 若 `command_units = vex::raw`
+  - 可以把 `zero_offset` 设为电机在自然初始姿态下的 raw 读数
+  - `units_per_radian` 设为该关节每转 1 弧度对应多少 raw 编码值
+
+这样就能在单圈范围内，把电机掉电后仍保留的绝对原始角作为你自己的关节坐标参考。
 
 ## 8. `Arm` 机构层接口
 
@@ -395,6 +524,9 @@ struct ArmIkSolution {
   ArmIkStatus status;
   ArmElbowBranch branch;
   bool reachable;
+  bool within_distance_workspace;
+  bool within_joint_limits;
+  bool clamped_target;
   bool used_previous_q1;
   ArmPoint target;
   ArmPoint solved_target;
@@ -413,7 +545,14 @@ struct ArmIkSolution {
 - `branch`
   - 选中了哪一组肘部分支
 - `reachable`
-  - 原始目标是否天然可达
+  - 原始输入目标点是否精确可达
+  - 若启用了目标裁剪，可能出现 `status` 允许继续动作，但 `reachable == false`
+- `within_distance_workspace`
+  - 目标点距离是否落在二连杆半径工作空间内
+- `within_joint_limits`
+  - 最终解是否满足全部关节限位
+- `clamped_target`
+  - 是否因为距离不可达而先被裁剪到边界
 - `used_previous_q1`
   - 是否因为接近基座轴线而沿用了上一拍 `q1`
 - `joint_angles`
@@ -431,8 +570,6 @@ struct ArmIkSolution {
   - 靠近 `rho = 0`，`q1` 采用上一拍
 - `kUnreachable`
   - 目标不可达且未启用裁剪
-- `kJointLimitViolation`
-  - 某个候选解超过关节限位
 - `kNoValidSolution`
   - 两组分支都无法作为最终解
 
@@ -453,18 +590,19 @@ basic::mechanism::arm::Arm arm = basic::mechanism::arm::arm_init({
         180.0,
         1e-6,
         false,
+        1,
         {{
             {-3.14, 3.14},
-            {-1.57, 1.57},
-            {-2.62, 2.62},
+            {0.0, 3.14},
+            {0.51, -1.24},
             {-3.14, 3.14},
         }},
         {{1.0, 1.0, 1.0, 0.0}},
         {{
-            {1.0, 0.0},
-            {1.0, 0.0},
-            {1.0, 0.0},
-            {1.0, 0.0},
+            {1.0},
+            {1.0},
+            {1.0},
+            {1.0},
         }},
     },
     vex::deg,
@@ -484,6 +622,11 @@ basic::mechanism::arm::arm_update(arm, {
 
 - 四个电机端口分别接在 `1/2/3/4`
 - 连杆长度 `l1 = 200`, `l2e = 180`
+- `coordinate_sign = 1`，表示默认装配方向
+- `q2` 示例限位为半圆区间 `[0, pi]`
+- `q3` 示例限位用跨断点区间 `{0.51, -1.24}` 表达 `29° -> 289°` 的 `260°` 可动范围
+- `motor_mapping` 示例只显式给 `direction = 1.0`
+  - `units_per_radian` 与 `zero_offset` 使用结构默认值
 - 目标点是 `(150, 0, 100)`
 - `q4` 保持当前值
 - 启用机构动作
@@ -506,6 +649,9 @@ basic::mechanism::arm::arm_update(arm, {
 - 当前 `q4` 仅由命令层决定
   - 位置逆解不会自动决定末端滚转
 
+- 当前 `joint_limits` 约束的是几何关节角，不是电机编码器角
+  - 如果电机安装方向、减速关系或零位有偏置，需要先通过 `motor_mapping` 和关节定义对齐后再配置限位
+
 - 当前默认目标点必须已经表达在肩关节坐标系下
   - 若目标来自其他坐标系，需要在调用 `arm_update(...)` 前先完成坐标变换
 
@@ -524,6 +670,11 @@ basic::mechanism::arm::arm_update(arm, {
 2. 在 `(rho, z)` 平面内用二维二连杆公式求 `q2/q3`
 3. 同时计算两组肘部分支，并用限位与连续性代价选解
 4. `q4` 不由位置决定，而由命令层保持或指定
-5. 最终按 `motor = direction * joint + zero_offset` 映射后发给四个电机
+5. 最终按 `motor = direction * units_per_radian * joint + zero_offset` 映射后发给四个电机
+
+调试时可按下面理解返回结果：
+
+- `status` 表示这次求解/执行路径属于哪种情况
+- `reachable` 只表示原始输入目标点是否精确可达
 
 如果后续你还要把这份说明再贴近你们项目文风，我可以继续把这份 `README.md` 改成和仓库里其他说明文档一致的章节和命名习惯。

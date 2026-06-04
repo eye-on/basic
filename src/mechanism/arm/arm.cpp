@@ -31,10 +31,10 @@ ArmJointAngles motor_positions_to_joint_angles(Arm& mechanism) {
   motor_angles.q4 = mechanism.joint4_motor().position(mechanism.config().command_units);
 
   ArmJointAngles joint_angles;
-  joint_angles.q1 = (motor_angles.q1 - mapping[0].zero_offset) / mapping[0].direction;
-  joint_angles.q2 = (motor_angles.q2 - mapping[1].zero_offset) / mapping[1].direction;
-  joint_angles.q3 = (motor_angles.q3 - mapping[2].zero_offset) / mapping[2].direction;
-  joint_angles.q4 = (motor_angles.q4 - mapping[3].zero_offset) / mapping[3].direction;
+  joint_angles.q1 = (motor_angles.q1 - mapping[0].zero_offset) / (mapping[0].direction * mapping[0].units_per_radian);
+  joint_angles.q2 = (motor_angles.q2 - mapping[1].zero_offset) / (mapping[1].direction * mapping[1].units_per_radian);
+  joint_angles.q3 = (motor_angles.q3 - mapping[2].zero_offset) / (mapping[2].direction * mapping[2].units_per_radian);
+  joint_angles.q4 = (motor_angles.q4 - mapping[3].zero_offset) / (mapping[3].direction * mapping[3].units_per_radian);
   return joint_angles;
 }
 
