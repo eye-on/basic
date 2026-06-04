@@ -15,7 +15,7 @@ class Controller {
     TD::Config td;
     ESO::Config eso;
     NLESF::Config nlesf;
-    double b0 = 100.0;
+    double b0 = 10000.0;
     double kt = 1.0;
     double output_min = -std::numeric_limits<double>::infinity();
     double output_max = std::numeric_limits<double>::infinity();

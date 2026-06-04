@@ -6,7 +6,7 @@
 
 namespace basic::control {
 
-inline constexpr double kMotorTorqueConstantNmPerAmp = 0.84;
+inline constexpr double kMotorTorqueConstantNmPerAmp = 1.05/3.0;
 inline constexpr double kMotorRatedVoltageVolts = 12.0;
 
 void velocitycontrol(vex::motor& motor, double velocity);

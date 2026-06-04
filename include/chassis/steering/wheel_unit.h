@@ -84,18 +84,18 @@ public:
 
     const auto velocity_result = velocity_pid.update(target_velocity_pct, velocity);
     const auto heading_result = heading_pid.update(target_heading_degrees, heading);
-    const double motor1_output = velocity_result.ctrl + heading_result.ctrl;
-    const double motor2_output = -velocity_result.ctrl + heading_result.ctrl;
+    //const double motor1_output = velocity_result.ctrl + heading_result.ctrl;
+    //const double motor2_output = -velocity_result.ctrl + heading_result.ctrl;
 
-    //const double motor1_output = target_velocity_pct + target_heading_degrees;
-    //const double motor2_output = -target_velocity_pct + target_heading_degrees;
+    const double motor1_output = target_velocity_pct + target_heading_degrees;
+    const double motor2_output = -target_velocity_pct + target_heading_degrees;
 
-    printf("%.2f,",motor1_output);
+    //basic::control::torquecontrol(motor1, motor1_tor);
 
-    //basic::control::adrc_velocity_control(motor1, motor1_output, adrc1);
-    //basic::control::adrc_velocity_control(motor2, motor2_output, adrc2);
-    basic::control::velocitycontrol(motor1, motor1_output);
-    basic::control::velocitycontrol(motor2, motor2_output);
+    basic::control::adrc_velocity_control(motor1, motor1_output, adrc1);
+    basic::control::adrc_velocity_control(motor2, motor2_output, adrc2);
+    //basic::control::velocitycontrol(motor1, motor1_output);
+    //basic::control::velocitycontrol(motor2, motor2_output);
   }
 };
 

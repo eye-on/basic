@@ -10,7 +10,7 @@ namespace first_order_adrc {
 class NLESF {
  public:
   struct Config {
-    double k1 = 20.0;
+    double k1 = 18.0;
     double k2 = 0.5;
     double alpha1 = 0.75;
     double alpha2 = 1.25;

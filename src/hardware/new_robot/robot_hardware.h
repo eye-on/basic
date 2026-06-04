@@ -31,8 +31,8 @@ struct RobotHardware {
       : new_chassis(basic::chassis::new_chassis_init({
             // 右前轮组 (fr)
             {
-                {vex::PORT12, vex::ratio6_1, true},
-                {vex::PORT20, vex::ratio6_1, true},
+                {vex::PORT12, vex::ratio18_1, true},
+                {vex::PORT20, vex::ratio18_1, true},
                 kVeloPidCfg,
                 kHeadingPidCfg,
                 kAdrcCfg,
