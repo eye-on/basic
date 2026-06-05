@@ -53,6 +53,12 @@ struct ArmMotorMapping {
   double zero_offset{0.0};
 };
 
+double arm_calculate_zero_offset_from_angle(
+    double joint_angle_degrees,
+    double motor_position_raw,
+    double direction = 1.0,
+    double units_per_radian = 3600.0 / (2.0 * kArmPi));
+
 struct ArmIkConfig {
   double l1{0.0};
   double l2e{0.0};

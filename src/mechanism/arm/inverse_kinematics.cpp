@@ -214,6 +214,15 @@ ArmJointAngles arm_inverse_kinematics_map_to_motor(
   return motor_angles;
 }
 
+double arm_calculate_zero_offset_from_angle(
+    double joint_angle_degrees,
+    double motor_position_raw,
+    double direction,
+    double units_per_radian) {
+  const double joint_angle_radians = arm_degrees_to_radians(joint_angle_degrees);
+  return motor_position_raw - direction * units_per_radian * joint_angle_radians;
+}
+
 bool arm_inverse_kinematics_is_within_limits(
     const ArmJointAngles& joint_angles,
     const std::array<ArmJointLimit, 4>& limits) {
