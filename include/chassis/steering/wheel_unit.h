@@ -1,7 +1,6 @@
 #ifndef BASIC_INCLUDE_WHEEL_UNIT_H
 #define BASIC_INCLUDE_WHEEL_UNIT_H
 
-#include "control/kalman/calculator.hpp"
 #include "control/motor_control.h"
 #include "control/pid/controller.hpp"
 #include "device_config.h"
@@ -24,18 +23,18 @@ struct Wheel_Unit_Config {
   first_order_adrc::Controller::Config adrc2_config;
 };
 
+struct Wheel_Unit_State {
+  double velocity{0.0};
+  double heading{0.0};
+  double initial_angle_m1{0.0};
+  double initial_angle_m2{0.0};
+};
+
 class Wheel_Unit {
  private:
   vex::motor motor1;
   vex::motor motor2;
-  double velocity{0.0};
-  double heading{0.0};
-  const double initial_angle_m1;
-  const double initial_angle_m2;
-  basic::control::kalman::KalmanCalculator m1_angle_filter{0.005, 1e-4};
-  basic::control::kalman::KalmanCalculator m2_angle_filter{0.005, 1e-4};
-  basic::control::kalman::KalmanCalculator m1_velocity_filter{0.902649, 0.097258, 1.2703, 0.0259, 0.9803, 100};
-  basic::control::kalman::KalmanCalculator m2_velocity_filter{0.902649, 0.097258, 1.2703, 0.0259, 0.9803, 100};
+  Wheel_Unit_State state_;
   basic::control::pid::Pid velocity_pid;
   basic::control::pid::Pid heading_pid;
   first_order_adrc::Controller adrc1;
@@ -50,31 +49,25 @@ public:
              const first_order_adrc::Controller::Config& a2_cfg)
       : motor1(std::move(m1)),
         motor2(std::move(m2)),
-        initial_angle_m1(init_m1),
-        initial_angle_m2(init_m2),
+        state_{0.0, 0.0, init_m1, init_m2},
         velocity_pid(vpid_cfg),
         heading_pid(hpid_cfg),
         adrc1(a1_cfg),
         adrc2(a2_cfg) {}
 
   void update() {
-    const double m1_angle_raw = motor1.position(vex::deg) - initial_angle_m1;
-    const double m2_angle_raw = motor2.position(vex::deg) - initial_angle_m2;
+    const double m1_angle_raw = motor1.position(vex::deg) - state_.initial_angle_m1;
+    const double m2_angle_raw = motor2.position(vex::deg) - state_.initial_angle_m2;
 
     const double m1_velocity_raw = motor1.velocity(vex::pct);
     const double m2_velocity_raw = motor2.velocity(vex::pct);
 
-    const double m1_angle = m1_angle_filter.update(m1_angle_raw);
-    const double m2_angle = m2_angle_filter.update(m2_angle_raw);
-    const double m1_velocity = m1_velocity_filter.update(m1_velocity_raw);
-    const double m2_velocity = m2_velocity_filter.update(m2_velocity_raw);
+    const double steer_angle = (m1_angle_raw + m2_angle_raw) * 0.5 * kSteerGearRatio;
 
-    const double steer_angle = (m1_angle + m2_angle) * 0.5 * kSteerGearRatio;
+    const double wheel_velocity = (m1_velocity_raw - m2_velocity_raw) * kWheelGearRatio * 0.5;
 
-    const double wheel_velocity = (m1_velocity - m2_velocity) * kWheelGearRatio * 0.5;
-
-    velocity = wheel_velocity;
-    heading = steer_angle;
+    state_.velocity = wheel_velocity;
+    state_.heading = steer_angle;
   }
 
   void control(double target_velocity_pct,
@@ -82,18 +75,16 @@ public:
                vex::brakeType brake_type) {
     update();
 
-    const auto velocity_result = velocity_pid.update(target_velocity_pct, velocity);
-    const auto heading_result = heading_pid.update(target_heading_degrees, heading);
+    const auto velocity_result = velocity_pid.update(target_velocity_pct, state_.velocity);
+    const auto heading_result = heading_pid.update(target_heading_degrees, state_.heading);
     //const double motor1_output = velocity_result.ctrl + heading_result.ctrl;
     //const double motor2_output = -velocity_result.ctrl + heading_result.ctrl;
 
     const double motor1_output = target_velocity_pct + target_heading_degrees;
     const double motor2_output = -target_velocity_pct + target_heading_degrees;
 
-    //basic::control::torquecontrol(motor1, motor1_tor);
-
-    basic::control::adrc_velocity_control(motor1, motor1_output, adrc1);
-    basic::control::adrc_velocity_control(motor2, motor2_output, adrc2);
+    basic::control::adrc_torque_control(motor1, motor1_output, adrc1);
+    basic::control::adrc_torque_control(motor2, motor2_output, adrc2);
     //basic::control::velocitycontrol(motor1, motor1_output);
     //basic::control::velocitycontrol(motor2, motor2_output);
   }

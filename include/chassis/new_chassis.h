@@ -22,39 +22,22 @@ inline NewChassis new_chassis_init(const NewChassisConfig& config) {
 inline NewChassisCommand new_chassis_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input,
     vex::brakeType stop_brake_type = vex::coast) {
-  int axis1 = basic::chassis::steering::controller_axis_value(input, basic::chassis::steering::ControllerAxis::kAxis1);
-  int axis2 = basic::chassis::steering::controller_axis_value(input, basic::chassis::steering::ControllerAxis::kAxis2);
-  
+  const double x = static_cast<double>(basic::chassis::steering::controller_axis_value(
+      input, basic::chassis::steering::ControllerAxis::kAxis1));
+  const double y = static_cast<double>(basic::chassis::steering::controller_axis_value(
+      input, basic::chassis::steering::ControllerAxis::kAxis2));
+
+  const double radius = std::sqrt(x * x + y * y);
   const int deadzone = 1;
 
-  if (std::abs(axis1) < deadzone && std::abs(axis2) < deadzone) {
+  if (radius < deadzone) {
     return {0.0, 0.0, stop_brake_type};
-  }else if(std::abs(axis1) < deadzone){
-    return {axis2 ,0.0, stop_brake_type};
-  }else if(std::abs(axis2) < deadzone){
-    if(axis1 > 0){
-      return {0.0 , 90.0, stop_brake_type};
-    }else{
-      return {0.0 ,-90.0, stop_brake_type};
-    }
   }
 
-  const double heading_rad = std::atan2(static_cast<double>(axis1), static_cast<double>(axis2));
-  const double heading_deg = heading_rad * (180.0 / M_PI);
+  const double heading_deg = std::atan2(x, y) * (180.0 / M_PI);
+  const double velocity = radius;
 
-  double normalized_heading = heading_deg;
-  while (normalized_heading > 180.0) {
-    normalized_heading -= 360.0;
-  }
-  while (normalized_heading <= -180.0) {
-    normalized_heading += 360.0;
-  }
-
-  return {
-      axis2,
-      normalized_heading,
-      stop_brake_type,
-  };
+  return {velocity, heading_deg, stop_brake_type};
 }
 
 inline void new_chassis_update(

@@ -16,7 +16,7 @@ void velocitycontrol(vex::motor& motor, double velocity, vex::velocityUnits unit
 void torquecontrol(vex::motor& motor, double torque_nm);
 void stopcontrol(vex::motor& motor, vex::brakeType mode = vex::coast);
 
-void adrc_velocity_control(
+void adrc_torque_control(
     vex::motor& motor,
     double target_velocity,
     first_order_adrc::Controller& adrc);

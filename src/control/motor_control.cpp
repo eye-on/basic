@@ -57,7 +57,7 @@ void stopcontrol(vex::motor& motor, vex::brakeType mode) {
   motor.stop(mode);
 }
 
-void adrc_velocity_control(
+void adrc_torque_control(
     vex::motor& motor,
     double target_velocity,
     first_order_adrc::Controller& adrc) {
