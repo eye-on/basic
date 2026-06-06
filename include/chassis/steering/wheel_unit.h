@@ -4,12 +4,41 @@
 #include "control/motor_control.h"
 #include "control/pid/controller.hpp"
 #include "device_config.h"
+
 #include <cmath>
 #include <cstdio>
 #include <utility>
 #include <cstddef>
+#include <algorithm>
 
 namespace basic::chassis::steering {
+namespace detail {
+
+inline double clamp_value(double value, double min_value, double max_value) {
+  return std::min(std::max(value, min_value), max_value);
+}
+
+/// 将角度规整到 [-180, 180] 范围
+inline double wrap_180(double angle) {
+  angle = std::fmod(angle, 360.0);
+  if (angle > 180.0) angle -= 360.0;
+  else if (angle < -180.0) angle += 360.0;
+  return angle;
+}
+
+/// 计算从 current 到 target 的最短路径目标值
+inline double shortest_path_target(double target, double current) {
+  return current + wrap_180(target - current);
+}
+
+/// 增量式累加：delta → accumulate → clamp → 可选清零
+inline void accumulate_incremental(double& accumulated, double delta,
+                                    double limit, bool reset) {
+  if (reset) accumulated = 0.0;
+  accumulated += delta;
+  accumulated = clamp_value(accumulated, -limit, limit);
+}
+}  // namespace detail
 
 constexpr double kSteerGearRatio = 11.0/62.0;
 constexpr double kWheelGearRatio = 1.0;
@@ -85,24 +114,19 @@ public:
                vex::brakeType brake_type) {
     update();
 
-    // 航向角位置环（位置式）→ 目标角速度
-    const auto heading_result = heading_pid.update(target_heading, state_.heading);
+    //最短路径规划
+    const double planned_heading = detail::shortest_path_target(target_heading, state_.heading);
+    const auto heading_result = heading_pid.update(planned_heading, state_.heading);
 
     // 航向角速度环（增量式）→ 累加航向修正增量
     const auto steer_vel_result = angular_velocity_pid.update(heading_result.ctrl, state_.steer_velocity);
-    accumulated_steer_ += steer_vel_result.ctrl;
-
-    if (std::abs(target_heading) < 1e-9 && std::abs(state_.steer_velocity) < 1.0) {
-      accumulated_steer_ = 0.0;
-    }
+    detail::accumulate_incremental(accumulated_steer_, steer_vel_result.ctrl, 100.0,
+      std::abs(detail::wrap_180(target_heading - state_.heading)) < 1e-9 && std::abs(state_.steer_velocity) < 1.0);
 
     // 轮速 PID（增量式）→ 累加增量到目标速度
     const auto velocity_result = velocity_pid.update(target_velocity_pct, state_.velocity);
-    accumulated_velocity_ += velocity_result.ctrl;
-
-    if (std::abs(target_velocity_pct) < 1e-9 && std::abs(state_.velocity) < 1.0) {
-      accumulated_velocity_ = 0.0;
-    }
+    detail::accumulate_incremental(accumulated_velocity_, velocity_result.ctrl, 100.0,
+      std::abs(target_velocity_pct) < 1e-9 && std::abs(state_.velocity) < 1.0);
 
     const double motor_a_output =  accumulated_velocity_ + accumulated_steer_;
     const double motor_b_output = -accumulated_velocity_ + accumulated_steer_;
@@ -113,7 +137,6 @@ public:
 };
 
 namespace detail {
-
 inline WheelUnit make_wheel_unit(const WheelUnitConfig& config) {
   vex::motor motor_a{config.motor_a.port, config.motor_a.gear_ratio, config.motor_a.reversed};
   vex::motor motor_b{config.motor_b.port, config.motor_b.gear_ratio, config.motor_b.reversed};
@@ -133,9 +156,7 @@ inline WheelUnit make_wheel_unit(const WheelUnitConfig& config) {
       config.adrc_b,
   };
 }
-
 }  // namespace detail
-
 }  // namespace basic::chassis::steering
 
 #endif // BASIC_INCLUDE_WHEEL_UNIT_H
