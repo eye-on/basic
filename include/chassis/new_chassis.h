@@ -11,8 +11,8 @@ using NewChassis = basic::chassis::steering::SteeringDrive;
 using NewChassisCommand = basic::chassis::steering::ArcadeDriveCommand;
 using NewChassisConfig = basic::chassis::steering::SteeringDriveConfig;
 using NewChassisState = basic::chassis::steering::SteeringDriveState;
-using WheelUnit = basic::chassis::steering::Wheel_Unit;
-using WheelUnitConfig = basic::chassis::steering::Wheel_Unit_Config;
+using WheelUnit = basic::chassis::steering::WheelUnit;
+using WheelUnitConfig = basic::chassis::steering::WheelUnitConfig;
 
 
 inline NewChassis new_chassis_init(const NewChassisConfig& config) {
@@ -22,22 +22,14 @@ inline NewChassis new_chassis_init(const NewChassisConfig& config) {
 inline NewChassisCommand new_chassis_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input,
     vex::brakeType stop_brake_type = vex::coast) {
-  const double x = static_cast<double>(basic::chassis::steering::controller_axis_value(
-      input, basic::chassis::steering::ControllerAxis::kAxis1));
-  const double y = static_cast<double>(basic::chassis::steering::controller_axis_value(
+  const double vx = static_cast<double>(basic::chassis::steering::controller_axis_value(
       input, basic::chassis::steering::ControllerAxis::kAxis2));
+  const double vy = static_cast<double>(basic::chassis::steering::controller_axis_value(
+      input, basic::chassis::steering::ControllerAxis::kAxis1));
+  const double omega = static_cast<double>(basic::chassis::steering::controller_axis_value(
+      input, basic::chassis::steering::ControllerAxis::kAxis4));
 
-  const double radius = std::sqrt(x * x + y * y);
-  const int deadzone = 1;
-
-  if (radius < deadzone) {
-    return {0.0, 0.0, stop_brake_type};
-  }
-
-  const double heading_deg = std::atan2(x, y) * (180.0 / M_PI);
-  const double velocity = radius;
-
-  return {velocity, heading_deg, stop_brake_type};
+  return {vx, vy, omega, stop_brake_type};
 }
 
 inline void new_chassis_update(
@@ -49,7 +41,7 @@ inline void new_chassis_update(
 inline void new_chassis_stop(
     NewChassis& chassis,
     vex::brakeType brake_type = vex::coast) {
-  NewChassisCommand stop_command{0, 0, brake_type};
+  NewChassisCommand stop_command{0, 0, 0, brake_type};
   new_chassis_update(chassis, stop_command);
 }
 

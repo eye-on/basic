@@ -30,6 +30,7 @@ class Pid {
     double i_term_min = -std::numeric_limits<double>::infinity();
     double i_term_max = std::numeric_limits<double>::infinity();
     double deadzone = 0.0;
+    Type type = Type::kPosition;
   };
 
   using Calculator = double (*)(const Config& cfg, double err);
@@ -47,6 +48,7 @@ class Pid {
   void set_config(const Config& cfg);
   const Config& config() const { return cfg_; }
 
+  void set_type(Type type);
   void set_mode(Mode mode);
   void set_calculator(Calculator calc);
 
@@ -55,6 +57,7 @@ class Pid {
   Result update(double expection, double measurement);
 
   double last_err() const { return err_; }
+  double last_err2() const { return err2_; }
   double last_i() const { return i_; }
   double last_d() const { return d_; }
   double last_ctrl() const { return ctrl_; }
@@ -73,8 +76,10 @@ class Pid {
   Calculator calculator_ = p_linear;
   double i_ = 0.0;
   double err_ = 0.0;
+  double err2_ = 0.0;
   double d_ = 0.0;
   double ctrl_ = 0.0;
+  double last_u_ = 0.0;
 };
 
 }  // namespace basic::control::pid

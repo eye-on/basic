@@ -24,8 +24,15 @@ void Pid::set_config(const Config& cfg) {
 void Pid::reset() {
   i_ = 0;
   err_ = 0;
+  err2_ = 0;
   d_ = 0.0;
   ctrl_ = 0.0;
+  last_u_ = 0.0;
+}
+
+void Pid::set_type(Type type) {
+  cfg_.type = type;
+  reset();
 }
 
 void Pid::set_mode(Mode mode) {
@@ -74,7 +81,7 @@ double Pid::p_d(double kd, double deriv) {
 
 Pid::Result Pid::update(double expection, double measurement) {
   Result result;
-  
+
   if (!std::isfinite(expection) || !std::isfinite(measurement)) {
     return result;
   }
@@ -84,9 +91,30 @@ Pid::Result Pid::update(double expection, double measurement) {
     err = 0.0;
   }
 
-  // 位置式
+  if (cfg_.type == Type::kIncremental) {
+    // 增量式 PID
+    // △u = Kp*(e(k)-e(k-1)) + Ki*e(k) + Kd*(e(k)-2*e(k-1)+e(k-2))
+    result.p = cfg_.kp * (err - err_);
+    result.i = cfg_.ki * err;
+    result.d = cfg_.kd * (err - 2.0 * err_ + err2_);
+
+    const double delta_u = result.p + result.i + result.d;
+    result.ctrl = clamp(last_u_ + delta_u, cfg_.out_min, cfg_.out_max);
+
+    // 防积分饱和：若输出被钳位，则停止累加
+    if (result.ctrl == last_u_ + delta_u) {
+      last_u_ = result.ctrl;
+    }
+
+    err2_ = err_;
+    err_ = err;
+    ctrl_ = result.ctrl;
+    return result;
+  }
+
+  // 位置式 PID
   i_ = clamp(i_ + err, cfg_.i_term_min, cfg_.i_term_max);
-  
+
   d_ = err - err_;
 
   result.p = calculator_(cfg_, err);

@@ -13,7 +13,7 @@
 #include <cstddef>
 #include <utility>
 
-namespace basic::chassis::steering{
+namespace basic::chassis::steering {
 
 enum class ControllerAxis {
   kAxis1,
@@ -23,22 +23,21 @@ enum class ControllerAxis {
 };
 
 struct ArcadeDriveCommand {
-  double input_velocity_pct{0.0};
-  double input_heading_degrees{0.0};
+  double vx{0.0};
+  double vy{0.0};
+  double omega{0.0};
   vex::brakeType stop_brake_type{vex::coast};
 };
 
 struct SteeringDriveState {
-  double target_velocity_pct{0.0};
-  double target_heading_degrees{0.0};
-  double measured_velocity_pct{0.0};
-  double measured_heading_degrees{0.0};
+  double vx{0.0};
+  double vy{0.0};
+  double omega{0.0};
   vex::brakeType stop_brake_type{vex::coast};
 };
 
 struct SteeringKinematicsConfig {
-  double half_wheelbase{0.15};
-  double half_track{0.15};
+  double turn_gain{3.0};  ///< 转向增益 (无量纲)：值越大转向越平缓
 };
 
 struct WheelTarget {
@@ -53,44 +52,37 @@ struct SteeringKinematicsResult {
   WheelTarget bl;
 };
 
+/// 四轮独立转向运动学正解（无量纲模型）
+/// 轮子位置简化为距离质心 ±1 的正方形：
+///   FR(+1,+1)  FL(+1,-1)  BR(-1,+1)  BL(-1,-1)
+/// 刚体运动在该点的合速度：
+///   vx_i = vx - omega * py
+///   vy_i = vy + omega * px
+///   speed_i = sqrt(vx_i² + vy_i²)
+///   angle_i = atan2(vy_i, vx_i) → deg
 inline SteeringKinematicsResult steering_kinematics_solve(
-    double vehicle_velocity_pct,
-    double vehicle_heading_degrees,
+    double vx, double vy, double omega,
     const SteeringKinematicsConfig& config) {
-  const double forward_velocity = vehicle_velocity_pct;
-  const double wheelbase = 2.0 * config.half_wheelbase;
-  const double track_half = config.half_track;
-  const double wheelbase_half = config.half_wheelbase;
 
-  const double heading_rad = vehicle_heading_degrees * (M_PI / 180.0);
-  double rotation_rate = 0.0;
-
-  if (std::abs(forward_velocity) > 1e-9) {
-    rotation_rate = forward_velocity * std::tan(heading_rad) / wheelbase;
-  } else {
-    rotation_rate = vehicle_heading_degrees;
-  }
-
-  auto wheel_calc = [&](double position_x, double position_y) -> WheelTarget {
-    const double velocity_x = forward_velocity - rotation_rate * position_y;
-    const double velocity_y = rotation_rate * position_x;
-    WheelTarget target;
-    target.velocity_pct = std::sqrt(velocity_x * velocity_x + velocity_y * velocity_y);
-    target.heading_degrees = std::atan2(velocity_y, velocity_x) * (180.0 / M_PI);
-    return target;
+  auto wheel_calc = [&](double px, double py) -> WheelTarget {
+    const double vx_i = vx - omega * py;
+    const double vy_i = vy + omega * px;
+    return {std::sqrt(vx_i * vx_i + vy_i * vy_i),
+            std::atan2(vy_i, vx_i) * (180.0 / M_PI)};
   };
 
   SteeringKinematicsResult result;
-  result.fr = wheel_calc(wheelbase_half, track_half);
-  result.fl = wheel_calc(wheelbase_half, -track_half);
-  result.br = wheel_calc(-wheelbase_half, track_half);
-  result.bl = wheel_calc(-wheelbase_half, -track_half);
+  result.fr = wheel_calc( 1,  1);  // 右前
+  result.fl = wheel_calc( 1, -1);  // 左前
+  result.br = wheel_calc(-1,  1);  // 右后
+  result.bl = wheel_calc(-1, -1);  // 左后
 
-  const double max_velocity = std::max({
+  // 归一化：四个轮子速度等比缩放，不超过 100%
+  const double max_vel = std::max({
       result.fr.velocity_pct, result.fl.velocity_pct,
       result.br.velocity_pct, result.bl.velocity_pct, 1.0});
-  if (max_velocity > 100.0) {
-    const double scale = 100.0 / max_velocity;
+  if (max_vel > 100.0) {
+    const double scale = 100.0 / max_vel;
     result.fr.velocity_pct *= scale;
     result.fl.velocity_pct *= scale;
     result.br.velocity_pct *= scale;
@@ -101,10 +93,10 @@ inline SteeringKinematicsResult steering_kinematics_solve(
 }
 
 struct SteeringDriveConfig {
-  Wheel_Unit_Config fr;
-  Wheel_Unit_Config fl;
-  Wheel_Unit_Config br;
-  Wheel_Unit_Config bl;
+  WheelUnitConfig fr;
+  WheelUnitConfig fl;
+  WheelUnitConfig br;
+  WheelUnitConfig bl;
   int deadzone{10};
 };
 
@@ -126,26 +118,27 @@ public:
     return state_;
   }
 
-  Wheel_Unit& fr() { return fr_; }
-  const Wheel_Unit& fr() const { return fr_; }
-  Wheel_Unit& fl() { return fl_; }
-  const Wheel_Unit& fl() const { return fl_; }
-  Wheel_Unit& br() { return br_; }
-  const Wheel_Unit& br() const { return br_; }
-  Wheel_Unit& bl() { return bl_; }
-  const Wheel_Unit& bl() const { return bl_; }
+  WheelUnit& fr() { return fr_; }
+  const WheelUnit& fr() const { return fr_; }
+  WheelUnit& fl() { return fl_; }
+  const WheelUnit& fl() const { return fl_; }
+  WheelUnit& br() { return br_; }
+  const WheelUnit& br() const { return br_; }
+  WheelUnit& bl() { return bl_; }
+  const WheelUnit& bl() const { return bl_; }
+
+  int deadzone() const { return deadzone_; }
 
 private:
-  Wheel_Unit fr_;
-  Wheel_Unit fl_;
-  Wheel_Unit br_;
-  Wheel_Unit bl_;
+  WheelUnit fr_;
+  WheelUnit fl_;
+  WheelUnit br_;
+  WheelUnit bl_;
   int deadzone_;
   SteeringDriveState state_;
-};//class SteeringDrive
+};  // class SteeringDrive
 
-inline SteeringDrive steering_init(const SteeringDriveConfig& config){
-  printf("target,measurement,erro\n");
+inline SteeringDrive steering_init(const SteeringDriveConfig& config) {
   return SteeringDrive(config);
 }
 
@@ -166,13 +159,15 @@ inline int controller_axis_value(
 }
 
 inline void steering_update(SteeringDrive& chassis, const ArcadeDriveCommand& command) {
-  chassis.state().target_velocity_pct = command.input_velocity_pct;
-  chassis.state().target_heading_degrees = command.input_heading_degrees;
+  chassis.state().vx = command.vx;
+  chassis.state().vy = command.vy;
+  chassis.state().omega = command.omega;
   chassis.state().stop_brake_type = command.stop_brake_type;
 
   const SteeringKinematicsResult targets = steering_kinematics_solve(
-      command.input_velocity_pct,
-      command.input_heading_degrees,
+      command.vx,
+      command.vy,
+      command.omega,
       SteeringKinematicsConfig{});
 
   chassis.fr().control(targets.fr.velocity_pct, targets.fr.heading_degrees, command.stop_brake_type);
@@ -181,5 +176,6 @@ inline void steering_update(SteeringDrive& chassis, const ArcadeDriveCommand& co
   chassis.bl().control(targets.bl.velocity_pct, targets.bl.heading_degrees, command.stop_brake_type);
 }
 
-}//namespace basic::chassis::steering
+}  // namespace basic::chassis::steering
+
 #endif // BASIC_INCLUDE_STEERING_DRIVE_H
