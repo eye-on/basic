@@ -1,5 +1,7 @@
 #include "mechanism/arm/arm.h"
 
+#include <algorithm>
+
 #include "control/motor_control.h"
 
 namespace basic::mechanism::arm {
@@ -7,6 +9,15 @@ namespace basic::mechanism::arm {
 namespace {
 
 using basic::control::stopcontrol;
+
+ArmMotorPositions read_motor_positions(Arm& mechanism) {
+  ArmMotorPositions motor_positions;
+  motor_positions.m1 = mechanism.joint1_motor().position(mechanism.config().command_units);
+  motor_positions.m2 = mechanism.joint2_motor().position(mechanism.config().command_units);
+  motor_positions.m3 = mechanism.joint3_motor().position(mechanism.config().command_units);
+  motor_positions.m4 = mechanism.joint4_motor().position(mechanism.config().command_units);
+  return motor_positions;
+}
 
 vex::motor make_motor(const basic::device::MotorConfig& config) {
   return vex::motor{config.port, config.gear_ratio, config.reversed};
@@ -23,19 +34,35 @@ void spin_to_angle(
 
 ArmJointAngles motor_positions_to_joint_angles(Arm& mechanism) {
   const auto& mapping = mechanism.config().ik_config.motor_mapping;
-
-  ArmJointAngles motor_angles;
-  motor_angles.q1 = mechanism.joint1_motor().position(mechanism.config().command_units);
-  motor_angles.q2 = mechanism.joint2_motor().position(mechanism.config().command_units);
-  motor_angles.q3 = mechanism.joint3_motor().position(mechanism.config().command_units);
-  motor_angles.q4 = mechanism.joint4_motor().position(mechanism.config().command_units);
+  const ArmMotorPositions motor_angles = read_motor_positions(mechanism);
+  mechanism.state().last_motor_positions = motor_angles;
 
   ArmJointAngles joint_angles;
-  joint_angles.q1 = (motor_angles.q1 - mapping[0].zero_offset) / (mapping[0].direction * mapping[0].units_per_radian);
-  joint_angles.q2 = (motor_angles.q2 - mapping[1].zero_offset) / (mapping[1].direction * mapping[1].units_per_radian);
-  joint_angles.q3 = (motor_angles.q3 - mapping[2].zero_offset) / (mapping[2].direction * mapping[2].units_per_radian);
-  joint_angles.q4 = (motor_angles.q4 - mapping[3].zero_offset) / (mapping[3].direction * mapping[3].units_per_radian);
+  joint_angles.q1 = (motor_angles.m1 - mapping[0].zero_offset) / (mapping[0].direction * mapping[0].units_per_radian);
+  joint_angles.q2 = (motor_angles.m2 - mapping[1].zero_offset) / (mapping[1].direction * mapping[1].units_per_radian);
+  joint_angles.q3 = (motor_angles.m3 - mapping[2].zero_offset) / (mapping[2].direction * mapping[2].units_per_radian);
+  joint_angles.q4 = (motor_angles.m4 - mapping[3].zero_offset) / (mapping[3].direction * mapping[3].units_per_radian);
+  mechanism.state().last_joint_angles = joint_angles;
   return joint_angles;
+}
+
+void update_calibration_state(Arm& mechanism) {
+  mechanism.state().last_motor_positions = read_motor_positions(mechanism);
+
+  const int interval = std::max(1, mechanism.config().calibration_print_interval_updates);
+  mechanism.state().calibration_updates_since_print += 1;
+  if (mechanism.state().calibration_updates_since_print < interval) {
+    return;
+  }
+
+  mechanism.state().calibration_updates_since_print = 0;
+  const auto& motor_positions = mechanism.state().last_motor_positions;
+  printf(
+      "arm calib: m1=%.2f, m2=%.2f, m3=%.2f, m4=%.2f\n",
+      motor_positions.m1,
+      motor_positions.m2,
+      motor_positions.m3,
+      motor_positions.m4);
 }
 
 }  // namespace
@@ -57,6 +84,7 @@ const vex::motor& Arm::joint2_motor() const { return joint2_motor_; }
 const vex::motor& Arm::joint3_motor() const { return joint3_motor_; }
 const vex::motor& Arm::joint4_motor() const { return joint4_motor_; }
 
+ArmConfig& Arm::config() { return config_; }
 const ArmConfig& Arm::config() const { return config_; }
 
 ArmState& Arm::state() { return state_; }
@@ -68,6 +96,12 @@ Arm arm_init(const ArmConfig& config) {
 
 void arm_update(Arm& mechanism, const ArmCommand& command) {
   mechanism.state().last_command = command;
+  if (mechanism.config().mode == ArmMode::kCalibration) {
+    update_calibration_state(mechanism);
+    arm_stop(mechanism, vex::coast);
+    return;
+  }
+
   if (!command.enabled) {
     arm_stop(mechanism);
     return;

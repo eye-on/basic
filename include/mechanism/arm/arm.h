@@ -6,12 +6,27 @@
 
 namespace basic::mechanism::arm {
 
+enum class ArmMode {
+  kOperate,
+  kCalibration,
+};
+
+struct ArmMotorPositions {
+  double m1{0.0};
+  double m2{0.0};
+  double m3{0.0};
+  double m4{0.0};
+};
+
 struct ArmConfig {
   basic::device::MotorConfig joint1_motor;
   basic::device::MotorConfig joint2_motor;
   basic::device::MotorConfig joint3_motor;
   basic::device::MotorConfig joint4_motor;
   ArmIkConfig ik_config{};
+  ArmMode mode{ArmMode::kOperate};
+  // Print one calibration line every N arm_update() calls.
+  int calibration_print_interval_updates{25};
   vex::rotationUnits command_units{vex::deg};
   vex::velocityUnits move_speed_units{vex::velocityUnits::pct};
   double move_speed{30.0};
@@ -27,6 +42,9 @@ struct ArmCommand {
 struct ArmState {
   ArmIkSolution last_solution{};
   ArmCommand last_command{};
+  ArmMotorPositions last_motor_positions{};
+  ArmJointAngles last_joint_angles{};
+  int calibration_updates_since_print{0};
 };
 
 class Arm {
@@ -43,6 +61,7 @@ class Arm {
   const vex::motor& joint3_motor() const;
   const vex::motor& joint4_motor() const;
 
+  ArmConfig& config();
   const ArmConfig& config() const;
   ArmState& state();
   const ArmState& state() const;
