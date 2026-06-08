@@ -184,25 +184,46 @@ const auto& state = arm_mech::arm_state(arm);
 
 - `motor_mapping.zero_offset` 必须对应“几何关节角为 0 时”的编码器值
 - 这个值不对，机械臂就会跑偏
+- 如果当前姿态本身就是几何零位，并且你想把它直接标成关节 `0°`
+  - 那么 `zero_offset = 当前电机读数`
+  - 对默认带 `1:3` 减速箱的 `q1/q2`，也不要把这个读数除以 `3`
 - 如果你手里有“当前关节角度”和“当前单圈编码器值 0-3600”，可以直接用：
 
 ```cpp
 double zero_offset = arm_mech::arm_calculate_zero_offset_from_angle(
     29.0,
-    1250.0);
+    1250.0,
+    1.0,
+    3600.0 / (2.0 * arm_mech::kArmPi),
+    3.0);
 ```
 
 这里：
 
 - 第一个参数：手动输入的关节角度，单位是度
 - 第二个参数：当前电机单圈编码器值，范围 `0-3600`
+- 第三个参数：方向，一般保持 `1.0` 或 `-1.0`
+- 第四个参数：电机轴每弧度对应多少编码器单位
+- 第五个参数：外部减速箱倍率
+  - 默认 `q1/q2 = 3.0`
+  - 默认 `q3/q4 = 1.0`
 
 默认按：
 
 - `direction = 1.0`
 - `units_per_radian = 3600 / (2 * pi)`
+- `gearbox_ratio = 1.0`
 
-计算
+等价公式：
+
+```text
+zero_offset = motor_reading - direction * units_per_radian * gearbox_ratio * joint_angle_rad
+```
+
+因此：
+
+- 如果是“已知当前关节角，不想把它标成 0°”，就用上面的接口或同一公式反算
+- 不要把当前电机读数直接除以 `3` 后作为 `q1/q2` 的 `zero_offset`
 
 ### 角度单位
 

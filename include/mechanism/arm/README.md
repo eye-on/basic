@@ -381,7 +381,7 @@ struct ArmMotorMapping {
 再按下面公式映射到电机角：
 
 ```text
-motor = direction * units_per_radian * joint + zero_offset
+motor = direction * units_per_radian * gearbox_ratio * joint + zero_offset
 ```
 
 对应配置：
@@ -391,6 +391,7 @@ struct ArmMotorMapping {
   double direction;
   double units_per_radian;
   double zero_offset;
+  double gearbox_ratio;
 };
 ```
 
@@ -409,8 +410,43 @@ ArmJointAngles arm_inverse_kinematics_map_to_motor(...)
 - 若 `command_units = vex::raw`
   - 可以把 `zero_offset` 设为电机在自然初始姿态下的 raw 读数
   - `units_per_radian` 设为该关节每转 1 弧度对应多少 raw 编码值
+- 当前默认 `q1/q2` 带 `1:3` 减速箱
+  - 即 `gearbox_ratio = 3.0`
+  - `q3/q4` 默认 `gearbox_ratio = 1.0`
+- 对 `q1/q2` 而言，`1:3` 影响的是“关节角变化对应多少电机角变化”
+  - 它会乘在 `joint` 这一项上
+  - 不会直接改变 `zero_offset` 的定义
 
 这样就能在单圈范围内，把电机掉电后仍保留的绝对原始角作为你自己的关节坐标参考。
+
+`zero_offset` 的标定规则需要单独注意：
+
+- 如果当前姿态就是几何关节零位，并且你想把它直接定义成关节 `0°`
+  - 那么 `zero_offset = 当前电机读数`
+  - 对 `q1/q2` 即使带 `1:3` 减速箱，也不要把这个读数除以 `3`
+- 如果当前姿态不是几何零位，而是“已知关节角 + 当前电机读数”来反算零位
+  - 就要把减速箱倍率带进公式
+  - `q1/q2` 应传入 `gearbox_ratio = 3.0`
+  - `q3/q4` 一般保持 `gearbox_ratio = 1.0`
+
+例如 `q1/q2` 可以写成：
+
+```cpp
+double zero_offset = arm_calculate_zero_offset_from_angle(
+    joint_angle_degrees,
+    motor_position_raw,
+    direction,
+    units_per_radian,
+    3.0);
+```
+
+等价公式为：
+
+```text
+zero_offset = motor_reading - direction * units_per_radian * gearbox_ratio * joint_angle_rad
+```
+
+因此不要把“当前电机读数直接除以 3”后当作 `zero_offset`。
 
 ## 8. `Arm` 机构层接口
 
@@ -671,7 +707,7 @@ basic::mechanism::arm::arm_update(arm, {
 2. 在 `(rho, z)` 平面内用二维二连杆公式求 `q2/q3`
 3. 同时计算两组肘部分支，并用限位与连续性代价选解
 4. `q4` 不由位置决定，而由命令层保持或指定
-5. 最终按 `motor = direction * units_per_radian * joint + zero_offset` 映射后发给四个电机
+5. 最终按 `motor = direction * units_per_radian * gearbox_ratio * joint + zero_offset` 映射后发给四个电机
 
 调试时可按下面理解返回结果：
 
