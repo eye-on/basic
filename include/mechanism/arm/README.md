@@ -374,6 +374,7 @@ struct ArmMotorMapping {
   double direction;
   double units_per_radian;
   double zero_offset;
+  double gearbox_ratio;
 };
 ```
 

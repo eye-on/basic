@@ -4,12 +4,18 @@
 #include <cmath>
 #include <limits>
 
+#include "control/gearbox/software_gearbox.hpp"
+
 namespace basic::mechanism::arm {
 
 namespace {
 
 constexpr double kPi = kArmPi;
 constexpr double kTwoPi = 2.0 * kPi;
+
+basic::control::SoftwareGearbox make_joint_gearbox(const ArmMotorMapping& mapping) {
+  return basic::control::SoftwareGearbox({360.0, 360.0, mapping.gearbox_ratio, 0.0});
+}
 
 double clamp_value(double value, double min_value, double max_value) {
   return std::max(min_value, std::min(max_value, value));
@@ -203,14 +209,26 @@ ArmJointAngles arm_inverse_kinematics_map_to_motor(
     const ArmJointAngles& geometric_angles,
     const std::array<ArmMotorMapping, 4>& motor_mapping) {
   ArmJointAngles motor_angles;
+  const auto q1_gearbox = make_joint_gearbox(motor_mapping[0]);
+  const auto q2_gearbox = make_joint_gearbox(motor_mapping[1]);
+  const auto q3_gearbox = make_joint_gearbox(motor_mapping[2]);
+  const auto q4_gearbox = make_joint_gearbox(motor_mapping[3]);
   motor_angles.q1 =
-      motor_mapping[0].direction * motor_mapping[0].units_per_radian * geometric_angles.q1 + motor_mapping[0].zero_offset;
+      motor_mapping[0].direction * motor_mapping[0].units_per_radian *
+          q1_gearbox.input_from_output(geometric_angles.q1) +
+      motor_mapping[0].zero_offset;
   motor_angles.q2 =
-      motor_mapping[1].direction * motor_mapping[1].units_per_radian * geometric_angles.q2 + motor_mapping[1].zero_offset;
+      motor_mapping[1].direction * motor_mapping[1].units_per_radian *
+          q2_gearbox.input_from_output(geometric_angles.q2) +
+      motor_mapping[1].zero_offset;
   motor_angles.q3 =
-      motor_mapping[2].direction * motor_mapping[2].units_per_radian * geometric_angles.q3 + motor_mapping[2].zero_offset;
+      motor_mapping[2].direction * motor_mapping[2].units_per_radian *
+          q3_gearbox.input_from_output(geometric_angles.q3) +
+      motor_mapping[2].zero_offset;
   motor_angles.q4 =
-      motor_mapping[3].direction * motor_mapping[3].units_per_radian * geometric_angles.q4 + motor_mapping[3].zero_offset;
+      motor_mapping[3].direction * motor_mapping[3].units_per_radian *
+          q4_gearbox.input_from_output(geometric_angles.q4) +
+      motor_mapping[3].zero_offset;
   return motor_angles;
 }
 
@@ -218,9 +236,12 @@ double arm_calculate_zero_offset_from_angle(
     double joint_angle_degrees,
     double motor_position_raw,
     double direction,
-    double units_per_radian) {
+    double units_per_radian,
+    double gearbox_ratio) {
   const double joint_angle_radians = arm_degrees_to_radians(joint_angle_degrees);
-  return motor_position_raw - direction * units_per_radian * joint_angle_radians;
+  const basic::control::SoftwareGearbox gearbox({360.0, 360.0, gearbox_ratio, 0.0});
+  return motor_position_raw -
+         direction * units_per_radian * gearbox.input_from_output(joint_angle_radians);
 }
 
 bool arm_inverse_kinematics_is_within_limits(

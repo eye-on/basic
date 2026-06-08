@@ -37,6 +37,7 @@ struct ArmConfig {
 - `ik_config.coordinate_sign`：装配方向，正常一般填 `1`，镜像装配可试 `-1`
 - `ik_config.joint_limits`：四个关节限位，单位是弧度
 - `ik_config.motor_mapping`：关节角和电机角的映射
+  - `q1/q2` 默认带 `1:3` 减速箱，即 `gearbox_ratio = 3.0`
 - `command_units`：电机位置命令单位，通常用 `vex::deg`
 - `move_speed_units`：速度单位，通常用 `vex::pct`
 - `move_speed`：运动速度

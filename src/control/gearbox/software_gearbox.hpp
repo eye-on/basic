@@ -32,6 +32,8 @@ class SoftwareGearbox {
   double output_angle() const { return output_angle_; }
   double output_angle_wrapped() const { return output_angle_wrapped_; }
   double output_delta() const { return output_delta_; }
+  double output_from_input(double input_angle) const;
+  double input_from_output(double output_angle) const;
 
  private:
   static constexpr double kDefaultPeriodDegrees = 360.0;

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "control/gearbox/software_gearbox.hpp"
 #include "control/motor_control.h"
 
 namespace basic::mechanism::arm {
@@ -9,6 +10,10 @@ namespace basic::mechanism::arm {
 namespace {
 
 using basic::control::stopcontrol;
+
+basic::control::SoftwareGearbox make_joint_gearbox(const ArmMotorMapping& mapping) {
+  return basic::control::SoftwareGearbox({360.0, 360.0, mapping.gearbox_ratio, 0.0});
+}
 
 ArmMotorPositions read_motor_positions(Arm& mechanism) {
   ArmMotorPositions motor_positions;
@@ -37,11 +42,20 @@ ArmJointAngles motor_positions_to_joint_angles(Arm& mechanism) {
   const ArmMotorPositions motor_angles = read_motor_positions(mechanism);
   mechanism.state().last_motor_positions = motor_angles;
 
+  const auto q1_gearbox = make_joint_gearbox(mapping[0]);
+  const auto q2_gearbox = make_joint_gearbox(mapping[1]);
+  const auto q3_gearbox = make_joint_gearbox(mapping[2]);
+  const auto q4_gearbox = make_joint_gearbox(mapping[3]);
+
   ArmJointAngles joint_angles;
-  joint_angles.q1 = (motor_angles.m1 - mapping[0].zero_offset) / (mapping[0].direction * mapping[0].units_per_radian);
-  joint_angles.q2 = (motor_angles.m2 - mapping[1].zero_offset) / (mapping[1].direction * mapping[1].units_per_radian);
-  joint_angles.q3 = (motor_angles.m3 - mapping[2].zero_offset) / (mapping[2].direction * mapping[2].units_per_radian);
-  joint_angles.q4 = (motor_angles.m4 - mapping[3].zero_offset) / (mapping[3].direction * mapping[3].units_per_radian);
+  joint_angles.q1 = q1_gearbox.output_from_input(
+      (motor_angles.m1 - mapping[0].zero_offset) / (mapping[0].direction * mapping[0].units_per_radian));
+  joint_angles.q2 = q2_gearbox.output_from_input(
+      (motor_angles.m2 - mapping[1].zero_offset) / (mapping[1].direction * mapping[1].units_per_radian));
+  joint_angles.q3 = q3_gearbox.output_from_input(
+      (motor_angles.m3 - mapping[2].zero_offset) / (mapping[2].direction * mapping[2].units_per_radian));
+  joint_angles.q4 = q4_gearbox.output_from_input(
+      (motor_angles.m4 - mapping[3].zero_offset) / (mapping[3].direction * mapping[3].units_per_radian));
   mechanism.state().last_joint_angles = joint_angles;
   return joint_angles;
 }

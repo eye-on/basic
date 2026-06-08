@@ -66,6 +66,14 @@ bool SoftwareGearbox::update(double input_angle_degrees) {
   return true;
 }
 
+double SoftwareGearbox::output_from_input(double input_angle) const {
+  return input_angle / config_.ratio;
+}
+
+double SoftwareGearbox::input_from_output(double output_angle) const {
+  return output_angle * config_.ratio;
+}
+
 double SoftwareGearbox::sanitize_positive(double value, double fallback) {
   if (!std::isfinite(value) || value <= kMinPositive) {
     return fallback;

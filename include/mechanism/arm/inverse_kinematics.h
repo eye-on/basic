@@ -47,17 +47,20 @@ struct ArmJointLimit {
 
 struct ArmMotorMapping {
   double direction{1.0};
-  // Encoder/command units per radian of joint motion after all gearing.
+  // Encoder/command units per radian of motor shaft motion before external gearbox reduction.
   double units_per_radian{180.0 / kArmPi};
   // Encoder reading in motor units that corresponds to geometric joint angle 0.
   double zero_offset{0.0};
+  // Additional motor-to-joint gearbox reduction. ratio=3 means motor turns 3x per output turn.
+  double gearbox_ratio{1.0};
 };
 
 double arm_calculate_zero_offset_from_angle(
     double joint_angle_degrees,
     double motor_position_raw,
     double direction = 1.0,
-    double units_per_radian = 3600.0 / (2.0 * kArmPi));
+    double units_per_radian = 3600.0 / (2.0 * kArmPi),
+    double gearbox_ratio = 1.0);
 
 struct ArmIkConfig {
   double l1{0.0};
@@ -74,7 +77,12 @@ struct ArmIkConfig {
       ArmJointLimit{-kArmPi, kArmPi},
   }};
   std::array<double, 4> continuity_weights{{1.0, 1.0, 1.0, 0.0}};
-  std::array<ArmMotorMapping, 4> motor_mapping{};
+  std::array<ArmMotorMapping, 4> motor_mapping{{
+      ArmMotorMapping{1.0, 180.0 / kArmPi, 0.0, 3.0},
+      ArmMotorMapping{1.0, 180.0 / kArmPi, 0.0, 3.0},
+      ArmMotorMapping{1.0, 180.0 / kArmPi, 0.0, 1.0},
+      ArmMotorMapping{1.0, 180.0 / kArmPi, 0.0, 1.0},
+  }};
 };
 
 struct ArmIkSolution {
