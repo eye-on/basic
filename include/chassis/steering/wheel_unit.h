@@ -31,13 +31,6 @@ inline double shortest_path_target(double target, double current) {
   return current + wrap_180(target - current);
 }
 
-/// 增量式累加：delta → accumulate → clamp → 可选清零
-inline void accumulate_incremental(double& accumulated, double delta,
-                                    double limit, bool reset) {
-  if (reset) accumulated = 0.0;
-  accumulated += delta;
-  accumulated = clamp_value(accumulated, -limit, limit);
-}
 }  // namespace detail
 
 constexpr double kSteerGearRatio = 11.0/62.0;
@@ -72,8 +65,6 @@ class WheelUnit {
   basic::control::pid::Pid angular_velocity_pid;
   first_order_adrc::Controller adrc_a_;
   first_order_adrc::Controller adrc_b_;
-  double accumulated_velocity_{0.0};
-  double accumulated_steer_{0.0};
 
 public:
   WheelUnit(vex::motor&& motor_a, vex::motor&& motor_b,
@@ -114,22 +105,31 @@ public:
                vex::brakeType brake_type) {
     update();
 
-    //最短路径规划
+    // 航向角位置环（位置式 PID，直接输出）
     const double planned_heading = detail::shortest_path_target(target_heading, state_.heading);
     const auto heading_result = heading_pid.update(planned_heading, state_.heading);
 
-    // 航向角速度环（增量式）→ 累加航向修正增量
-    const auto steer_vel_result = angular_velocity_pid.update(heading_result.ctrl, state_.steer_velocity);
-    detail::accumulate_incremental(accumulated_steer_, steer_vel_result.ctrl, 100.0,
-      std::abs(detail::wrap_180(target_heading - state_.heading)) < 1e-9 && std::abs(state_.steer_velocity) < 1.0);
+    // 航向角速度环（增量式 PID，.ctrl 已是内部累加后的绝对值）
+    const auto steer_result = angular_velocity_pid.update(heading_result.ctrl, state_.steer_velocity);
 
-    // 轮速 PID（增量式）→ 累加增量到目标速度
+    // 轮速环（增量式 PID，.ctrl 已是内部累加后的绝对值）
     const auto velocity_result = velocity_pid.update(target_velocity_pct, state_.velocity);
-    detail::accumulate_incremental(accumulated_velocity_, velocity_result.ctrl, 100.0,
-      std::abs(target_velocity_pct) < 1e-9 && std::abs(state_.velocity) < 1.0);
 
-    const double motor_a_output =  accumulated_velocity_ + accumulated_steer_;
-    const double motor_b_output = -accumulated_velocity_ + accumulated_steer_;
+    // 到达目标时重置 PID 内部累加量，防止积分饱和
+    if (std::abs(detail::wrap_180(target_heading - state_.heading)) < 0.5
+        && std::abs(state_.steer_velocity) < 1.0) {
+      heading_pid.reset();
+      angular_velocity_pid.reset();
+    }
+    if (std::abs(target_velocity_pct) < 0.5 && std::abs(state_.velocity) < 1.0) {
+      velocity_pid.reset();
+    }
+
+    // 组合输出并钳位到 ±100%，防止电机过驱
+    const double motor_a_output = detail::clamp_value(
+        velocity_result.ctrl + steer_result.ctrl, -100.0, 100.0);
+    const double motor_b_output = detail::clamp_value(
+        -velocity_result.ctrl + steer_result.ctrl, -100.0, 100.0);
 
     basic::control::adrc_torque_control(motor_a_, motor_a_output, adrc_a_);
     basic::control::adrc_torque_control(motor_b_, motor_b_output, adrc_b_);

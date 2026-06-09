@@ -10,21 +10,12 @@ enum class Type {
   kIncremental,
 };
 
-enum class Mode {
-  kLinear,
-  kLogarithmic,
-};
-
 class Pid {
  public:
   struct Config {
-    Mode mode = Mode::kLinear;
     double kp = 0.0;
     double ki = 0.0;
     double kd = 0.0;
-    double log_gain = 1.0;
-    double log_base = 100.0;
-    double log_offset = 1.0;
     double out_min = -std::numeric_limits<double>::infinity();
     double out_max = std::numeric_limits<double>::infinity();
     double i_term_min = -std::numeric_limits<double>::infinity();
@@ -32,8 +23,6 @@ class Pid {
     double deadzone = 0.0;
     Type type = Type::kPosition;
   };
-
-  using Calculator = double (*)(const Config& cfg, double err);
 
   struct Result {
     double p = 0.0;
@@ -46,40 +35,42 @@ class Pid {
   explicit Pid(const Config& cfg);
 
   void set_config(const Config& cfg);
-  const Config& config() const { return cfg_; }
+  const Config& config() const { return config_; }
 
   void set_type(Type type);
-  void set_mode(Mode mode);
-  void set_calculator(Calculator calc);
 
   void reset();
 
-  Result update(double expection, double measurement);
+  Result update(double setpoint, double measurement);
 
-  double last_err() const { return err_; }
-  double last_err2() const { return err2_; }
-  double last_i() const { return i_; }
-  double last_d() const { return d_; }
-  double last_ctrl() const { return ctrl_; }
+  double prev_error() const { return prev_error_; }
+  double prev_error2() const { return prev_error2_; }
+  double integral() const { return integral_; }
+  double derivative() const { return deriv_; }
+  double output() const { return output_; }
 
  private:
   static double clamp(double x, double lo, double hi);
   void sanitize_config();
-  void update_calculator();
+  void bind_update_function();
 
-  static double p_linear(const Config& cfg, double err);
-  static double p_logarithmic(const Config& cfg, double err);
+  static double p_linear(const Config& cfg, double error);
   static double p_i(double ki, double integral);
   static double p_d(double kd, double deriv);
 
-  Config cfg_;
-  Calculator calculator_ = p_linear;
-  double i_ = 0.0;
-  double err_ = 0.0;
-  double err2_ = 0.0;
-  double d_ = 0.0;
-  double ctrl_ = 0.0;
-  double last_u_ = 0.0;
+  using UpdateFunc = Result (Pid::*)(double error);
+  UpdateFunc update_func_ = &Pid::update_positional;
+
+  Result update_positional(double error);
+  Result update_incremental(double error);
+
+  Config config_;
+  double integral_ = 0.0;
+  double prev_error_ = 0.0;
+  double prev_error2_ = 0.0;
+  double deriv_ = 0.0;
+  double output_ = 0.0;
+  double inc_output_ = 0.0;
 };
 
 }  // namespace basic::control::pid

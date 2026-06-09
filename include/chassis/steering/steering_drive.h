@@ -37,7 +37,7 @@ struct SteeringDriveState {
 };
 
 struct SteeringKinematicsConfig {
-  double turn_gain{3.0};  ///< 转向增益 (无量纲)：值越大转向越平缓
+  double turn_gain{3.0};  
 };
 
 struct WheelTarget {
@@ -76,18 +76,6 @@ inline SteeringKinematicsResult steering_kinematics_solve(
   result.fl = wheel_calc( 1, -1);  // 左前
   result.br = wheel_calc(-1,  1);  // 右后
   result.bl = wheel_calc(-1, -1);  // 左后
-
-  // 归一化：四个轮子速度等比缩放，不超过 100%
-  const double max_vel = std::max({
-      result.fr.velocity_pct, result.fl.velocity_pct,
-      result.br.velocity_pct, result.bl.velocity_pct, 1.0});
-  if (max_vel > 100.0) {
-    const double scale = 100.0 / max_vel;
-    result.fr.velocity_pct *= scale;
-    result.fl.velocity_pct *= scale;
-    result.br.velocity_pct *= scale;
-    result.bl.velocity_pct *= scale;
-  }
 
   return result;
 }

@@ -8,67 +8,36 @@ namespace basic::control::pid {
 Pid::Pid() : Pid(Config()) {}
 
 Pid::Pid(const Config& cfg) {
-  cfg_ = cfg;
+  config_ = cfg;
   sanitize_config();
-  update_calculator();
+  bind_update_function();
   reset();
 }
 
 void Pid::set_config(const Config& cfg) {
-  cfg_ = cfg;
+  config_ = cfg;
   sanitize_config();
-  update_calculator();
+  bind_update_function();
   reset();
 }
 
 void Pid::reset() {
-  i_ = 0;
-  err_ = 0;
-  err2_ = 0;
-  d_ = 0.0;
-  ctrl_ = 0.0;
-  last_u_ = 0.0;
+  integral_ = 0;
+  prev_error_ = 0;
+  prev_error2_ = 0;
+  deriv_ = 0.0;
+  output_ = 0.0;
+  inc_output_ = 0.0;
 }
 
 void Pid::set_type(Type type) {
-  cfg_.type = type;
+  config_.type = type;
+  bind_update_function();
   reset();
 }
 
-void Pid::set_mode(Mode mode) {
-  cfg_.mode = mode;
-  update_calculator();
-}
-
-void Pid::set_calculator(Calculator calc) {
-  if (calc != nullptr) {
-    calculator_ = calc;
-  }
-}
-
-void Pid::update_calculator() {
-  switch (cfg_.mode) {
-    case Mode::kLogarithmic:
-      calculator_ = p_logarithmic;
-      break;
-    case Mode::kLinear:
-    default:
-      calculator_ = p_linear;
-      break;
-  }
-}
-
-double Pid::p_linear(const Config& cfg, double err) {
-  return cfg.kp * err;
-}
-
-double Pid::p_logarithmic(const Config& cfg, double err) {
-  if (std::fabs(err) < 1e-9) {
-    return 0.0;
-  }
-  const double sign = err >= 0.0 ? 1.0 : -1.0;
-  const double abs_err = std::fabs(err);
-  return sign * (cfg.log_gain * std::log1p(abs_err / cfg.log_base + cfg.log_offset) + cfg.kp);
+double Pid::p_linear(const Config& cfg, double error) {
+  return cfg.kp * error;
 }
 
 double Pid::p_i(double ki, double integral) {
@@ -79,51 +48,60 @@ double Pid::p_d(double kd, double deriv) {
   return kd * deriv;
 }
 
-Pid::Result Pid::update(double expection, double measurement) {
+Pid::Result Pid::update(double setpoint, double measurement) {
+  if (!std::isfinite(setpoint) || !std::isfinite(measurement)) {
+    return {};
+  }
+
+  double error = setpoint - measurement;
+  if (std::fabs(error) < config_.deadzone) {
+    error = 0.0;
+  }
+
+  return (this->*update_func_)(error);
+}
+
+void Pid::bind_update_function() {
+  update_func_ = (config_.type == Type::kIncremental)
+                     ? &Pid::update_incremental
+                     : &Pid::update_positional;
+}
+
+Pid::Result Pid::update_positional(double error) {
   Result result;
 
-  if (!std::isfinite(expection) || !std::isfinite(measurement)) {
-    return result;
+  integral_ = clamp(integral_ + error, config_.i_term_min, config_.i_term_max);
+  deriv_ = error - prev_error_;
+
+  result.p = p_linear(config_, error);
+  result.i = p_i(config_.ki, integral_);
+  result.d = p_d(config_.kd, deriv_);
+  result.ctrl = clamp(result.p + result.i + result.d, config_.out_min, config_.out_max);
+
+  prev_error_ = error;
+  output_ = result.ctrl;
+  return result;
+}
+
+Pid::Result Pid::update_incremental(double error) {
+  Result result;
+
+  // △u = Kp*(e(k)-e(k-1)) + Ki*e(k) + Kd*(e(k)-2*e(k-1)+e(k-2))
+  result.p = config_.kp * (error - prev_error_);
+  result.i = config_.ki * error;
+  result.d = config_.kd * (error - 2.0 * prev_error_ + prev_error2_);
+
+  const double delta_u = result.p + result.i + result.d;
+  result.ctrl = clamp(inc_output_ + delta_u, config_.out_min, config_.out_max);
+
+  // 防积分饱和：若输出被钳位，则停止累加
+  if (result.ctrl == inc_output_ + delta_u) {
+    inc_output_ = result.ctrl;
   }
 
-  double err = expection - measurement;
-  if (std::fabs(err) < cfg_.deadzone) {
-    err = 0.0;
-  }
-
-  if (cfg_.type == Type::kIncremental) {
-    // 增量式 PID
-    // △u = Kp*(e(k)-e(k-1)) + Ki*e(k) + Kd*(e(k)-2*e(k-1)+e(k-2))
-    result.p = cfg_.kp * (err - err_);
-    result.i = cfg_.ki * err;
-    result.d = cfg_.kd * (err - 2.0 * err_ + err2_);
-
-    const double delta_u = result.p + result.i + result.d;
-    result.ctrl = clamp(last_u_ + delta_u, cfg_.out_min, cfg_.out_max);
-
-    // 防积分饱和：若输出被钳位，则停止累加
-    if (result.ctrl == last_u_ + delta_u) {
-      last_u_ = result.ctrl;
-    }
-
-    err2_ = err_;
-    err_ = err;
-    ctrl_ = result.ctrl;
-    return result;
-  }
-
-  // 位置式 PID
-  i_ = clamp(i_ + err, cfg_.i_term_min, cfg_.i_term_max);
-
-  d_ = err - err_;
-
-  result.p = calculator_(cfg_, err);
-  result.i = p_i(cfg_.ki, i_);
-  result.d = p_d(cfg_.kd, d_);
-  result.ctrl = clamp(result.p + result.i + result.d, cfg_.out_min, cfg_.out_max);
-
-  err_ = err;
-  ctrl_ = result.ctrl;
+  prev_error2_ = prev_error_;
+  prev_error_ = error;
+  output_ = result.ctrl;
   return result;
 }
 
@@ -132,35 +110,24 @@ double Pid::clamp(double x, double lo, double hi) {
 }
 
 void Pid::sanitize_config() {
-  if (!std::isfinite(cfg_.kp)) {
-    cfg_.kp = 0.0;
+  if (!std::isfinite(config_.kp)) {
+    config_.kp = 0.0;
   }
-  if (!std::isfinite(cfg_.ki)) {
-    cfg_.ki = 0.0;
+  if (!std::isfinite(config_.ki)) {
+    config_.ki = 0.0;
   }
-  if (!std::isfinite(cfg_.kd)) {
-    cfg_.kd = 0.0;
+  if (!std::isfinite(config_.kd)) {
+    config_.kd = 0.0;
   }
-  if (!std::isfinite(cfg_.log_gain) || cfg_.log_gain <= 0.0) {
-    cfg_.log_gain = 1.0;
+  if (config_.out_min > config_.out_max) {
+    std::swap(config_.out_min, config_.out_max);
   }
-
-  if (cfg_.out_min > cfg_.out_max) {
-    std::swap(cfg_.out_min, cfg_.out_max);
+  if (config_.i_term_min > config_.i_term_max) {
+    std::swap(config_.i_term_min, config_.i_term_max);
   }
-  if (cfg_.i_term_min > cfg_.i_term_max) {
-    std::swap(cfg_.i_term_min, cfg_.i_term_max);
+  if (config_.deadzone < 0.0 || !std::isfinite(config_.deadzone)) {
+    config_.deadzone = 0.0;
   }
-  if (cfg_.deadzone < 0.0 || !std::isfinite(cfg_.deadzone)) {
-    cfg_.deadzone = 0.0;
-  }
-  if (cfg_.log_base <= 0.0 || !std::isfinite(cfg_.log_base)) {
-    cfg_.log_base = 100.0;
-  }
-  if (cfg_.log_offset < 0.0 || !std::isfinite(cfg_.log_offset)) {
-    cfg_.log_offset = 1.0;
-  }
-
 }
 
 }  // namespace basic::control::pid

@@ -10,19 +10,16 @@ inline constexpr int kRefreshTime = 10;
 inline constexpr int kSensorLoopDelay = 50;
 
 inline constexpr basic::control::pid::Pid::Config kVeloPidCfg{
-    basic::control::pid::Mode::kLinear,
-    0.7, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.7, 0.0, 0.0,
     -100.0, 100.0, -10.0, 10.0, 3,
     basic::control::pid::Type::kIncremental};
 
 inline constexpr basic::control::pid::Pid::Config kHeadingPidCfg{
-    basic::control::pid::Mode::kLinear,
-    1, 0.0, 0.0, 0.0, 0.0, 0.0,
+    1, 0.0, 0.0,
     -100, 100, -1000.0, 1000.0, 1};
 
 inline constexpr basic::control::pid::Pid::Config kAngularVelocityPidCfg{
-    basic::control::pid::Mode::kLinear,
-    0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.5, 0.0, 0.0,
     -100.0, 100.0, -10.0, 10.0, 1,
     basic::control::pid::Type::kIncremental};
 
