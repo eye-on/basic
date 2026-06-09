@@ -22,14 +22,14 @@ inline NewChassis new_chassis_init(const NewChassisConfig& config) {
 inline NewChassisCommand new_chassis_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input,
     vex::brakeType stop_brake_type = vex::coast) {
-  const double vx = static_cast<double>(basic::chassis::steering::controller_axis_value(
+  const double vx_mps = static_cast<double>(basic::chassis::steering::controller_axis_value(
       input, basic::chassis::steering::ControllerAxis::kAxis2));
-  const double vy = static_cast<double>(basic::chassis::steering::controller_axis_value(
+  const double vy_mps = static_cast<double>(basic::chassis::steering::controller_axis_value(
       input, basic::chassis::steering::ControllerAxis::kAxis1));
-  const double omega = static_cast<double>(basic::chassis::steering::controller_axis_value(
+  const double omega_radps = static_cast<double>(basic::chassis::steering::controller_axis_value(
       input, basic::chassis::steering::ControllerAxis::kAxis4));
 
-  return {vx, vy, omega, stop_brake_type};
+  return {vx_mps, vy_mps, omega_radps, stop_brake_type};
 }
 
 inline void new_chassis_update(
