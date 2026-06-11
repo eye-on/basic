@@ -9,9 +9,10 @@ enum class RobotIdentity {
   kBasicRobot,
   kSecondRobot,
   kNewRobot,
+  kFootballRobot,
 };
 
-inline constexpr RobotIdentity kSelectedRobot = RobotIdentity::kNewRobot;
+inline constexpr RobotIdentity kSelectedRobot = RobotIdentity::kFootballRobot;
 
 basic::app::Robot& get_current_robot();
 

@@ -1,13 +1,13 @@
-#ifndef BASIC_SRC_HARDWARE_NEW_ROBOT_ROBOT_HARDWARE_H_
-#define BASIC_SRC_HARDWARE_NEW_ROBOT_ROBOT_HARDWARE_H_
+#ifndef BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_ROBOT_HARDWARE_H_
+#define BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_ROBOT_HARDWARE_H_
 
 #include "chassis/new_chassis.h"
 #include "vex.h"
 
-namespace basic::hardware::new_robot {
+namespace basic::hardware::football_robot {
 
 inline constexpr int kRefreshTime = 10;
-inline constexpr int kSensorLoopDelay = 50;
+inline constexpr double kDriveOutputLimitPct = 30.0;
 inline const int kFrontLeftMotorPort = vex::PORT3;
 inline const int kBackLeftMotorPort = vex::PORT7;
 inline const int kFrontRightMotorPort = vex::PORT12;
@@ -18,10 +18,10 @@ struct RobotHardware {
   vex::brain brain;
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{vex::PORT11};
-  basic::chassis::NewChassis new_chassis;
+  basic::chassis::NewChassis football_chassis;
 
   RobotHardware()
-      : new_chassis(basic::chassis::new_chassis_init({
+      : football_chassis(basic::chassis::new_chassis_init({
             {{
                 {kFrontLeftMotorPort, vex::ratio6_1, true},
                 {kBackLeftMotorPort, vex::ratio6_1, true},
@@ -50,6 +50,6 @@ struct RobotHardware {
   }
 };
 
-}  // namespace basic::hardware::new_robot
+}  // namespace basic::hardware::football_robot
 
-#endif  // BASIC_SRC_HARDWARE_NEW_ROBOT_ROBOT_HARDWARE_H_
+#endif  // BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_ROBOT_HARDWARE_H_
