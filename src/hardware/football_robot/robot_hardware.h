@@ -2,6 +2,7 @@
 #define BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_ROBOT_HARDWARE_H_
 
 #include "chassis/new_chassis.h"
+#include "mechanism/single_pneumatic.h"
 #include "vex.h"
 
 namespace basic::hardware::football_robot {
@@ -19,6 +20,7 @@ struct RobotHardware {
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{vex::PORT11};
   basic::chassis::NewChassis football_chassis;
+  basic::mechanism::SinglePneumatic actuator;
 
   RobotHardware()
       : football_chassis(basic::chassis::new_chassis_init({
@@ -32,6 +34,9 @@ struct RobotHardware {
             }},
             {kCenterStrafeMotorPort, vex::ratio6_1, false},
             10,
+        })),
+        actuator(basic::mechanism::single_pneumatic_init({
+            {brain.ThreeWirePort.A},
         })) {}
 
   void calibrate_inertial_sensor() {

@@ -5,6 +5,7 @@
 #include "hardware/football_robot/robot_hardware.h"
 #include "hardware/football_robot/robot_state.h"
 #include "input/controller.h"
+#include "mechanism/single_pneumatic.h"
 
 #include <algorithm>
 #include <cmath>
@@ -49,6 +50,10 @@ class FootballRobot final : public basic::app::Robot {
               state_.controller,
               basic::chassis::new_chassis_state(hardware_.football_chassis).stop_brake_type);
       basic::chassis::new_chassis_update(hardware_.football_chassis, command);
+      basic::mechanism::single_pneumatic_update(
+          hardware_.actuator,
+          basic::mechanism::single_pneumatic_command_from_controller(state_.controller));
+      state_.actuator = basic::mechanism::single_pneumatic_state(hardware_.actuator);
       limit_drive_output();
 
       vex::this_thread::sleep_for(kRefreshTime);
@@ -86,6 +91,8 @@ class FootballRobot final : public basic::app::Robot {
   void stop_all_outputs(vex::brakeType drive_brake_type) {
     state_.controller = basic::hardware::shared::ControllerInputState{};
     basic::chassis::new_chassis_stop(hardware_.football_chassis, drive_brake_type);
+    basic::mechanism::single_pneumatic_stop(hardware_.actuator);
+    state_.actuator = basic::mechanism::single_pneumatic_state(hardware_.actuator);
   }
 
   RobotHardware hardware_;
