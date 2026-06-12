@@ -1,7 +1,7 @@
 #ifndef BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_ROBOT_HARDWARE_H_
 #define BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_ROBOT_HARDWARE_H_
 
-#include "chassis/new_chassis.h"
+#include "chassis/h_chassis.h"
 #include "mechanism/single_pneumatic.h"
 #include "vex.h"
 
@@ -19,11 +19,11 @@ struct RobotHardware {
   vex::brain brain;
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{vex::PORT11};
-  basic::chassis::NewChassis football_chassis;
+  basic::chassis::HChassis football_chassis;
   basic::mechanism::SinglePneumatic actuator;
 
   RobotHardware()
-      : football_chassis(basic::chassis::new_chassis_init({
+      : football_chassis(basic::chassis::h_chassis_init({
             {{
                 {kFrontLeftMotorPort, vex::ratio6_1, true},
                 {kBackLeftMotorPort, vex::ratio6_1, true},
