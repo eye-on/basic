@@ -13,10 +13,10 @@ inline const int kFrontLeftMotorPort = vex::PORT3;
 inline const int kBackLeftMotorPort = vex::PORT7;
 inline const int kFrontRightMotorPort = vex::PORT12;
 inline const int kBackRightMotorPort = vex::PORT5;
-inline const int kCenterStrafeMotorPort = vex::PORT20;
-inline const int kActuatorMotorPort = vex::PORT14;
-inline constexpr double kActuatorMotorAngleADeg = 0.0;
-inline constexpr double kActuatorMotorAngleBDeg = 180.0;
+inline const int kCenterStrafeMotorPort = vex::PORT18;
+inline const int kActuatorMotorPort = vex::PORT4;
+inline constexpr double kActuatorMotorAngleADeg = 4.0;
+inline constexpr double kActuatorMotorAngleBDeg = 132.0;
 inline constexpr double kActuatorMotorAutoSpeedPct = 100.0;
 inline constexpr double kActuatorMotorStateToleranceDeg = 5.0;
 
@@ -42,7 +42,7 @@ struct RobotHardware {
         })),
         actuator(basic::mechanism::pneumatic_motor_actuator_init({
             {{brain.ThreeWirePort.A}},
-            {kActuatorMotorPort, vex::ratio6_1, false},
+            {kActuatorMotorPort, vex::ratio18_1, false},
             kActuatorMotorAngleADeg,
             kActuatorMotorAngleBDeg,
             kActuatorMotorAutoSpeedPct,
