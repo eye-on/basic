@@ -2,7 +2,7 @@
 #define BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_ROBOT_HARDWARE_H_
 
 #include "chassis/h_chassis.h"
-#include "mechanism/single_pneumatic.h"
+#include "mechanism/pneumatic_motor_actuator.h"
 #include "vex.h"
 
 namespace basic::hardware::football_robot {
@@ -14,13 +14,18 @@ inline const int kBackLeftMotorPort = vex::PORT7;
 inline const int kFrontRightMotorPort = vex::PORT12;
 inline const int kBackRightMotorPort = vex::PORT5;
 inline const int kCenterStrafeMotorPort = vex::PORT20;
+inline const int kActuatorMotorPort = vex::PORT14;
+inline constexpr double kActuatorMotorAngleADeg = 0.0;
+inline constexpr double kActuatorMotorAngleBDeg = 180.0;
+inline constexpr double kActuatorMotorAutoSpeedPct = 100.0;
+inline constexpr double kActuatorMotorStateToleranceDeg = 5.0;
 
 struct RobotHardware {
   vex::brain brain;
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{vex::PORT11};
   basic::chassis::HChassis football_chassis;
-  basic::mechanism::SinglePneumatic actuator;
+  basic::mechanism::PneumaticMotorActuator actuator;
 
   RobotHardware()
       : football_chassis(basic::chassis::h_chassis_init({
@@ -35,8 +40,13 @@ struct RobotHardware {
             {kCenterStrafeMotorPort, vex::ratio6_1, false},
             10,
         })),
-        actuator(basic::mechanism::single_pneumatic_init({
-            {brain.ThreeWirePort.A},
+        actuator(basic::mechanism::pneumatic_motor_actuator_init({
+            {{brain.ThreeWirePort.A}},
+            {kActuatorMotorPort, vex::ratio6_1, false},
+            kActuatorMotorAngleADeg,
+            kActuatorMotorAngleBDeg,
+            kActuatorMotorAutoSpeedPct,
+            kActuatorMotorStateToleranceDeg,
         })) {}
 
   void calibrate_inertial_sensor() {

@@ -1,6 +1,7 @@
 #ifndef BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_VISION_H_
 #define BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_VISION_H_
 
+#include "mechanism/pneumatic_motor_actuator.h"
 #include "vision/locator.h"
 
 namespace basic::hardware::football_robot {
@@ -85,6 +86,12 @@ void configure_vision(const FootballVisionConfig& config);
 basic::vision::EstimateResult submit_yolo_detection(const YoloDetection& detection);
 void clear_yolo_detection();
 FootballVisionState get_vision_state();
+basic::mechanism::PneumaticMotorActuatorState get_actuator_state();
+basic::mechanism::PneumaticMotorActuatorState refresh_actuator_state();
+void set_actuator_motor_angle_a();
+void set_actuator_motor_angle_b();
+void toggle_actuator_motor_angle_state();
+void update_actuator_motor_to_target();
 
 }  // namespace basic::hardware::football_robot
 
