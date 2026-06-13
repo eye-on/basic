@@ -11,6 +11,8 @@ namespace {
 using basic::control::stopcontrol;
 using basic::control::velocitycontrol;
 
+constexpr double kManualMotorSpeedPct = 25.0;
+
 vex::motor make_motor(const basic::device::MotorConfig& config) {
   return vex::motor{config.port, config.gear_ratio, config.reversed};
 }
@@ -100,9 +102,9 @@ PneumaticMotorActuatorCommand pneumatic_motor_actuator_command_from_controller(
   command.toggle_motor_target_state = input.press_x;
 
   if (input.l1 && !input.l2) {
-    command.motor_pct = 100.0;
+    command.motor_pct = kManualMotorSpeedPct;
   } else if (input.l2 && !input.l1) {
-    command.motor_pct = -100.0;
+    command.motor_pct = -kManualMotorSpeedPct;
   }
 
   return command;

@@ -25,7 +25,8 @@ inline constexpr double kAutoForwardGainPctPerMm = 0.04;
 inline constexpr double kAutoStrafeGainPct = 70.0;
 inline constexpr double kAutoCenteringForwardLimitPct = 10.0;
 inline constexpr double kAutoMaxForwardPct = 25.0;
-inline constexpr double kAutoMaxStrafePct = 25.0;
+inline constexpr double kAutoMaxStrafePct = 100.0;
+inline constexpr double kCenterDriveOutputLimitPct = 100.0;
 
 double clamp_value(double value, double lo, double hi) {
   return std::max(lo, std::min(value, hi));
@@ -327,18 +328,26 @@ class FootballRobot final : public basic::app::Robot {
   void limit_drive_output() {
     const basic::chassis::HChassisState& state =
         basic::chassis::h_chassis_state(hardware_.football_chassis);
-    const double max_abs = std::max(
-        {std::fabs(state.left_pct), std::fabs(state.right_pct), std::fabs(state.center_pct)});
-    if (max_abs <= kDriveOutputLimitPct || max_abs <= 0.0) {
+    const double drive_max_abs = std::max(std::fabs(state.left_pct), std::fabs(state.right_pct));
+    const double drive_scale =
+        (drive_max_abs > kDriveOutputLimitPct && drive_max_abs > 0.0)
+            ? (kDriveOutputLimitPct / drive_max_abs)
+            : 1.0;
+    const double center_scale =
+        (std::fabs(state.center_pct) > kCenterDriveOutputLimitPct &&
+         std::fabs(state.center_pct) > 0.0)
+            ? (kCenterDriveOutputLimitPct / std::fabs(state.center_pct))
+            : 1.0;
+
+    if (drive_scale >= 1.0 && center_scale >= 1.0) {
       return;
     }
 
-    const double scale = kDriveOutputLimitPct / max_abs;
     basic::chassis::h_drive_set_output(
         hardware_.football_chassis,
-        state.left_pct * scale,
-        state.right_pct * scale,
-        state.center_pct * scale,
+        state.left_pct * drive_scale,
+        state.right_pct * drive_scale,
+        state.center_pct * center_scale,
         state.stop_brake_type);
   }
 

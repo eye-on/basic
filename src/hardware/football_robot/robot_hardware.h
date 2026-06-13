@@ -17,7 +17,7 @@ inline const int kCenterStrafeMotorPort = vex::PORT18;
 inline const int kActuatorMotorPort = vex::PORT4;
 inline constexpr double kActuatorMotorAngleADeg = 4.0;
 inline constexpr double kActuatorMotorAngleBDeg = 132.0;
-inline constexpr double kActuatorMotorAutoSpeedPct = 100.0;
+inline constexpr double kActuatorMotorAutoSpeedPct = 25.0;
 inline constexpr double kActuatorMotorStateToleranceDeg = 5.0;
 
 struct RobotHardware {
@@ -30,14 +30,14 @@ struct RobotHardware {
   RobotHardware()
       : football_chassis(basic::chassis::h_chassis_init({
             {{
-                {kFrontLeftMotorPort, vex::ratio6_1, true},
-                {kBackLeftMotorPort, vex::ratio6_1, true},
+                {kFrontLeftMotorPort, vex::ratio18_1, true},
+                {kBackLeftMotorPort, vex::ratio18_1, true},
             }},
             {{
-                {kFrontRightMotorPort, vex::ratio6_1, false},
-                {kBackRightMotorPort, vex::ratio6_1, false},
+                {kFrontRightMotorPort, vex::ratio18_1, false},
+                {kBackRightMotorPort, vex::ratio18_1, false},
             }},
-            {kCenterStrafeMotorPort, vex::ratio6_1, false},
+            {kCenterStrafeMotorPort, vex::ratio36_1, false},
             10,
         })),
         actuator(basic::mechanism::pneumatic_motor_actuator_init({
