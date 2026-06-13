@@ -97,6 +97,7 @@ PneumaticMotorActuatorCommand pneumatic_motor_actuator_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input) {
   PneumaticMotorActuatorCommand command;
   command.pneumatic = single_pneumatic_command_from_controller(input);
+  command.toggle_motor_target_state = input.press_x;
 
   if (input.l1 && !input.l2) {
     command.motor_pct = 100.0;
@@ -113,8 +114,27 @@ void pneumatic_motor_actuator_update(
   single_pneumatic_update(mechanism.pneumatic(), command.pneumatic);
   mechanism.state().pneumatic = single_pneumatic_state(mechanism.pneumatic());
   refresh_motor_state(mechanism);
-  mechanism.state().motor_pct = command.motor_pct;
-  mechanism.state().motor_auto_active = false;
+
+  if (command.toggle_motor_target_state) {
+    pneumatic_motor_actuator_toggle_motor_target_state(mechanism);
+    pneumatic_motor_actuator_update_motor_target(mechanism);
+    return;
+  }
+
+  if (command.motor_pct != 0.0) {
+    mechanism.state().motor_pct = command.motor_pct;
+    mechanism.state().motor_auto_active = false;
+    apply_motor(mechanism);
+    refresh_motor_state(mechanism);
+    return;
+  }
+
+  if (mechanism.state().motor_auto_active) {
+    pneumatic_motor_actuator_update_motor_target(mechanism);
+    return;
+  }
+
+  mechanism.state().motor_pct = 0.0;
   apply_motor(mechanism);
   refresh_motor_state(mechanism);
 }

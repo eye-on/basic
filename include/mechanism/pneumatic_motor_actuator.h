@@ -24,6 +24,7 @@ struct PneumaticMotorActuatorConfig {
 
 struct PneumaticMotorActuatorCommand {
   SinglePneumaticCommand pneumatic;
+  bool toggle_motor_target_state{false};
   double motor_pct{0.0};
 };
 
