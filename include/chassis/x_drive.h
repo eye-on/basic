@@ -33,7 +33,7 @@ void apply_group_output_pid(
   for (std::size_t i = 0; i < Count; ++i) {
     if (pct != 0.0) {
       const double current_vel = motors[i].velocity(vex::pct);
-      printf("%.2f,%.2f\n",pct,current_vel);
+      //printf("%.2f,%.2f\n",pct,current_vel);
       if (std::abs(pct) < 2 && std::abs(current_vel) < 2) {
         pids[i].reset();
       }
@@ -237,7 +237,6 @@ void x_drive_set_output(
   chassis.state().bl_pct = bl_pct;
   chassis.state().br_pct = br_pct;
   chassis.state().stop_brake_type = brake_type;
-
   detail::apply_group_output_pid(chassis.fl_motors(), chassis.fl_pid(), fl_pct, brake_type);
   detail::apply_group_output_pid(chassis.fr_motors(), chassis.fr_pid(), fr_pct, brake_type);
   detail::apply_group_output_pid(chassis.bl_motors(), chassis.bl_pid(), bl_pct, brake_type);

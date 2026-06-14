@@ -236,6 +236,29 @@ class FootballRobotPlus final : public basic::app::Robot {
   }
 
   void run_manual_control_step() {
+    // X/Y/A/B 按键边沿触发切换四角电机满转（调试用）
+    if (state_.controller.press_x) fl_test_spin_ = !fl_test_spin_;
+    if (state_.controller.press_y) fr_test_spin_ = !fr_test_spin_;
+    if (state_.controller.press_a) bl_test_spin_ = !bl_test_spin_;
+    if (state_.controller.press_b) br_test_spin_ = !br_test_spin_;
+
+    if (fl_test_spin_ || fr_test_spin_ || bl_test_spin_ || br_test_spin_) {
+      basic::control::velocitycontrol(
+          basic::chassis::x_chassis_fl_motor(hardware_.football_chassis),
+          fl_test_spin_ ? 100.0 : 0.0);
+      basic::control::velocitycontrol(
+          basic::chassis::x_chassis_fr_motor(hardware_.football_chassis),
+          fr_test_spin_ ? 100.0 : 0.0);
+      basic::control::velocitycontrol(
+          basic::chassis::x_chassis_bl_motor(hardware_.football_chassis),
+          bl_test_spin_ ? 100.0 : 0.0);
+      basic::control::velocitycontrol(
+          basic::chassis::x_chassis_br_motor(hardware_.football_chassis),
+          br_test_spin_ ? 100.0 : 0.0);
+
+      return;
+    }
+
     const basic::chassis::XChassisCommand command =
         basic::chassis::x_chassis_command_from_controller(
             state_.controller,
@@ -469,6 +492,10 @@ class FootballRobotPlus final : public basic::app::Robot {
   basic::vision::MonocularLocator locator_;
   vex::competition* competition_{nullptr};
   bool auto_mode_enabled_{false};
+  bool fl_test_spin_{false};
+  bool fr_test_spin_{false};
+  bool bl_test_spin_{false};
+  bool br_test_spin_{false};
 
   friend FootballRobotPlus& current_football_robot_plus();
 };
