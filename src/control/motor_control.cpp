@@ -63,7 +63,7 @@ void adrc_torque_control(
     first_order_adrc::Controller& adrc) {
   const double current_velocity = motor.velocity(vex::pct);
   const auto result = adrc.update(target_velocity, current_velocity);
-  printf("%.2f,%.2f,%.2f\n",target_velocity,current_velocity,target_velocity-current_velocity);
+  //printf("%.2f,%.2f,%.2f\n",target_velocity,current_velocity,target_velocity-current_velocity);
   //basic::control::velocitycontrol(motor, result.control, vex::pct);
   basic::control::torquecontrol(motor, result.control);
 }

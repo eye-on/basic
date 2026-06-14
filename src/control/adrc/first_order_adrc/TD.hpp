@@ -10,7 +10,7 @@ namespace first_order_adrc {
 class TD {
  public:
   struct Config {
-    double r = 3000.0;
+    double r = 300.0;
     double h = 0.01;
     double max_vel = std::numeric_limits<double>::infinity();
     double max_acc = std::numeric_limits<double>::infinity();
