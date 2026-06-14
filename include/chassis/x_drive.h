@@ -2,37 +2,44 @@
 #define BASIC_INCLUDE_X_DRIVE_H_
 
 #include "chassis/arcade_drive.h"
-#include "control/adrc/first_order_adrc/controller.hpp"
+#include "control/pid/controller.hpp"
 
 namespace basic::chassis {
 
 namespace detail {
 
-/// 根据配置数组构造 ADRC 控制器数组
+/// 根据配置数组构造 PID 控制器数组
 template <std::size_t Count, std::size_t... Indices>
-std::array<first_order_adrc::Controller, Count> make_adrc_array_impl(
-    const std::array<first_order_adrc::Controller::Config, Count>& configs,
+std::array<basic::control::pid::Pid, Count> make_pid_array_impl(
+    const std::array<basic::control::pid::Pid::Config, Count>& configs,
     std::index_sequence<Indices...>) {
-  return {{first_order_adrc::Controller{configs[Indices]}...}};
+  return {{basic::control::pid::Pid{configs[Indices]}...}};
 }
 
 template <std::size_t Count>
-std::array<first_order_adrc::Controller, Count> make_adrc_array(
-    const std::array<first_order_adrc::Controller::Config, Count>& configs) {
-  return make_adrc_array_impl(configs, std::make_index_sequence<Count>{});
+std::array<basic::control::pid::Pid, Count> make_pid_array(
+    const std::array<basic::control::pid::Pid::Config, Count>& configs) {
+  return make_pid_array_impl(configs, std::make_index_sequence<Count>{});
 }
 
-/// 使用 ADRC 力矩控制驱动电机组
-/// 非零目标时通过 ADRC 调节速度，零目标时直接停止
+/// 使用 PID 速度闭环控制驱动电机组
+/// 非零目标时通过 PID 调节速度，零目标时直接停止
 template <std::size_t Count>
-void apply_group_output_adrc(
+void apply_group_output_pid(
     std::array<vex::motor, Count>& motors,
-    std::array<first_order_adrc::Controller, Count>& adrcs,
+    std::array<basic::control::pid::Pid, Count>& pids,
     double pct,
     vex::brakeType brake_type) {
   for (std::size_t i = 0; i < Count; ++i) {
     if (pct != 0.0) {
-      basic::control::adrc_torque_control(motors[i], pct, adrcs[i]);
+      if (std::abs(pct) < 2 && std::abs(current_vel) < 2) {
+        pids[i].reset();
+      }
+      const double current_vel = motors[i].velocity(vex::pct);
+      const auto result = pids[i].update(pct, current_vel);
+      basic::control::velocitycontrol(motors[i], result.ctrl, vex::pct);
+      // 复位判定：目标速度和反馈速度均接近零时复位 PID，防止积分饱和
+      }
     } else {
       basic::control::stopcontrol(motors[i], brake_type);
     }
@@ -69,11 +76,11 @@ struct XDriveConfig {
   std::array<basic::device::MotorConfig, BlCount> bl_motors;  // 左后角电机组
   std::array<basic::device::MotorConfig, BrCount> br_motors;  // 右后角电机组
   int deadzone{10};
-  /// 各角电机 ADRC 控制器配置（默认使用 ADRC 默认参数）
-  std::array<first_order_adrc::Controller::Config, FlCount> fl_adrc_configs{};
-  std::array<first_order_adrc::Controller::Config, FrCount> fr_adrc_configs{};
-  std::array<first_order_adrc::Controller::Config, BlCount> bl_adrc_configs{};
-  std::array<first_order_adrc::Controller::Config, BrCount> br_adrc_configs{};
+  /// 各角电机 PID 控制器配置（默认使用 PID 默认参数）
+  std::array<basic::control::pid::Pid::Config, FlCount> fl_pid_configs{};
+  std::array<basic::control::pid::Pid::Config, FrCount> fr_pid_configs{};
+  std::array<basic::control::pid::Pid::Config, BlCount> bl_pid_configs{};
+  std::array<basic::control::pid::Pid::Config, BrCount> br_pid_configs{};
 };
 
 /// 十字型全向轮底盘（X-Drive）
@@ -89,10 +96,10 @@ class XDrive {
         bl_motors_(detail::make_motor_array(config.bl_motors)),
         br_motors_(detail::make_motor_array(config.br_motors)),
         deadzone_(config.deadzone),
-        fl_adrc_(detail::make_adrc_array(config.fl_adrc_configs)),
-        fr_adrc_(detail::make_adrc_array(config.fr_adrc_configs)),
-        bl_adrc_(detail::make_adrc_array(config.bl_adrc_configs)),
-        br_adrc_(detail::make_adrc_array(config.br_adrc_configs)) {}
+        fl_pid_(detail::make_pid_array(config.fl_pid_configs)),
+        fr_pid_(detail::make_pid_array(config.fr_pid_configs)),
+        bl_pid_(detail::make_pid_array(config.bl_pid_configs)),
+        br_pid_(detail::make_pid_array(config.br_pid_configs)) {}
 
   /// 左前角（Front-Left）电机组访问
   std::array<vex::motor, FlCount>& fl_motors() {
@@ -134,40 +141,40 @@ class XDrive {
     return deadzone_;
   }
 
-  /// 左前角 ADRC 控制器组访问
-  std::array<first_order_adrc::Controller, FlCount>& fl_adrc() {
-    return fl_adrc_;
+  /// 左前角 PID 控制器组访问
+  std::array<basic::control::pid::Pid, FlCount>& fl_pid() {
+    return fl_pid_;
   }
 
-  const std::array<first_order_adrc::Controller, FlCount>& fl_adrc() const {
-    return fl_adrc_;
+  const std::array<basic::control::pid::Pid, FlCount>& fl_pid() const {
+    return fl_pid_;
   }
 
-  /// 右前角 ADRC 控制器组访问
-  std::array<first_order_adrc::Controller, FrCount>& fr_adrc() {
-    return fr_adrc_;
+  /// 右前角 PID 控制器组访问
+  std::array<basic::control::pid::Pid, FrCount>& fr_pid() {
+    return fr_pid_;
   }
 
-  const std::array<first_order_adrc::Controller, FrCount>& fr_adrc() const {
-    return fr_adrc_;
+  const std::array<basic::control::pid::Pid, FrCount>& fr_pid() const {
+    return fr_pid_;
   }
 
-  /// 左后角 ADRC 控制器组访问
-  std::array<first_order_adrc::Controller, BlCount>& bl_adrc() {
-    return bl_adrc_;
+  /// 左后角 PID 控制器组访问
+  std::array<basic::control::pid::Pid, BlCount>& bl_pid() {
+    return bl_pid_;
   }
 
-  const std::array<first_order_adrc::Controller, BlCount>& bl_adrc() const {
-    return bl_adrc_;
+  const std::array<basic::control::pid::Pid, BlCount>& bl_pid() const {
+    return bl_pid_;
   }
 
-  /// 右后角 ADRC 控制器组访问
-  std::array<first_order_adrc::Controller, BrCount>& br_adrc() {
-    return br_adrc_;
+  /// 右后角 PID 控制器组访问
+  std::array<basic::control::pid::Pid, BrCount>& br_pid() {
+    return br_pid_;
   }
 
-  const std::array<first_order_adrc::Controller, BrCount>& br_adrc() const {
-    return br_adrc_;
+  const std::array<basic::control::pid::Pid, BrCount>& br_pid() const {
+    return br_pid_;
   }
 
   XDriveState& state() {
@@ -183,10 +190,10 @@ class XDrive {
   std::array<vex::motor, FrCount> fr_motors_;
   std::array<vex::motor, BlCount> bl_motors_;
   std::array<vex::motor, BrCount> br_motors_;
-  std::array<first_order_adrc::Controller, FlCount> fl_adrc_;
-  std::array<first_order_adrc::Controller, FrCount> fr_adrc_;
-  std::array<first_order_adrc::Controller, BlCount> bl_adrc_;
-  std::array<first_order_adrc::Controller, BrCount> br_adrc_;
+  std::array<basic::control::pid::Pid, FlCount> fl_pid_;
+  std::array<basic::control::pid::Pid, FrCount> fr_pid_;
+  std::array<basic::control::pid::Pid, BlCount> bl_pid_;
+  std::array<basic::control::pid::Pid, BrCount> br_pid_;
   int deadzone_{10};
   XDriveState state_;
 };
@@ -230,10 +237,10 @@ void x_drive_set_output(
   chassis.state().br_pct = br_pct;
   chassis.state().stop_brake_type = brake_type;
 
-  detail::apply_group_output_adrc(chassis.fl_motors(), chassis.fl_adrc(), fl_pct, brake_type);
-  detail::apply_group_output_adrc(chassis.fr_motors(), chassis.fr_adrc(), fr_pct, brake_type);
-  detail::apply_group_output_adrc(chassis.bl_motors(), chassis.bl_adrc(), bl_pct, brake_type);
-  detail::apply_group_output_adrc(chassis.br_motors(), chassis.br_adrc(), br_pct, brake_type);
+  detail::apply_group_output_pid(chassis.fl_motors(), chassis.fl_pid(), fl_pct, brake_type);
+  detail::apply_group_output_pid(chassis.fr_motors(), chassis.fr_pid(), fr_pct, brake_type);
+  detail::apply_group_output_pid(chassis.bl_motors(), chassis.bl_pid(), bl_pct, brake_type);
+  detail::apply_group_output_pid(chassis.br_motors(), chassis.br_pid(), br_pct, brake_type);
 }
 
 /// 更新十字型全向轮底盘控制

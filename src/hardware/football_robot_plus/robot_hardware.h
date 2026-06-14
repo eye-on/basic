@@ -14,7 +14,10 @@ inline const int kBackLeftMotorPort = vex::PORT12;
 inline const int kFrontRightMotorPort = vex::PORT19;
 inline const int kBackRightMotorPort = vex::PORT10;
 inline const int kVisionSensorPort = vex::PORT20;
-inline constexpr first_order_adrc::Controller::Config kAdrcCfg;
+inline constexpr basic::control::pid::Pid::Config kPidCfg{
+    0.25, 0.1, 0.0001,
+    -kDriveOutputLimitPct, kDriveOutputLimitPct, -10.0, 10.0, 1,
+    basic::control::pid::Type::kIncremental};
 
 struct RobotHardware {
   vex::brain brain;
@@ -39,10 +42,10 @@ struct RobotHardware {
                 {kBackRightMotorPort, vex::ratio18_1, false},
             }},
             2,
-            {{kAdrcCfg}},
-            {{kAdrcCfg}},
-            {{kAdrcCfg}},
-            {{kAdrcCfg}},
+            {{kPidCfg}},
+            {{kPidCfg}},
+            {{kPidCfg}},
+            {{kPidCfg}},
         })) {}
 
   void calibrate_inertial_sensor() {
