@@ -4,8 +4,44 @@ namespace basic::hardware::football_robot {
 
 namespace {
 
+constexpr double kPi = 3.14159265358979323846;
+
 bool is_positive_finite(double value) {
   return basic::vision::is_finite(value) && value > 0.0;
+}
+
+double degrees_to_radians(double degrees) {
+  return degrees * kPi / 180.0;
+}
+
+basic::vision::Vec3 rotate_x(const basic::vision::Vec3& value, double radians) {
+  const double c = std::cos(radians);
+  const double s = std::sin(radians);
+  return basic::vision::Vec3{
+      value.x,
+      c * value.y - s * value.z,
+      s * value.y + c * value.z,
+  };
+}
+
+basic::vision::Vec3 rotate_y(const basic::vision::Vec3& value, double radians) {
+  const double c = std::cos(radians);
+  const double s = std::sin(radians);
+  return basic::vision::Vec3{
+      c * value.x + s * value.z,
+      value.y,
+      -s * value.x + c * value.z,
+  };
+}
+
+basic::vision::Vec3 rotate_z(const basic::vision::Vec3& value, double radians) {
+  const double c = std::cos(radians);
+  const double s = std::sin(radians);
+  return basic::vision::Vec3{
+      c * value.x - s * value.y,
+      s * value.x + c * value.y,
+      value.z,
+  };
 }
 
 void scale_intrinsics(
@@ -128,6 +164,37 @@ basic::vision::EstimateResult estimate_football_from_yolo(
     const YoloDetection& detection) {
   basic::vision::MonocularLocator locator(config.estimator);
   return estimate_football_from_yolo(locator, config, detection);
+}
+
+bool camera_extrinsics_valid(const CameraExtrinsics& extrinsics) {
+  return basic::vision::is_finite(extrinsics.x_mm) &&
+         basic::vision::is_finite(extrinsics.y_mm) &&
+         basic::vision::is_finite(extrinsics.z_mm) &&
+         basic::vision::is_finite(extrinsics.roll_deg) &&
+         basic::vision::is_finite(extrinsics.pitch_deg) &&
+         basic::vision::is_finite(extrinsics.yaw_deg);
+}
+
+basic::vision::Vec3 camera_vector_to_robot_frame(
+    const CameraExtrinsics& extrinsics,
+    const basic::vision::Vec3& camera_vector) {
+  basic::vision::Vec3 rotated = camera_vector;
+  rotated = rotate_x(rotated, degrees_to_radians(extrinsics.roll_deg));
+  rotated = rotate_y(rotated, degrees_to_radians(extrinsics.pitch_deg));
+  rotated = rotate_z(rotated, degrees_to_radians(extrinsics.yaw_deg));
+  return rotated;
+}
+
+basic::vision::Vec3 camera_point_to_robot_frame(
+    const CameraExtrinsics& extrinsics,
+    const basic::vision::Vec3& camera_point_mm) {
+  const basic::vision::Vec3 rotated =
+      camera_vector_to_robot_frame(extrinsics, camera_point_mm);
+  return basic::vision::Vec3{
+      rotated.x + extrinsics.x_mm,
+      rotated.y + extrinsics.y_mm,
+      rotated.z + extrinsics.z_mm,
+  };
 }
 
 }  // namespace basic::hardware::football_robot
