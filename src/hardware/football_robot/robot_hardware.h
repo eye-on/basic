@@ -9,7 +9,7 @@
 namespace basic::hardware::football_robot {
 
 inline constexpr int kRefreshTime = 10;
-inline constexpr double kDriveOutputLimitPct = 30.0;
+inline constexpr double kDriveOutputLimitPct = 50.0;
 inline const int kFrontLeftMotorPort = vex::PORT3;
 inline const int kBackLeftMotorPort = vex::PORT7;
 inline const int kFrontRightMotorPort = vex::PORT12;
@@ -41,7 +41,7 @@ struct RobotHardware {
                 {kFrontRightMotorPort, vex::ratio18_1, false},
                 {kBackRightMotorPort, vex::ratio18_1, false},
             }},
-            {kCenterStrafeMotorPort, vex::ratio36_1, false},
+            {kCenterStrafeMotorPort, vex::ratio18_1, false},
             10,
         })),
         actuator(basic::mechanism::pneumatic_motor_actuator_init({
