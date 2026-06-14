@@ -8,12 +8,13 @@
 namespace basic::hardware::football_robot_plus {
 
 inline constexpr int kRefreshTime = 10;
-inline constexpr double kDriveOutputLimitPct = 50.0;
-inline const int kFrontLeftMotorPort = vex::PORT3;
-inline const int kBackLeftMotorPort = vex::PORT7;
-inline const int kFrontRightMotorPort = vex::PORT12;
-inline const int kBackRightMotorPort = vex::PORT18;
-inline const int kVisionSensorPort = vex::PORT1;
+inline constexpr double kDriveOutputLimitPct = 100.0;
+inline const int kFrontLeftMotorPort = vex::PORT1;
+inline const int kBackLeftMotorPort = vex::PORT12;
+inline const int kFrontRightMotorPort = vex::PORT19;
+inline const int kBackRightMotorPort = vex::PORT10;
+inline const int kVisionSensorPort = vex::PORT20;
+inline constexpr first_order_adrc::Controller::Config kAdrcCfg;
 
 struct RobotHardware {
   vex::brain brain;
@@ -38,6 +39,10 @@ struct RobotHardware {
                 {kBackRightMotorPort, vex::ratio18_1, false},
             }},
             2,
+            {{kAdrcCfg}},
+            {{kAdrcCfg}},
+            {{kAdrcCfg}},
+            {{kAdrcCfg}},
         })) {}
 
   void calibrate_inertial_sensor() {
