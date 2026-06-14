@@ -13,6 +13,7 @@ using XChassisState = XDriveState;
 
 /// 初始化十字型全向轮底盘
 inline XChassis x_chassis_init(const XChassisConfig& config) {
+  printf("target,measurement\n");
   return x_drive_init(config);
 }
 

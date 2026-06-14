@@ -32,18 +32,19 @@ void apply_group_output_pid(
     vex::brakeType brake_type) {
   for (std::size_t i = 0; i < Count; ++i) {
     if (pct != 0.0) {
+      const double current_vel = motors[i].velocity(vex::pct);
+      printf("%.2f,%.2f\n",pct,current_vel);
       if (std::abs(pct) < 2 && std::abs(current_vel) < 2) {
         pids[i].reset();
       }
-      const double current_vel = motors[i].velocity(vex::pct);
       const auto result = pids[i].update(pct, current_vel);
       basic::control::velocitycontrol(motors[i], result.ctrl, vex::pct);
       // 复位判定：目标速度和反馈速度均接近零时复位 PID，防止积分饱和
       }
-    } else {
+      else {
       basic::control::stopcontrol(motors[i], brake_type);
-    }
-  }
+      pids[i].reset();}
+  } 
 }
 
 }  // namespace detail

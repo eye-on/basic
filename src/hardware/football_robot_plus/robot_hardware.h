@@ -14,10 +14,29 @@ inline const int kBackLeftMotorPort = vex::PORT12;
 inline const int kFrontRightMotorPort = vex::PORT19;
 inline const int kBackRightMotorPort = vex::PORT10;
 inline const int kVisionSensorPort = vex::PORT20;
-inline constexpr basic::control::pid::Pid::Config kPidCfg{
-    0.25, 0.1, 0.0001,
+/// 左前轮（Front-Left）PID 参数
+inline constexpr basic::control::pid::Pid::Config kFlPidCfg{
+    1.0, 0.0, 0.0,
     -kDriveOutputLimitPct, kDriveOutputLimitPct, -10.0, 10.0, 1,
-    basic::control::pid::Type::kIncremental};
+    basic::control::pid::Type::kPosition};
+
+/// 右前轮（Front-Right）PID 参数
+inline constexpr basic::control::pid::Pid::Config kFrPidCfg{
+    1.0, 0.0, 0.0,
+    -kDriveOutputLimitPct, kDriveOutputLimitPct, -10.0, 10.0, 1,
+    basic::control::pid::Type::kPosition};
+    
+/// 左后轮（Back-Left）PID 参数
+inline constexpr basic::control::pid::Pid::Config kBlPidCfg{
+    1.0, 0.0, 0.0,
+    -kDriveOutputLimitPct, kDriveOutputLimitPct, -10.0, 10.0, 1,
+    basic::control::pid::Type::kPosition};
+
+/// 右后轮（Back-Right）PID 参数
+inline constexpr basic::control::pid::Pid::Config kBrPidCfg{
+    1.0, 0.0, 0.0,
+    -kDriveOutputLimitPct, kDriveOutputLimitPct, -10.0, 10.0, 1,
+    basic::control::pid::Type::kPosition};
 
 struct RobotHardware {
   vex::brain brain;
@@ -42,10 +61,10 @@ struct RobotHardware {
                 {kBackRightMotorPort, vex::ratio18_1, false},
             }},
             2,
-            {{kPidCfg}},
-            {{kPidCfg}},
-            {{kPidCfg}},
-            {{kPidCfg}},
+            {{kFlPidCfg}},
+            {{kFrPidCfg}},
+            {{kBlPidCfg}},
+            {{kBrPidCfg}},
         })) {}
 
   void calibrate_inertial_sensor() {
