@@ -6,7 +6,30 @@
 
 namespace basic::hardware::football_robot_plus {
 
-inline constexpr double kDefaultFootballDiameterMm = 220.0;
+inline constexpr double kDefaultFootballDiameterMm = 127.0;
+
+enum class VisionInputSource {
+  kNone,
+  kExternalSerial,
+};
+
+struct CameraExtrinsics {
+  double x_mm{0.0};
+  double y_mm{0.0};
+  double z_mm{0.0};
+  double roll_deg{0.0};
+  double pitch_deg{0.0};
+  double yaw_deg{0.0};
+};
+
+struct ExternalVisionLinkState {
+  VisionInputSource source{VisionInputSource::kNone};
+  bool online{false};
+  int last_rx_time_ms{0};
+  int last_source_timestamp_ms{0};
+  int parse_error_count{0};
+  char reported_color_code{'N'};
+};
 
 struct YoloBoundingBoxPx {
   double x{0.0};
@@ -27,6 +50,7 @@ struct YoloBoundingBoxPx {
 
 struct YoloDetection {
   bool has_detection{false};
+  int source_timestamp_ms{0};
   int class_id{-1};
   double score{1.0};
   double image_width_px{800.0};
@@ -39,6 +63,7 @@ struct FootballVisionConfig {
   double image_height_px{800.0};
   double football_diameter_mm{kDefaultFootballDiameterMm};
   int expected_class_id{-1};
+  CameraExtrinsics camera_extrinsics{};
   basic::vision::CameraModel camera{
       0.0,
       0.0,
@@ -62,6 +87,8 @@ struct FootballVisionState {
   bool estimate_available{false};
   bool class_filter_passed{true};
   int last_update_time_ms{0};
+  int last_detection_rx_time_ms{0};
+  ExternalVisionLinkState external_link{};
 };
 
 basic::vision::CameraModel resolve_camera_model(const FootballVisionConfig& config);
@@ -79,6 +106,14 @@ basic::vision::EstimateResult estimate_football_from_yolo(
 basic::vision::EstimateResult estimate_football_from_yolo(
     const FootballVisionConfig& config,
     const YoloDetection& detection);
+
+bool camera_extrinsics_valid(const CameraExtrinsics& extrinsics);
+basic::vision::Vec3 camera_vector_to_robot_frame(
+    const CameraExtrinsics& extrinsics,
+    const basic::vision::Vec3& camera_vector);
+basic::vision::Vec3 camera_point_to_robot_frame(
+    const CameraExtrinsics& extrinsics,
+    const basic::vision::Vec3& camera_point_mm);
 
 void configure_vision(const FootballVisionConfig& config);
 void set_vision_target_color(basic::identify::VisionTargetColor color);

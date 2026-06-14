@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Camera Calibration Helper</title>
+    <style>
+      :root {
+        --bg: #f4f0e8;
+        --panel: rgba(255, 252, 246, 0.86);
+        --ink: #182028;
+        --muted: #586370;
+        --line: rgba(24, 32, 40, 0.14);
+        --accent: #0d6b5f;
+        --accent-2: #d77a2d;
+        --danger: #a43f32;
+        --shadow: 0 24px 70px rgba(49, 53, 58, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(215, 122, 45, 0.16), transparent 28%),
+          radial-gradient(circle at top right, rgba(13, 107, 95, 0.18), transparent 25%),
+          linear-gradient(160deg, #f7f4ed 0%, #ece6da 100%);
+      }
+
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 40px 20px 56px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 20px;
+        align-items: stretch;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(12px);
+      }
+
+      .hero-main {
+        padding: 28px 28px 24px;
+      }
+
+      .eyebrow {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(13, 107, 95, 0.09);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 16px 0 12px;
+        font-size: clamp(30px, 4vw, 52px);
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+      }
+
+      .lead {
+        margin: 0;
+        max-width: 56ch;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .hero-side {
+        padding: 26px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 18px;
+        background:
+          linear-gradient(180deg, rgba(24, 32, 40, 0.02), rgba(24, 32, 40, 0.06)),
+          repeating-linear-gradient(
+            45deg,
+            rgba(13, 107, 95, 0.08),
+            rgba(13, 107, 95, 0.08) 8px,
+            transparent 8px,
+            transparent 16px
+          );
+      }
+
+      .hero-side h2,
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+      }
+
+      .checklist {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .section {
+        padding: 24px;
+      }
+
+      .field-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px 16px;
+      }
+
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 11px 12px;
+        font: inherit;
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.92);
+      }
+
+      textarea {
+        min-height: 132px;
+        resize: vertical;
+      }
+
+      .muted {
+        margin: 8px 0 0;
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 18px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 140ms ease, opacity 140ms ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      .primary {
+        color: white;
+        background: linear-gradient(135deg, var(--accent), #0a4e46);
+      }
+
+      .secondary {
+        color: var(--ink);
+        background: rgba(24, 32, 40, 0.08);
+      }
+
+      .warning {
+        color: white;
+        background: linear-gradient(135deg, var(--accent-2), #b75f15);
+      }
+
+      .result-box,
+      .code-box {
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.7);
+        padding: 16px;
+      }
+
+      .result-box pre,
+      .code-box pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.55;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 13px;
+      }
+
+      .status {
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: rgba(13, 107, 95, 0.08);
+        border: 1px solid rgba(13, 107, 95, 0.16);
+        color: var(--accent);
+        line-height: 1.55;
+      }
+
+      .status.bad {
+        background: rgba(164, 63, 50, 0.08);
+        border-color: rgba(164, 63, 50, 0.18);
+        color: var(--danger);
+      }
+
+      .hint-list {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .footer {
+        margin-top: 20px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 900px) {
+        .hero,
+        .grid,
+        .field-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="panel hero-main">
+          <span class="eyebrow">Offline Helper</span>
+          <h1>相机标定工具页</h1>
+          <p class="lead">
+            这个页面不直接做 OpenCV 标定。它负责整理参数、生成命令、读取
+            `calibration_result.json`、判断误差是否合理，并生成你要抄回项目里的代码片段。
+          </p>
+        </div>
+        <aside class="panel hero-side">
+          <div>
+            <h2>推荐流程</h2>
+            <ol class="checklist">
+              <li>用外部板子的摄像头拍 20 到 40 张棋盘格照片。</li>
+              <li>把照片导到电脑，放进一个目录。</li>
+              <li>运行 `calibrate_camera.py` 生成 JSON 和去畸变预览。</li>
+              <li>把 `repo_snippet.txt` 里的参数抄回项目配置。</li>
+            </ol>
+          </div>
+          <div>
+            <h2>不建议</h2>
+            <ul class="checklist">
+              <li>不要用投影棋盘格做最终标定。</li>
+              <li>不要只靠检测框坐标做标定。</li>
+              <li>不要让标定模式和实战模式分辨率不一致。</li>
+            </ul>
+          </div>
+        </aside>
+      </section>
+
+      <section class="grid">
+        <div class="panel section">
+          <h2>1. 生成命令</h2>
+          <div class="field-grid">
+            <div>
+              <label for="imagesGlob">图片目录或通配符</label>
+              <input id="imagesGlob" value="photos" />
+            </div>
+            <div>
+              <label for="outputDir">输出目录</label>
+              <input id="outputDir" value="output" />
+            </div>
+            <div>
+              <label for="patternCols">棋盘格内角点列数</label>
+              <input id="patternCols" type="number" value="9" />
+            </div>
+            <div>
+              <label for="patternRows">棋盘格内角点行数</label>
+              <input id="patternRows" type="number" value="6" />
+            </div>
+            <div>
+              <label for="squareSize">单格边长 mm</label>
+              <input id="squareSize" type="number" step="0.001" value="20" />
+            </div>
+            <div>
+              <label for="previewLimit">预览图数量上限</label>
+              <input id="previewLimit" type="number" value="12" />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="primary" id="generateCommand">生成命令</button>
+            <button class="secondary" id="copyCommand">复制命令</button>
+          </div>
+          <p class="muted">
+            这里生成的是 PowerShell 命令。先在本地安装依赖：
+            <code>pip install opencv-python numpy</code>。脚本支持目录输入，也支持
+            `bmp/jpg/jpeg/png/tif/tiff`。
+          </p>
+          <div class="code-box" style="margin-top: 14px">
+            <pre id="commandPreview"></pre>
+          </div>
+        </div>
+
+        <div class="panel section">
+          <h2>2. 载入标定结果 JSON</h2>
+          <input id="resultFile" type="file" accept=".json,application/json" />
+          <p class="muted">
+            选择 `calibration_result.json`。页面会解析误差、生成 VEX 配置片段，并提示你当前结果大概是否可信。
+          </p>
+          <div id="statusBox" class="status">
+            还没有载入结果文件。
+          </div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="panel section">
+          <h2>3. 标定结果摘要</h2>
+          <div class="result-box">
+            <pre id="summaryPreview">等待载入 calibration_result.json</pre>
+          </div>
+        </div>
+
+        <div class="panel section">
+          <h2>4. 抄回项目的代码</h2>
+          <div class="actions">
+            <button class="warning" id="copySnippet">复制配置片段</button>
+          </div>
+          <div class="code-box" style="margin-top: 14px">
+            <pre id="snippetPreview">等待载入 calibration_result.json</pre>
+          </div>
+          <p class="muted">
+            当前项目默认填在
+            <code>src/hardware/football_robot/football_robot.cpp</code>
+            里的 `default_vision_config_for_sensor()`
+            附近。
+          </p>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="panel section">
+          <h2>5. 怎么判断“更直”</h2>
+          <ul class="hint-list">
+            <li>先看 `undistort_previews` 目录里的对比图，尤其是边缘直线。</li>
+            <li>门框、白板边、桌沿、棋盘格边线，去畸变后应更接近直线。</li>
+            <li>原图如果是桶形畸变，边缘会向外鼓；矫正后应明显收回来。</li>
+            <li>正式判断不要只看中间，必须看四角。</li>
+          </ul>
+        </div>
+
+        <div class="panel section">
+          <h2>6. 结果解释</h2>
+          <ul class="hint-list">
+            <li>`RMS < 0.5 px`：通常很好。</li>
+            <li>`0.5 ~ 1.0 px`：大多可用，但建议看预览图再决定。</li>
+            <li>`> 1.0 px`：往往要重拍，先检查模糊、反光、覆盖范围不够等问题。</li>
+            <li>如果板子检测前做了裁剪或 letterbox，务必确认框坐标和标定图像坐标系一致。</li>
+          </ul>
+        </div>
+      </section>
+
+      <p class="footer">
+        页面可直接双击打开。脚本真正执行标定，页面只做辅助和结果检查。
+      </p>
+    </main>
+
+    <script>
+      const commandPreview = document.getElementById("commandPreview");
+      const summaryPreview = document.getElementById("summaryPreview");
+      const snippetPreview = document.getElementById("snippetPreview");
+      const statusBox = document.getElementById("statusBox");
+
+      function buildCommand() {
+        const imagesGlob = document.getElementById("imagesGlob").value.trim();
+        const outputDir = document.getElementById("outputDir").value.trim();
+        const patternCols = document.getElementById("patternCols").value.trim();
+        const patternRows = document.getElementById("patternRows").value.trim();
+        const squareSize = document.getElementById("squareSize").value.trim();
+        const previewLimit = document.getElementById("previewLimit").value.trim();
+
+        const lines = [
+          "python calibrate_camera.py ^",
+          `  --images "${imagesGlob}" ^`,
+          `  --pattern-cols ${patternCols} ^`,
+          `  --pattern-rows ${patternRows} ^`,
+          `  --square-size-mm ${squareSize} ^`,
+          `  --output-dir "${outputDir}" ^`,
+          `  --preview-limit ${previewLimit}`,
+        ];
+        return lines.join("\n");
+      }
+
+      function copyText(text) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+
+      function snippetFromModel(model) {
+        return [
+          `config.image_width_px = ${Number(model.image_width_px).toFixed(1)};`,
+          `config.image_height_px = ${Number(model.image_height_px).toFixed(1)};`,
+          `config.camera.fx = ${Number(model.fx).toFixed(6)};`,
+          `config.camera.fy = ${Number(model.fy).toFixed(6)};`,
+          `config.camera.cx = ${Number(model.cx).toFixed(6)};`,
+          `config.camera.cy = ${Number(model.cy).toFixed(6)};`,
+          `config.camera.k1 = ${Number(model.k1).toFixed(9)};`,
+          `config.camera.k2 = ${Number(model.k2).toFixed(9)};`,
+          `config.camera.p1 = ${Number(model.p1).toFixed(9)};`,
+          `config.camera.p2 = ${Number(model.p2).toFixed(9)};`,
+          `config.camera.k3 = ${Number(model.k3).toFixed(9)};`,
+        ].join("\n");
+      }
+
+      function statusFromSummary(summary) {
+        const rms = Number(summary.rms_reprojection_error);
+        if (!Number.isFinite(rms)) {
+          return {
+            bad: true,
+            text: "结果文件里没有有效 RMS 值。",
+          };
+        }
+        if (rms < 0.5) {
+          return {
+            bad: false,
+            text: `RMS = ${rms.toFixed(4)} px。这个结果通常很好，下一步重点看去畸变预览和实测距离。`,
+          };
+        }
+        if (rms < 1.0) {
+          return {
+            bad: false,
+            text: `RMS = ${rms.toFixed(4)} px。结果大概率可用，但仍建议重点检查四角直线和距离实测。`,
+          };
+        }
+        return {
+          bad: true,
+          text: `RMS = ${rms.toFixed(4)} px。误差偏大，优先检查图片模糊、反光、姿态覆盖不足、棋盘格不平。`,
+        };
+      }
+
+      document.getElementById("generateCommand").addEventListener("click", () => {
+        commandPreview.textContent = buildCommand();
+      });
+
+      document.getElementById("copyCommand").addEventListener("click", () => {
+        copyText(buildCommand());
+      });
+
+      document.getElementById("copySnippet").addEventListener("click", () => {
+        copyText(snippetPreview.textContent);
+      });
+
+      document.getElementById("resultFile").addEventListener("change", async (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) {
+          return;
+        }
+
+        try {
+          const text = await file.text();
+          const payload = JSON.parse(text);
+          const summary = payload.summary || {};
+          const model = payload.repo_camera_model || {};
+
+          summaryPreview.textContent = JSON.stringify(summary, null, 2);
+          snippetPreview.textContent = snippetFromModel(model);
+
+          const status = statusFromSummary(summary);
+          statusBox.textContent = status.text;
+          statusBox.className = status.bad ? "status bad" : "status";
+        } catch (error) {
+          statusBox.textContent = `结果文件解析失败：${error}`;
+          statusBox.className = "status bad";
+          summaryPreview.textContent = "解析失败";
+          snippetPreview.textContent = "解析失败";
+        }
+      });
+
+      commandPreview.textContent = buildCommand();
+    </script>
+  </body>
+</html>

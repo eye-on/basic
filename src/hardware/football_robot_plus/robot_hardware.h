@@ -2,6 +2,7 @@
 #define BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_PLUS_ROBOT_HARDWARE_H_
 
 #include "chassis/x_chassis.h"
+#include "hardware/football_robot_plus/external_vision_serial.h"
 #include "identify/vision_sensor.h"
 #include "vex.h"
 
@@ -43,10 +44,12 @@ struct RobotHardware {
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{vex::PORT11};
   basic::identify::VisionSensorIdentifier vision_identifier;
+  ExternalVisionSerial external_vision;
   basic::chassis::XChassis football_chassis;
 
   RobotHardware()
       : vision_identifier(kVisionSensorPort),
+        external_vision(kExternalVisionPort),
         football_chassis(basic::chassis::x_chassis_init({
             {{
                 {kFrontLeftMotorPort, vex::ratio18_1, true},
