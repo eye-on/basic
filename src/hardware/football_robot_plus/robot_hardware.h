@@ -37,7 +37,7 @@ struct RobotHardware {
             {{
                 {kBackRightMotorPort, vex::ratio18_1, false},
             }},
-            10,
+            2,
         })) {}
 
   void calibrate_inertial_sensor() {
