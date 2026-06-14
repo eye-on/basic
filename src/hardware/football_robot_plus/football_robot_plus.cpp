@@ -1,0 +1,515 @@
+#include "hardware/robot_selector.h"
+
+#include "chassis/x_chassis.h"
+#include "chassis/x_drive.h"
+#include "hardware/football_robot_plus/robot_hardware.h"
+#include "hardware/football_robot_plus/robot_state.h"
+#include "hardware/football_robot_plus/vision.h"
+#include "input/controller.h"
+
+#include <algorithm>
+#include <cmath>
+
+namespace basic::hardware::football_robot_plus {
+
+namespace {
+
+inline constexpr int kBackgroundLoopDelayMs = kRefreshTime;
+inline constexpr int kVisionStaleTimeoutMs = 500;
+inline constexpr double kAutoCenterToleranceNorm = 0.08;
+inline constexpr double kAutoPickupCenterToleranceNorm = 0.05;
+inline constexpr double kAutoTargetRangeMm = 220.0;
+inline constexpr double kAutoPickupRangeMm = 180.0;
+inline constexpr double kAutoForwardGainPctPerMm = 0.04;
+inline constexpr double kAutoStrafeGainPct = 70.0;
+inline constexpr double kAutoMaxForwardPct = 25.0;
+inline constexpr double kAutoMaxStrafePct = 100.0;
+
+double clamp_value(double value, double lo, double hi) {
+  return std::max(lo, std::min(value, hi));
+}
+
+double clamp_abs(double value, double max_abs) {
+  return clamp_value(value, -max_abs, max_abs);
+}
+
+bool is_positive_finite(double value) {
+  return basic::vision::is_finite(value) && value > 0.0;
+}
+
+const char* target_color_name(basic::identify::VisionTargetColor color) {
+  switch (color) {
+    case basic::identify::VisionTargetColor::kRed:
+      return "RED";
+    case basic::identify::VisionTargetColor::kYellowGreen:
+      return "YLWGRN";
+    case basic::identify::VisionTargetColor::kPurple:
+      return "PURPLE";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+FootballVisionConfig default_vision_config_for_sensor() {
+  FootballVisionConfig config;
+  config.image_width_px = basic::identify::kVisionSensorImageWidthPx;
+  config.image_height_px = basic::identify::kVisionSensorImageHeightPx;
+  return config;
+}
+
+YoloDetection make_detection_from_blob(const basic::identify::LargestBlobDetection& blob) {
+  YoloDetection detection;
+  detection.has_detection = blob.valid();
+  detection.class_id = blob.signature_id;
+  detection.score = 1.0;
+  detection.image_width_px = blob.image_width_px;
+  detection.image_height_px = blob.image_height_px;
+  detection.bbox_px = {
+      static_cast<double>(blob.origin_x_px),
+      static_cast<double>(blob.origin_y_px),
+      static_cast<double>(blob.width_px),
+      static_cast<double>(blob.height_px),
+  };
+  return detection;
+}
+
+class FootballRobotPlus;
+FootballRobotPlus& current_football_robot_plus();
+
+class FootballRobotPlus final : public basic::app::Robot {
+ public:
+  void initialize() override {
+    configure_vision(default_vision_config_for_sensor());
+    hardware_.calibrate_inertial_sensor();
+    set_vision_target_color(basic::identify::VisionTargetColor::kRed);
+    hardware_.show_calibrated();
+    show_mode_status();
+  }
+
+  void bind_background_tasks() override {
+    vex::thread background(start_background_tasks);
+  }
+
+  void bind_competition(vex::competition& competition) override {
+    competition_ = &competition;
+    competition.autonomous(start_autonomous_entry);
+    competition.drivercontrol(start_driver_control_entry);
+  }
+
+  void configure_vision(const FootballVisionConfig& config) {
+    const basic::identify::VisionTargetColor target_color =
+        hardware_.vision_identifier.target_color();
+    state_.vision = FootballVisionState{};
+    state_.vision.config = config;
+    state_.vision.target_color = target_color;
+    state_.vision.last_blob_detection.color = target_color;
+    locator_.set_config(config.estimator);
+    state_.vision.last_update_time_ms = hardware_.brain.timer(vex::timeUnits::msec);
+  }
+
+  void set_vision_target_color(basic::identify::VisionTargetColor color) {
+    hardware_.vision_identifier.set_target_color(color);
+    state_.vision.target_color = color;
+    state_.vision.last_blob_detection.color = color;
+  }
+
+  basic::identify::VisionTargetColor vision_target_color() const {
+    return state_.vision.target_color;
+  }
+
+  basic::identify::LargestBlobDetection vision_sensor_detection() const {
+    return state_.vision.last_blob_detection;
+  }
+
+  basic::vision::EstimateResult submit_yolo_detection(const YoloDetection& detection) {
+    state_.vision.last_detection = detection;
+    state_.vision.class_filter_passed =
+        !detection.has_detection || state_.vision.config.expected_class_id < 0 ||
+        detection.class_id == state_.vision.config.expected_class_id;
+    state_.vision.last_update_time_ms = hardware_.brain.timer(vex::timeUnits::msec);
+
+    if (!detection.has_detection) {
+      state_.vision.last_estimate = basic::vision::EstimateResult{};
+      state_.vision.estimate_available = false;
+      return state_.vision.last_estimate;
+    }
+
+    state_.vision.last_estimate =
+        basic::hardware::football_robot_plus::estimate_football_from_yolo(
+            locator_, state_.vision.config, detection);
+    state_.vision.estimate_available = true;
+    return state_.vision.last_estimate;
+  }
+
+  void clear_yolo_detection() {
+    state_.vision.last_detection = YoloDetection{};
+    state_.vision.last_estimate = basic::vision::EstimateResult{};
+    state_.vision.estimate_available = false;
+    state_.vision.class_filter_passed = true;
+    state_.vision.last_update_time_ms = hardware_.brain.timer(vex::timeUnits::msec);
+  }
+
+  FootballVisionState vision_state() const { return state_.vision; }
+
+ private:
+  static void start_background_tasks() {
+    current_football_robot_plus().run_background_tasks();
+  }
+
+  static void start_driver_control_entry() {
+    current_football_robot_plus().run_driver_control_loop();
+  }
+
+  static void start_autonomous_entry() {
+    current_football_robot_plus().run_autonomous_routine();
+  }
+
+  void run_background_tasks() {
+    show_mode_status();
+    while (true) {
+      basic::input::controller_update(hardware_.brain, hardware_.controller, state_.controller);
+      handle_vision_target_color_select();
+      refresh_vision_sensor_detection();
+      show_vision_status();
+      handle_auto_mode_toggle();
+
+      if (auto_mode_enabled_) {
+        run_resident_autonomous_step();
+      } else if (should_accept_manual_control()) {
+        run_manual_control_step();
+      } else {
+        stop_drive(vex::coast);
+      }
+
+      vex::this_thread::sleep_for(kBackgroundLoopDelayMs);
+    }
+  }
+
+  void run_driver_control_loop() {
+    while (should_run_driver_control()) {
+      vex::this_thread::sleep_for(kRefreshTime);
+    }
+  }
+
+  void run_autonomous_routine() {
+    while (should_run_autonomous_callback()) {
+      vex::this_thread::sleep_for(kRefreshTime);
+    }
+  }
+
+  bool should_run_driver_control() const {
+    return competition_ != nullptr && competition_->isEnabled() && competition_->isDriverControl();
+  }
+
+  bool should_run_autonomous_callback() const {
+    return competition_ != nullptr && competition_->isEnabled() && competition_->isAutonomous();
+  }
+
+  bool should_accept_manual_control() const {
+    return competition_ == nullptr || !competition_->isEnabled() || competition_->isDriverControl();
+  }
+
+  void handle_vision_target_color_select() {
+    if (state_.controller.press_left) {
+      set_vision_target_color(basic::identify::VisionTargetColor::kRed);
+      return;
+    }
+
+    if (state_.controller.press_up) {
+      set_vision_target_color(basic::identify::VisionTargetColor::kYellowGreen);
+      return;
+    }
+
+    if (state_.controller.press_right) {
+      set_vision_target_color(basic::identify::VisionTargetColor::kPurple);
+    }
+  }
+
+  void handle_auto_mode_toggle() {
+    if (!state_.controller.press_y) {
+      return;
+    }
+
+    auto_mode_enabled_ = !auto_mode_enabled_;
+    stop_drive(auto_mode_enabled_ ? vex::hold : vex::coast);
+    show_mode_status();
+  }
+
+  void run_manual_control_step() {
+    const basic::chassis::XChassisCommand command =
+        basic::chassis::x_chassis_command_from_controller(
+            state_.controller,
+            basic::chassis::x_chassis_state(hardware_.football_chassis).stop_brake_type);
+    basic::chassis::x_chassis_update(hardware_.football_chassis, command);
+    limit_drive_output();
+  }
+
+  void run_resident_autonomous_step() {
+    const int now_ms = state_.controller.time_ms > 0
+                           ? state_.controller.time_ms
+                           : hardware_.brain.timer(vex::timeUnits::msec);
+    const FootballVisionState vision = state_.vision;
+    if (!has_recent_target(vision, now_ms)) {
+      stop_drive(vex::hold);
+      return;
+    }
+
+    const double image_width_px = resolve_image_width_px(vision);
+    const double lateral_error_norm = resolve_lateral_error_norm(vision, image_width_px);
+    const double forward_distance_mm = resolve_forward_distance_mm(vision);
+    const bool has_forward_distance = is_positive_finite(forward_distance_mm);
+
+    // 到达捡球范围后停止
+    if (has_forward_distance &&
+        forward_distance_mm <= kAutoPickupRangeMm &&
+        std::fabs(lateral_error_norm) <= kAutoPickupCenterToleranceNorm) {
+      stop_drive(vex::hold);
+      return;
+    }
+
+    double forward_pct = 0.0;
+    if (has_forward_distance) {
+      forward_pct = clamp_value(
+          (forward_distance_mm - kAutoTargetRangeMm) * kAutoForwardGainPctPerMm,
+          0.0,
+          kAutoMaxForwardPct);
+      // 未对准时限制前进速度，优先完成横向对准
+      if (std::fabs(lateral_error_norm) > kAutoCenterToleranceNorm) {
+        forward_pct = std::min(forward_pct, 10.0);
+      }
+    }
+
+    const double strafe_pct =
+        clamp_abs(lateral_error_norm * kAutoStrafeGainPct, kAutoMaxStrafePct);
+    apply_drive_request(forward_pct, strafe_pct, 0.0, vex::hold);
+  }
+
+  bool has_recent_target(const FootballVisionState& vision, int now_ms) const {
+    if (!vision.last_detection.has_detection || !vision.class_filter_passed) {
+      return false;
+    }
+
+    if (now_ms < vision.last_update_time_ms ||
+        now_ms - vision.last_update_time_ms > kVisionStaleTimeoutMs) {
+      return false;
+    }
+
+    return vision.last_detection.bbox_px.valid() ||
+           (vision.estimate_available && vision.last_estimate.valid);
+  }
+
+  double resolve_image_width_px(const FootballVisionState& vision) const {
+    if (is_positive_finite(vision.last_detection.image_width_px)) {
+      return vision.last_detection.image_width_px;
+    }
+    if (is_positive_finite(vision.config.image_width_px)) {
+      return vision.config.image_width_px;
+    }
+    return 0.0;
+  }
+
+  double resolve_lateral_error_norm(
+      const FootballVisionState& vision,
+      double image_width_px) const {
+    if (vision.last_detection.bbox_px.valid() && image_width_px > 0.0) {
+      const double image_center_px = image_width_px * 0.5;
+      const double bbox_center_px =
+          vision.last_detection.bbox_px.x + vision.last_detection.bbox_px.width * 0.5;
+      return clamp_abs((bbox_center_px - image_center_px) / image_center_px, 1.0);
+    }
+
+    if (vision.estimate_available && vision.last_estimate.valid &&
+        basic::vision::is_finite(vision.last_estimate.ray_camera.x)) {
+      return clamp_abs(vision.last_estimate.ray_camera.x, 1.0);
+    }
+
+    return 0.0;
+  }
+
+  double resolve_forward_distance_mm(const FootballVisionState& vision) const {
+    if (!vision.estimate_available || !vision.last_estimate.valid) {
+      return basic::vision::nan_value();
+    }
+
+    if (is_positive_finite(vision.last_estimate.position_camera_mm.z)) {
+      return vision.last_estimate.position_camera_mm.z;
+    }
+    if (is_positive_finite(vision.last_estimate.depth_mm)) {
+      return vision.last_estimate.depth_mm;
+    }
+    if (is_positive_finite(vision.last_estimate.range_mm)) {
+      return vision.last_estimate.range_mm;
+    }
+
+    return basic::vision::nan_value();
+  }
+
+  /// 限制 X 底盘四角输出不超过预设上限
+  void limit_drive_output() {
+    const basic::chassis::XChassisState& state =
+        basic::chassis::x_chassis_state(hardware_.football_chassis);
+    const double drive_max_abs = std::max(
+        {std::fabs(state.fl_pct), std::fabs(state.fr_pct),
+         std::fabs(state.bl_pct), std::fabs(state.br_pct)});
+    const double drive_scale =
+        (drive_max_abs > kDriveOutputLimitPct && drive_max_abs > 0.0)
+            ? (kDriveOutputLimitPct / drive_max_abs)
+            : 1.0;
+
+    if (drive_scale >= 1.0) {
+      return;
+    }
+
+    basic::chassis::x_drive_set_output(
+        hardware_.football_chassis,
+        state.fl_pct * drive_scale,
+        state.fr_pct * drive_scale,
+        state.bl_pct * drive_scale,
+        state.br_pct * drive_scale,
+        state.stop_brake_type);
+  }
+
+  /// 使用 X-drive mecanum 运动学分解前后/平移/旋转指令
+  void apply_drive_request(
+      double forward_pct,
+      double strafe_pct,
+      double turn_pct,
+      vex::brakeType brake_type) {
+    // X-drive mecanum 运动学分解：
+    // fl = forward + strafe + turn
+    // fr = forward - strafe - turn
+    // bl = forward - strafe + turn
+    // br = forward + strafe - turn
+    double fl_pct = forward_pct + strafe_pct + turn_pct;
+    double fr_pct = forward_pct - strafe_pct - turn_pct;
+    double bl_pct = forward_pct - strafe_pct + turn_pct;
+    double br_pct = forward_pct + strafe_pct - turn_pct;
+
+    const double max_pct = std::max(
+        {std::fabs(fl_pct), std::fabs(fr_pct),
+         std::fabs(bl_pct), std::fabs(br_pct)});
+    if (max_pct > 100.0) {
+      const double scale = 100.0 / max_pct;
+      fl_pct *= scale;
+      fr_pct *= scale;
+      bl_pct *= scale;
+      br_pct *= scale;
+    }
+
+    basic::chassis::x_drive_set_output(
+        hardware_.football_chassis,
+        fl_pct,
+        fr_pct,
+        bl_pct,
+        br_pct,
+        brake_type);
+    limit_drive_output();
+  }
+
+  void stop_drive(vex::brakeType drive_brake_type) {
+    basic::chassis::x_chassis_stop(hardware_.football_chassis, drive_brake_type);
+  }
+
+  void refresh_vision_sensor_detection() {
+    state_.vision.last_blob_detection = hardware_.vision_identifier.refresh();
+    state_.vision.target_color = hardware_.vision_identifier.target_color();
+
+    if (!state_.vision.last_blob_detection.valid()) {
+      clear_yolo_detection();
+      return;
+    }
+
+    submit_yolo_detection(make_detection_from_blob(state_.vision.last_blob_detection));
+  }
+
+  void show_vision_status() {
+    const basic::identify::LargestBlobDetection& blob = state_.vision.last_blob_detection;
+
+    hardware_.controller.Screen.setCursor(1, 1);
+    hardware_.controller.Screen.print(
+        "A:%s C:%-6s",
+        auto_mode_enabled_ ? "ON " : "OFF",
+        target_color_name(state_.vision.target_color));
+
+    hardware_.controller.Screen.setCursor(2, 1);
+    if (!blob.sensor_installed) {
+      hardware_.controller.Screen.print("VISION: OFFLINE    ");
+      hardware_.controller.Screen.setCursor(3, 1);
+      hardware_.controller.Screen.print("L=R U=YG R=P      ");
+      return;
+    }
+
+    if (!blob.has_detection) {
+      hardware_.controller.Screen.print("VISION: NO OBJECT  ");
+      hardware_.controller.Screen.setCursor(3, 1);
+      hardware_.controller.Screen.print("CNT:%1d SIG:%1d      ", blob.object_count, blob.signature_id);
+      return;
+    }
+
+    hardware_.controller.Screen.print(
+        "CNT:%1d SIG:%1d %3dx%-3d",
+        blob.object_count,
+        blob.signature_id,
+        blob.width_px,
+        blob.height_px);
+    hardware_.controller.Screen.setCursor(3, 1);
+    hardware_.controller.Screen.print(
+        "C:%3d,%3d O:%3d  ",
+        blob.center_x_px,
+        blob.center_y_px,
+        blob.origin_x_px);
+  }
+
+  void show_mode_status() {
+    show_vision_status();
+  }
+
+  RobotHardware hardware_;
+  RobotState state_;
+  basic::vision::MonocularLocator locator_;
+  vex::competition* competition_{nullptr};
+  bool auto_mode_enabled_{false};
+
+  friend FootballRobotPlus& current_football_robot_plus();
+};
+
+FootballRobotPlus& current_football_robot_plus() {
+  static FootballRobotPlus robot;
+  return robot;
+}
+
+}  // namespace
+
+basic::app::Robot& get_robot() {
+  return current_football_robot_plus();
+}
+
+void configure_vision(const FootballVisionConfig& config) {
+  current_football_robot_plus().configure_vision(config);
+}
+
+void set_vision_target_color(basic::identify::VisionTargetColor color) {
+  current_football_robot_plus().set_vision_target_color(color);
+}
+
+basic::identify::VisionTargetColor get_vision_target_color() {
+  return current_football_robot_plus().vision_target_color();
+}
+
+basic::identify::LargestBlobDetection get_vision_sensor_detection() {
+  return current_football_robot_plus().vision_sensor_detection();
+}
+
+basic::vision::EstimateResult submit_yolo_detection(const YoloDetection& detection) {
+  return current_football_robot_plus().submit_yolo_detection(detection);
+}
+
+void clear_yolo_detection() {
+  current_football_robot_plus().clear_yolo_detection();
+}
+
+FootballVisionState get_vision_state() {
+  return current_football_robot_plus().vision_state();
+}
+
+}  // namespace basic::hardware::football_robot_plus
