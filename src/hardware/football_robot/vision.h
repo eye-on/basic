@@ -7,7 +7,7 @@
 
 namespace basic::hardware::football_robot {
 
-inline constexpr double kDefaultFootballDiameterMm = 220.0;
+inline constexpr double kDefaultFootballDiameterMm = 127.0;
 
 enum class VisionInputSource {
   kNone,
@@ -19,7 +19,7 @@ struct CameraExtrinsics {
   // robot axes are aligned: +x right, +y down, +z forward.
   double x_mm{0.0};
   double y_mm{0.0};
-  double z_mm{0.0};
+  double z_mm{103.47};
   double roll_deg{0.0};
   double pitch_deg{0.0};
   double yaw_deg{0.0};

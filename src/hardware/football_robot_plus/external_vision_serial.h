@@ -1,10 +1,10 @@
-#ifndef BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_EXTERNAL_VISION_SERIAL_H_
-#define BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_EXTERNAL_VISION_SERIAL_H_
+#ifndef BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_PLUS_EXTERNAL_VISION_SERIAL_H_
+#define BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_PLUS_EXTERNAL_VISION_SERIAL_H_
 
-#include "hardware/football_robot/vision.h"
+#include "hardware/football_robot_plus/vision.h"
 #include "vex.h"
 
-namespace basic::hardware::football_robot {
+namespace basic::hardware::football_robot_plus {
 
 inline constexpr int kExternalVisionBaudrate = 115200;
 inline constexpr int kExternalVisionRxTimeoutMs = 250;
@@ -42,6 +42,6 @@ class ExternalVisionSerial final {
   int line_length_{0};
 };
 
-}  // namespace basic::hardware::football_robot
+}  // namespace basic::hardware::football_robot_plus
 
-#endif  // BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_EXTERNAL_VISION_SERIAL_H_
+#endif  // BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_PLUS_EXTERNAL_VISION_SERIAL_H_
