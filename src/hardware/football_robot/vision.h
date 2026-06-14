@@ -1,6 +1,7 @@
 #ifndef BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_VISION_H_
 #define BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_VISION_H_
 
+#include "identify/vision_sensor.h"
 #include "mechanism/pneumatic_motor_actuator.h"
 #include "vision/locator.h"
 
@@ -57,6 +58,8 @@ struct FootballVisionConfig {
 
 struct FootballVisionState {
   FootballVisionConfig config{};
+  basic::identify::VisionTargetColor target_color{basic::identify::VisionTargetColor::kRed};
+  basic::identify::LargestBlobDetection last_blob_detection{};
   YoloDetection last_detection{};
   // Camera frame follows the pinhole convention used by the solver:
   // +x right in the image, +y down in the image, +z forward from the lens.
@@ -83,6 +86,9 @@ basic::vision::EstimateResult estimate_football_from_yolo(
     const YoloDetection& detection);
 
 void configure_vision(const FootballVisionConfig& config);
+void set_vision_target_color(basic::identify::VisionTargetColor color);
+basic::identify::VisionTargetColor get_vision_target_color();
+basic::identify::LargestBlobDetection get_vision_sensor_detection();
 basic::vision::EstimateResult submit_yolo_detection(const YoloDetection& detection);
 void clear_yolo_detection();
 FootballVisionState get_vision_state();

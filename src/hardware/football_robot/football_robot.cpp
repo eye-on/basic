@@ -40,14 +40,51 @@ bool is_positive_finite(double value) {
   return basic::vision::is_finite(value) && value > 0.0;
 }
 
+const char* target_color_name(basic::identify::VisionTargetColor color) {
+  switch (color) {
+    case basic::identify::VisionTargetColor::kRed:
+      return "RED";
+    case basic::identify::VisionTargetColor::kYellowGreen:
+      return "YLWGRN";
+    case basic::identify::VisionTargetColor::kPurple:
+      return "PURPLE";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+FootballVisionConfig default_vision_config_for_sensor() {
+  FootballVisionConfig config;
+  config.image_width_px = basic::identify::kVisionSensorImageWidthPx;
+  config.image_height_px = basic::identify::kVisionSensorImageHeightPx;
+  return config;
+}
+
+YoloDetection make_detection_from_blob(const basic::identify::LargestBlobDetection& blob) {
+  YoloDetection detection;
+  detection.has_detection = blob.valid();
+  detection.class_id = blob.signature_id;
+  detection.score = 1.0;
+  detection.image_width_px = blob.image_width_px;
+  detection.image_height_px = blob.image_height_px;
+  detection.bbox_px = {
+      static_cast<double>(blob.origin_x_px),
+      static_cast<double>(blob.origin_y_px),
+      static_cast<double>(blob.width_px),
+      static_cast<double>(blob.height_px),
+  };
+  return detection;
+}
+
 class FootballRobot;
 FootballRobot& current_football_robot();
 
 class FootballRobot final : public basic::app::Robot {
  public:
   void initialize() override {
-    configure_vision(FootballVisionConfig{});
+    configure_vision(default_vision_config_for_sensor());
     hardware_.calibrate_inertial_sensor();
+    set_vision_target_color(basic::identify::VisionTargetColor::kRed);
     sync_actuator_state();
     hardware_.show_calibrated();
     show_mode_status();
@@ -64,10 +101,28 @@ class FootballRobot final : public basic::app::Robot {
   }
 
   void configure_vision(const FootballVisionConfig& config) {
+    const basic::identify::VisionTargetColor target_color =
+        hardware_.vision_identifier.target_color();
     state_.vision = FootballVisionState{};
     state_.vision.config = config;
+    state_.vision.target_color = target_color;
+    state_.vision.last_blob_detection.color = target_color;
     locator_.set_config(config.estimator);
     state_.vision.last_update_time_ms = hardware_.brain.timer(vex::timeUnits::msec);
+  }
+
+  void set_vision_target_color(basic::identify::VisionTargetColor color) {
+    hardware_.vision_identifier.set_target_color(color);
+    state_.vision.target_color = color;
+    state_.vision.last_blob_detection.color = color;
+  }
+
+  basic::identify::VisionTargetColor vision_target_color() const {
+    return state_.vision.target_color;
+  }
+
+  basic::identify::LargestBlobDetection vision_sensor_detection() const {
+    return state_.vision.last_blob_detection;
   }
 
   basic::vision::EstimateResult submit_yolo_detection(const YoloDetection& detection) {
@@ -141,6 +196,9 @@ class FootballRobot final : public basic::app::Robot {
     show_mode_status();
     while (true) {
       basic::input::controller_update(hardware_.brain, hardware_.controller, state_.controller);
+      handle_vision_target_color_select();
+      refresh_vision_sensor_detection();
+      show_vision_status();
       handle_test_readout();
       handle_auto_mode_toggle();
 
@@ -189,9 +247,23 @@ class FootballRobot final : public basic::app::Robot {
 
     const double motor_position_deg = hardware_.actuator.motor().position(vex::deg);
     state_.actuator.motor_position_deg = motor_position_deg;
-    hardware_.controller.Screen.setCursor(2, 1);
-    hardware_.controller.Screen.print("MTR[B]: %7.2f deg   ", motor_position_deg);
     printf("football actuator motor position: %.2f deg\n", motor_position_deg);
+  }
+
+  void handle_vision_target_color_select() {
+    if (state_.controller.press_left) {
+      set_vision_target_color(basic::identify::VisionTargetColor::kRed);
+      return;
+    }
+
+    if (state_.controller.press_up) {
+      set_vision_target_color(basic::identify::VisionTargetColor::kYellowGreen);
+      return;
+    }
+
+    if (state_.controller.press_right) {
+      set_vision_target_color(basic::identify::VisionTargetColor::kPurple);
+    }
   }
 
   void handle_auto_mode_toggle() {
@@ -389,9 +461,58 @@ class FootballRobot final : public basic::app::Robot {
     state_.actuator = basic::mechanism::pneumatic_motor_actuator_state(hardware_.actuator);
   }
 
-  void show_mode_status() {
+  void refresh_vision_sensor_detection() {
+    state_.vision.last_blob_detection = hardware_.vision_identifier.refresh();
+    state_.vision.target_color = hardware_.vision_identifier.target_color();
+
+    if (!state_.vision.last_blob_detection.valid()) {
+      clear_yolo_detection();
+      return;
+    }
+
+    submit_yolo_detection(make_detection_from_blob(state_.vision.last_blob_detection));
+  }
+
+  void show_vision_status() {
+    const basic::identify::LargestBlobDetection& blob = state_.vision.last_blob_detection;
+
     hardware_.controller.Screen.setCursor(1, 1);
-    hardware_.controller.Screen.print(auto_mode_enabled_ ? "AUTO[Y]: ON  " : "AUTO[Y]: OFF ");
+    hardware_.controller.Screen.print(
+        "A:%s C:%-6s",
+        auto_mode_enabled_ ? "ON " : "OFF",
+        target_color_name(state_.vision.target_color));
+
+    hardware_.controller.Screen.setCursor(2, 1);
+    if (!blob.sensor_installed) {
+      hardware_.controller.Screen.print("VISION: OFFLINE    ");
+      hardware_.controller.Screen.setCursor(3, 1);
+      hardware_.controller.Screen.print("L=R U=YG R=P      ");
+      return;
+    }
+
+    if (!blob.has_detection) {
+      hardware_.controller.Screen.print("VISION: NO OBJECT  ");
+      hardware_.controller.Screen.setCursor(3, 1);
+      hardware_.controller.Screen.print("CNT:%1d SIG:%1d      ", blob.object_count, blob.signature_id);
+      return;
+    }
+
+    hardware_.controller.Screen.print(
+        "CNT:%1d SIG:%1d %3dx%-3d",
+        blob.object_count,
+        blob.signature_id,
+        blob.width_px,
+        blob.height_px);
+    hardware_.controller.Screen.setCursor(3, 1);
+    hardware_.controller.Screen.print(
+        "C:%3d,%3d O:%3d  ",
+        blob.center_x_px,
+        blob.center_y_px,
+        blob.origin_x_px);
+  }
+
+  void show_mode_status() {
+    show_vision_status();
   }
 
   RobotHardware hardware_;
@@ -417,6 +538,18 @@ basic::app::Robot& get_robot() {
 
 void configure_vision(const FootballVisionConfig& config) {
   current_football_robot().configure_vision(config);
+}
+
+void set_vision_target_color(basic::identify::VisionTargetColor color) {
+  current_football_robot().set_vision_target_color(color);
+}
+
+basic::identify::VisionTargetColor get_vision_target_color() {
+  return current_football_robot().vision_target_color();
+}
+
+basic::identify::LargestBlobDetection get_vision_sensor_detection() {
+  return current_football_robot().vision_sensor_detection();
 }
 
 basic::vision::EstimateResult submit_yolo_detection(const YoloDetection& detection) {

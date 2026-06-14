@@ -18,5 +18,7 @@ int main() {
   robot.bind_competition(competition);
 #endif
 
-  return 0;
+  while (true) {
+    vex::wait(100, vex::msec);
+  }
 }

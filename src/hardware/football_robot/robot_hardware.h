@@ -2,6 +2,7 @@
 #define BASIC_SRC_HARDWARE_FOOTBALL_ROBOT_ROBOT_HARDWARE_H_
 
 #include "chassis/h_chassis.h"
+#include "identify/vision_sensor.h"
 #include "mechanism/pneumatic_motor_actuator.h"
 #include "vex.h"
 
@@ -15,6 +16,7 @@ inline const int kFrontRightMotorPort = vex::PORT12;
 inline const int kBackRightMotorPort = vex::PORT5;
 inline const int kCenterStrafeMotorPort = vex::PORT18;
 inline const int kActuatorMotorPort = vex::PORT4;
+inline const int kVisionSensorPort = vex::PORT1;
 inline constexpr double kActuatorMotorAngleADeg = 4.0;
 inline constexpr double kActuatorMotorAngleBDeg = 132.0;
 inline constexpr double kActuatorMotorAutoSpeedPct = 25.0;
@@ -24,11 +26,13 @@ struct RobotHardware {
   vex::brain brain;
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{vex::PORT11};
+  basic::identify::VisionSensorIdentifier vision_identifier;
   basic::chassis::HChassis football_chassis;
   basic::mechanism::PneumaticMotorActuator actuator;
 
   RobotHardware()
-      : football_chassis(basic::chassis::h_chassis_init({
+      : vision_identifier(kVisionSensorPort),
+        football_chassis(basic::chassis::h_chassis_init({
             {{
                 {kFrontLeftMotorPort, vex::ratio18_1, true},
                 {kBackLeftMotorPort, vex::ratio18_1, true},
@@ -60,8 +64,8 @@ struct RobotHardware {
   }
 
   void show_calibrated() {
-    controller.Screen.setCursor(5, 1);
-    controller.Screen.print("      calibrated!");
+    controller.Screen.setCursor(3, 1);
+    controller.Screen.print("CALIBRATED         ");
   }
 };
 
