@@ -8,7 +8,7 @@
 namespace basic::hardware::football_robot_plus {
 
 inline constexpr int kRefreshTime = 10;
-inline constexpr double kDriveOutputLimitPct = 50.0;
+inline constexpr double kDriveOutputLimitPct = 70.0;
 inline const int kFrontLeftMotorPort = vex::PORT1;
 inline const int kBackLeftMotorPort = vex::PORT12;
 inline const int kFrontRightMotorPort = vex::PORT19;

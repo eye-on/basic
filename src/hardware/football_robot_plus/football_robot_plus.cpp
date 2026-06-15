@@ -23,11 +23,12 @@ inline constexpr double kAutoPickupHeadingToleranceRad = 0.05;
 inline constexpr double kAutoTargetRangeMm = 220.0;
 inline constexpr double kAutoPickupRangeMm = 180.0;
 inline constexpr double kAutoForwardGainPctPerMm = 0.04;
-inline constexpr double kAutoTurnGainPctPerRad = 90.0;
+inline constexpr double kAutoTurnGainPctPerRad =180.0;
 inline constexpr double kAutoMinTurnPct = 8.0;
 inline constexpr double kAutoMaxForwardPct = 25.0;
 inline constexpr double kAutoTurningForwardLimitPct = 10.0;
 inline constexpr double kAutoMaxTurnPct = 60.0;
+inline constexpr double kAutoTurnDirectionSign = -1.0;
 inline constexpr int kExternalVisionStaleTimeoutMs = 500;
 inline constexpr int kPoseReadoutHoldMs = 1500;
 
@@ -385,15 +386,17 @@ class FootballRobotPlus final : public basic::app::Robot {
     double turn_pct = 0.0;
     if (has_heading_error) {
       turn_pct = clamp_abs(
-          heading_error_rad * kAutoTurnGainPctPerRad,
+          heading_error_rad * kAutoTurnGainPctPerRad * kAutoTurnDirectionSign,
           kAutoMaxTurnPct);
       if (std::fabs(heading_error_rad) > kAutoHeadingToleranceRad &&
           std::fabs(turn_pct) < kAutoMinTurnPct) {
-        turn_pct = heading_error_rad > 0.0 ? kAutoMinTurnPct : -kAutoMinTurnPct;
+        turn_pct = heading_error_rad > 0.0
+                       ? kAutoMinTurnPct * kAutoTurnDirectionSign
+                       : -kAutoMinTurnPct * kAutoTurnDirectionSign;
       }
     } else {
       turn_pct = clamp_abs(
-          lateral_error_norm * (kAutoTurnGainPctPerRad * 0.8),
+          lateral_error_norm * (kAutoTurnGainPctPerRad * 0.8) * kAutoTurnDirectionSign,
           kAutoMaxTurnPct);
     }
 

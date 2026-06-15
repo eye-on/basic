@@ -9,7 +9,7 @@ namespace basic::hardware::football_robot_plus {
 inline constexpr int kExternalVisionBaudrate = 115200;
 inline constexpr int kExternalVisionRxTimeoutMs = 250;
 inline constexpr int kExternalVisionMaxLineLength = 192;
-inline const int kExternalVisionPort = vex::PORT20;
+inline const int kExternalVisionPort = vex::PORT3;
 
 struct ExternalVisionPacket {
   bool has_observation_update{false};
