@@ -22,7 +22,7 @@ inline constexpr double kPrimarySequenceStage1Deg = 45.0;
 inline constexpr double kPrimarySequenceStage2Deg = 315.0;
 inline constexpr double kPrimarySequenceSpeedPct = 30.0;
 inline constexpr double kSecondaryAngleADeg = 0.0;
-inline constexpr double kSecondaryAngleBDeg = 180.0;
+inline constexpr double kSecondaryAngleBDeg = -112.0;
 inline constexpr double kSecondaryAngleSpeedPct = 30.0;
 inline constexpr double kSecondaryAngleToleranceDeg = 5.0;
 /// 左前轮（Front-Left）PID 参数

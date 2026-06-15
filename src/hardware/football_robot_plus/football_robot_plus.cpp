@@ -920,6 +920,8 @@ class FootballRobotPlus final : public basic::app::Robot {
     basic::mechanism::dual_motor_actuator_refresh_state(hardware_.dual_motor_actuator);
     state_.dual_motor_actuator =
         basic::mechanism::dual_motor_actuator_state(hardware_.dual_motor_actuator);
+    printf("secondary_motor position: %.2f deg\n",
+           hardware_.dual_motor_actuator.secondary_motor().position(vex::deg));
   }
 
   void refresh_external_vision() {
