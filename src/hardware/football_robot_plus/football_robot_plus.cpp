@@ -352,7 +352,7 @@ class FootballRobotPlus final : public basic::app::Robot {
             state_.controller,
             basic::chassis::x_chassis_state(hardware_.football_chassis).stop_brake_type);
     basic::chassis::x_chassis_update(hardware_.football_chassis, command);
-    limit_drive_output();
+    //limit_drive_output();
   }
 
   void run_resident_autonomous_step() {
