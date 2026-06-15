@@ -15,25 +15,25 @@ inline const int kFrontRightMotorPort = vex::PORT19;
 inline const int kBackRightMotorPort = vex::PORT10;
 /// 左前轮（Front-Left）PID 参数
 inline constexpr basic::control::pid::Pid::Config kFlPidCfg{
-    0.0, 0.0, 0.0,
+    0.5, 0.0, 0.0,
     -kDriveOutputLimitPct, kDriveOutputLimitPct, -10.0, 10.0, 1,
     basic::control::pid::Type::kPosition};
 
 /// 右前轮（Front-Right）PID 参数
 inline constexpr basic::control::pid::Pid::Config kFrPidCfg{
-    0.0, 0.0, 0.0,
+    0.5, 0.0, 0.0,
     -kDriveOutputLimitPct, kDriveOutputLimitPct, -10.0, 10.0, 1,
     basic::control::pid::Type::kPosition};
     
 /// 左后轮（Back-Left）PID 参数
 inline constexpr basic::control::pid::Pid::Config kBlPidCfg{
-    0.0, 0.0, 0.0,
+    0.5, 0.0, 0.0,
     -kDriveOutputLimitPct, kDriveOutputLimitPct, -10.0, 10.0, 1,
     basic::control::pid::Type::kPosition};
 
 /// 右后轮（Back-Right）PID 参数
 inline constexpr basic::control::pid::Pid::Config kBrPidCfg{
-    0.0, 0.0, 0.0,
+    0.5, 0.0, 0.0,
     -kDriveOutputLimitPct, kDriveOutputLimitPct, -10.0, 10.0, 1,
     basic::control::pid::Type::kPosition};
 

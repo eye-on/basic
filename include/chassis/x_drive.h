@@ -1,4 +1,4 @@
-#ifndef BASIC_INCLUDE_X_DRIVE_H_
+﻿#ifndef BASIC_INCLUDE_X_DRIVE_H_
 #define BASIC_INCLUDE_X_DRIVE_H_
 
 #include "chassis/arcade_drive.h"
@@ -237,6 +237,7 @@ void x_drive_set_output(
   chassis.state().bl_pct = bl_pct;
   chassis.state().br_pct = br_pct;
   chassis.state().stop_brake_type = brake_type;
+  printf("%d,%.2f,%.2f\n", vex::timer::system(), fl_pct, chassis.fl_motors()[0].velocity(vex::velocityUnits::pct));
   detail::apply_group_output_pid(chassis.fl_motors(), chassis.fl_pid(), fl_pct, brake_type);
   detail::apply_group_output_pid(chassis.fr_motors(), chassis.fr_pid(), fr_pct, brake_type);
   detail::apply_group_output_pid(chassis.bl_motors(), chassis.bl_pid(), bl_pct, brake_type);
