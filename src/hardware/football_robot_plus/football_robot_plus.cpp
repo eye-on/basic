@@ -18,14 +18,16 @@ namespace {
 inline constexpr int kBackgroundLoopDelayMs = kRefreshTime;
 inline constexpr double kEstimatedPositionYOffsetMm = 30.0;
 inline constexpr int kVisionStaleTimeoutMs = 500;
-inline constexpr double kAutoCenterToleranceNorm = 0.08;
-inline constexpr double kAutoPickupCenterToleranceNorm = 0.05;
+inline constexpr double kAutoHeadingToleranceRad = 0.09;
+inline constexpr double kAutoPickupHeadingToleranceRad = 0.05;
 inline constexpr double kAutoTargetRangeMm = 220.0;
 inline constexpr double kAutoPickupRangeMm = 180.0;
 inline constexpr double kAutoForwardGainPctPerMm = 0.04;
-inline constexpr double kAutoStrafeGainPct = 70.0;
+inline constexpr double kAutoTurnGainPctPerRad = 90.0;
+inline constexpr double kAutoMinTurnPct = 8.0;
 inline constexpr double kAutoMaxForwardPct = 25.0;
-inline constexpr double kAutoMaxStrafePct = 100.0;
+inline constexpr double kAutoTurningForwardLimitPct = 10.0;
+inline constexpr double kAutoMaxTurnPct = 60.0;
 inline constexpr int kExternalVisionStaleTimeoutMs = 500;
 inline constexpr int kPoseReadoutHoldMs = 1500;
 
@@ -39,6 +41,10 @@ double clamp_abs(double value, double max_abs) {
 
 bool is_positive_finite(double value) {
   return basic::vision::is_finite(value) && value > 0.0;
+}
+
+bool is_finite(double value) {
+  return basic::vision::is_finite(value);
 }
 
 bool has_fresh_external_detection(const FootballVisionState& vision, int now_ms) {
@@ -367,32 +373,31 @@ class FootballRobotPlus final : public basic::app::Robot {
 
     const double image_width_px = resolve_image_width_px(vision);
     const double lateral_error_norm = resolve_lateral_error_norm(vision, image_width_px);
-    const double forward_distance_mm = resolve_forward_distance_mm(vision);
-    const bool has_forward_distance = is_positive_finite(forward_distance_mm);
+    const double heading_error_rad = resolve_heading_error_rad(vision);
+    const bool has_heading_error = is_finite(heading_error_rad);
 
-    // 到达捡球范围后停止
-    if (has_forward_distance &&
-        forward_distance_mm <= kAutoPickupRangeMm &&
-        std::fabs(lateral_error_norm) <= kAutoPickupCenterToleranceNorm) {
+    if (has_heading_error &&
+        std::fabs(heading_error_rad) <= kAutoPickupHeadingToleranceRad) {
       stop_drive(vex::hold);
       return;
     }
 
-    double forward_pct = 0.0;
-    if (has_forward_distance) {
-      forward_pct = clamp_value(
-          (forward_distance_mm - kAutoTargetRangeMm) * kAutoForwardGainPctPerMm,
-          0.0,
-          kAutoMaxForwardPct);
-      // 未对准时限制前进速度，优先完成横向对准
-      if (std::fabs(lateral_error_norm) > kAutoCenterToleranceNorm) {
-        forward_pct = std::min(forward_pct, 10.0);
+    double turn_pct = 0.0;
+    if (has_heading_error) {
+      turn_pct = clamp_abs(
+          heading_error_rad * kAutoTurnGainPctPerRad,
+          kAutoMaxTurnPct);
+      if (std::fabs(heading_error_rad) > kAutoHeadingToleranceRad &&
+          std::fabs(turn_pct) < kAutoMinTurnPct) {
+        turn_pct = heading_error_rad > 0.0 ? kAutoMinTurnPct : -kAutoMinTurnPct;
       }
+    } else {
+      turn_pct = clamp_abs(
+          lateral_error_norm * (kAutoTurnGainPctPerRad * 0.8),
+          kAutoMaxTurnPct);
     }
 
-    const double strafe_pct =
-        clamp_abs(lateral_error_norm * kAutoStrafeGainPct, kAutoMaxStrafePct);
-    apply_drive_request(forward_pct, strafe_pct, 0.0, vex::hold);
+    apply_drive_request(0.0, 0.0, turn_pct, vex::hold);
   }
 
   bool has_recent_target(const FootballVisionState& vision, int now_ms) const {
@@ -445,6 +450,49 @@ class FootballRobotPlus final : public basic::app::Robot {
     }
 
     return 0.0;
+  }
+
+  double resolve_heading_error_rad(const FootballVisionState& vision) const {
+    if (vision.estimate_available && vision.last_estimate.valid) {
+      const basic::vision::Vec3 robot_position = camera_point_to_robot_frame(
+          vision.config.camera_extrinsics,
+          vision.last_estimate.position_camera_mm);
+      if (is_finite(robot_position.x) && is_finite(robot_position.z) &&
+          (std::fabs(robot_position.x) > 1e-6 || std::fabs(robot_position.z) > 1e-6)) {
+        return std::atan2(robot_position.x, robot_position.z);
+      }
+
+      const basic::vision::Vec3 robot_ray = camera_vector_to_robot_frame(
+          vision.config.camera_extrinsics,
+          vision.last_estimate.ray_camera);
+      if (is_finite(robot_ray.x) && is_finite(robot_ray.z) &&
+          (std::fabs(robot_ray.x) > 1e-6 || std::fabs(robot_ray.z) > 1e-6)) {
+        return std::atan2(robot_ray.x, robot_ray.z);
+      }
+    }
+
+    if (vision.last_detection.bbox_px.valid()) {
+      const basic::vision::CameraModel camera =
+          resolve_camera_model(vision.config, vision.last_detection);
+      const double bbox_center_x_px =
+          vision.last_detection.bbox_px.x + vision.last_detection.bbox_px.width * 0.5;
+      if (camera.valid() && is_finite(bbox_center_x_px)) {
+        const basic::vision::Vec3 camera_ray{
+            (bbox_center_x_px - camera.cx) / camera.fx,
+            0.0,
+            1.0,
+        };
+        const basic::vision::Vec3 robot_ray = camera_vector_to_robot_frame(
+            vision.config.camera_extrinsics,
+            camera_ray);
+        if (is_finite(robot_ray.x) && is_finite(robot_ray.z) &&
+            (std::fabs(robot_ray.x) > 1e-6 || std::fabs(robot_ray.z) > 1e-6)) {
+          return std::atan2(robot_ray.x, robot_ray.z);
+        }
+      }
+    }
+
+    return basic::vision::nan_value();
   }
 
   double resolve_forward_distance_mm(const FootballVisionState& vision) const {
