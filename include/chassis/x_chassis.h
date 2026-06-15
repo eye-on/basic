@@ -10,6 +10,7 @@ using XChassis = XDrive<1, 1, 1, 1>;
 using XChassisCommand = XDriveCommand;
 using XChassisConfig = XDriveConfig<1, 1, 1, 1>;
 using XChassisState = XDriveState;
+using XChassisOdometry = XDriveOdometry;
 
 /// 初始化十字型全向轮底盘
 inline XChassis x_chassis_init(const XChassisConfig& config) {
@@ -58,6 +59,29 @@ inline const XChassisState& x_chassis_state(const XChassis& chassis) {
 // ──────────────────────────────────────────────
 
 /// 左前（Front-Left）电机
+inline XChassisOdometry& x_chassis_odometry(XChassis& chassis) {
+  return x_drive_odometry(chassis);
+}
+
+inline const XChassisOdometry& x_chassis_odometry(const XChassis& chassis) {
+  return x_drive_odometry(chassis);
+}
+
+inline void x_chassis_reset_odometry(
+    XChassis& chassis,
+    double x_m = 0.0,
+    double y_m = 0.0) {
+  x_drive_reset_odometry(chassis, x_m, y_m);
+}
+
+inline double x_chassis_x_m(const XChassis& chassis) {
+  return x_chassis_odometry(chassis).x_m;
+}
+
+inline double x_chassis_y_m(const XChassis& chassis) {
+  return x_chassis_odometry(chassis).y_m;
+}
+
 inline vex::motor& x_chassis_fl_motor(XChassis& chassis) {
   return chassis.fl_motors()[0];
 }

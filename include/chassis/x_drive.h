@@ -6,6 +6,25 @@
 
 namespace basic::chassis {
 
+/// 十字型全向轮底盘局部坐标系里程计
+/// x 轴与 forward 指令同向，y 轴与 strafe 指令同向
+struct XDriveOdometry {
+  double x_m{0.0};
+  double y_m{0.0};
+  double forward_mps{0.0};
+  double strafe_mps{0.0};
+  double fl_mps{0.0};
+  double fr_mps{0.0};
+  double bl_mps{0.0};
+  double br_mps{0.0};
+  double fl_projected_m{0.0};
+  double fr_projected_m{0.0};
+  double bl_projected_m{0.0};
+  double br_projected_m{0.0};
+  int last_update_ms{0};
+  bool initialized{false};
+};
+
 namespace detail {
 
 /// 根据配置数组构造 PID 控制器数组
@@ -47,6 +66,81 @@ void apply_group_output_pid(
   } 
 }
 
+template <std::size_t Count>
+double average_group_velocity(
+    std::array<vex::motor, Count>& motors,
+    vex::velocityUnits units) {
+  double sum = 0.0;
+  for (vex::motor& motor : motors) {
+    sum += motor.velocity(units);
+  }
+  return sum / static_cast<double>(Count);
+}
+
+inline void set_odometry_pose(XDriveOdometry& odometry, double x_m, double y_m) {
+  odometry.x_m = x_m;
+  odometry.y_m = y_m;
+  odometry.fl_projected_m = 0.5 * (x_m + y_m);
+  odometry.fr_projected_m = 0.5 * (x_m - y_m);
+  odometry.bl_projected_m = 0.5 * (x_m - y_m);
+  odometry.br_projected_m = 0.5 * (x_m + y_m);
+  odometry.forward_mps = 0.0;
+  odometry.strafe_mps = 0.0;
+  odometry.fl_mps = 0.0;
+  odometry.fr_mps = 0.0;
+  odometry.bl_mps = 0.0;
+  odometry.br_mps = 0.0;
+  odometry.last_update_ms = vex::timer::system();
+  odometry.initialized = true;
+}
+
+inline void update_odometry(
+    XDriveOdometry& odometry,
+    double fl_mps,
+    double fr_mps,
+    double bl_mps,
+    double br_mps,
+    int now_ms) {
+  constexpr double kSqrt2 = 1.4142135623730951;
+  constexpr double kSqrt2Over2 = 0.7071067811865475;
+
+  odometry.fl_mps = fl_mps;
+  odometry.fr_mps = fr_mps;
+  odometry.bl_mps = bl_mps;
+  odometry.br_mps = br_mps;
+  odometry.forward_mps = (fl_mps + fr_mps + bl_mps + br_mps) / (2.0 * kSqrt2);
+  odometry.strafe_mps = (fl_mps - fr_mps - bl_mps + br_mps) / (2.0 * kSqrt2);
+
+  if (!odometry.initialized) {
+    odometry.last_update_ms = now_ms;
+    odometry.initialized = true;
+    return;
+  }
+
+  int delta_ms = now_ms - odometry.last_update_ms;
+  if (delta_ms < 0) {
+    delta_ms = 0;
+  }
+  odometry.last_update_ms = now_ms;
+
+  const double dt_s = static_cast<double>(delta_ms) * 0.001;
+  if (dt_s <= 0.0) {
+    return;
+  }
+
+  odometry.fl_projected_m += fl_mps * kSqrt2Over2 * dt_s;
+  odometry.fr_projected_m += fr_mps * kSqrt2Over2 * dt_s;
+  odometry.bl_projected_m += bl_mps * kSqrt2Over2 * dt_s;
+  odometry.br_projected_m += br_mps * kSqrt2Over2 * dt_s;
+
+  odometry.x_m =
+      (odometry.fl_projected_m + odometry.fr_projected_m +
+       odometry.bl_projected_m + odometry.br_projected_m) * 0.5;
+  odometry.y_m =
+      (odometry.fl_projected_m - odometry.fr_projected_m -
+       odometry.bl_projected_m + odometry.br_projected_m) * 0.5;
+}
+
 }  // namespace detail
 
 /// 十字型全向轮底盘（X-Drive）控制指令
@@ -65,6 +159,7 @@ struct XDriveState {
   double bl_pct{0.0};
   double br_pct{0.0};
   vex::brakeType stop_brake_type{vex::coast};
+  XDriveOdometry odometry{};
 };
 
 /// 十字型全向轮底盘（X-Drive）配置
@@ -239,25 +334,28 @@ void x_drive_set_output(
   chassis.state().stop_brake_type = brake_type;
   // 电机 rpm → 轮边 MPS 换算: mps = rpm / 60 * (π × 0.1062m)
   constexpr double kRpmToMps = 3.14159265358979 * 0.1062 / 60.0;
-  // 积分: ∫ v × √2/2 × dt, dt=10ms
-  constexpr double kIntegralStep = 0.7071067811865475 * 0.01;
-  static double fl_int = 0.0, fr_int = 0.0, bl_int = 0.0, br_int = 0.0;
+  const double fl_mps =
+      detail::average_group_velocity(chassis.fl_motors(), vex::rpm) * kRpmToMps;
+  const double fr_mps =
+      detail::average_group_velocity(chassis.fr_motors(), vex::rpm) * kRpmToMps;
+  const double bl_mps =
+      detail::average_group_velocity(chassis.bl_motors(), vex::rpm) * kRpmToMps;
+  const double br_mps =
+      detail::average_group_velocity(chassis.br_motors(), vex::rpm) * kRpmToMps;
 
-  double fl_mps = x_chassis_fl_motor(chassis).velocity(vex::rpm) * kRpmToMps;
-  double fr_mps = x_chassis_fr_motor(chassis).velocity(vex::rpm) * kRpmToMps;
-  double bl_mps = x_chassis_bl_motor(chassis).velocity(vex::rpm) * kRpmToMps;
-  double br_mps = x_chassis_br_motor(chassis).velocity(vex::rpm) * kRpmToMps;
+  detail::update_odometry(
+      chassis.state().odometry,
+      fl_mps,
+      fr_mps,
+      bl_mps,
+      br_mps,
+      vex::timer::system());
 
-  fl_int += fl_mps * kIntegralStep;
-  fr_int += fr_mps * kIntegralStep;
-  bl_int += bl_mps * kIntegralStep;
-  br_int += br_mps * kIntegralStep;
-
-  printf("%d", vex::timer::system());
-  printf(",%.2f,%.3f",     fl_mps, fl_int);
-  printf(",%.2f,%.3f",     fr_mps, fr_int);
-  printf(",%.2f,%.3f",     bl_mps, bl_int);
-  printf(",%.2f,%.3f\n",   br_mps, br_int);
+  printf(
+      "%d,%.3f,%.3f\n",
+      vex::timer::system(),
+      chassis.state().odometry.x_m,
+      chassis.state().odometry.y_m);
   detail::apply_group_output_pid(chassis.fl_motors(), chassis.fl_pid(), fl_pct, brake_type);
   detail::apply_group_output_pid(chassis.fr_motors(), chassis.fr_pid(), fr_pct, brake_type);
   detail::apply_group_output_pid(chassis.bl_motors(), chassis.bl_pid(), bl_pct, brake_type);
@@ -334,6 +432,32 @@ template <std::size_t FlCount, std::size_t FrCount,
 const XDriveState& x_drive_state(
     const XDrive<FlCount, FrCount, BlCount, BrCount>& chassis) {
   return chassis.state();
+}
+
+/// 获取十字型全向轮底盘里程计（可修改）
+template <std::size_t FlCount, std::size_t FrCount,
+          std::size_t BlCount, std::size_t BrCount>
+XDriveOdometry& x_drive_odometry(
+    XDrive<FlCount, FrCount, BlCount, BrCount>& chassis) {
+  return chassis.state().odometry;
+}
+
+/// 获取十字型全向轮底盘里程计（只读）
+template <std::size_t FlCount, std::size_t FrCount,
+          std::size_t BlCount, std::size_t BrCount>
+const XDriveOdometry& x_drive_odometry(
+    const XDrive<FlCount, FrCount, BlCount, BrCount>& chassis) {
+  return chassis.state().odometry;
+}
+
+/// 复位十字型全向轮底盘局部里程计到指定坐标
+template <std::size_t FlCount, std::size_t FrCount,
+          std::size_t BlCount, std::size_t BrCount>
+void x_drive_reset_odometry(
+    XDrive<FlCount, FrCount, BlCount, BrCount>& chassis,
+    double x_m = 0.0,
+    double y_m = 0.0) {
+  detail::set_odometry_pose(chassis.state().odometry, x_m, y_m);
 }
 
 }  // namespace basic::chassis
