@@ -9,6 +9,7 @@ namespace basic::hardware::football_robot_plus {
 struct RobotState {
   basic::hardware::shared::ControllerInputState controller;
   FootballVisionState vision;
+  basic::hardware::shared::AutonomousState autonomous;
 };
 
 }  // namespace basic::hardware::football_robot_plus
