@@ -364,15 +364,15 @@ void x_drive_set_output(
 
   printf(
       "%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f\n",
-      vex::timer::system(),
+      static_cast<int>(vex::timer::system()),
       fl_pct, fl_actual_pct,
       fr_pct, fr_actual_pct,
       bl_pct, bl_actual_pct,
       br_pct, br_actual_pct);
-  detail::apply_group_output_pid(chassis.fl_motors(), chassis.fl_pid(), fl_pct, brake_type);
-  detail::apply_group_output_pid(chassis.fr_motors(), chassis.fr_pid(), fr_pct, brake_type);
-  detail::apply_group_output_pid(chassis.bl_motors(), chassis.bl_pid(), bl_pct, brake_type);
-  detail::apply_group_output_pid(chassis.br_motors(), chassis.br_pid(), br_pct, brake_type);
+  detail::apply_group_output(chassis.fl_motors(), fl_pct, brake_type);
+  detail::apply_group_output(chassis.fr_motors(), fr_pct, brake_type);
+  detail::apply_group_output(chassis.bl_motors(), bl_pct, brake_type);
+  detail::apply_group_output(chassis.br_motors(), br_pct, brake_type);
 }
 
 template <std::size_t FlCount, std::size_t FrCount,

@@ -1,4 +1,4 @@
-﻿#include "hardware/robot_selector.h"
+#include "hardware/robot_selector.h"
 
 #include "chassis/x_chassis.h"
 #include "chassis/x_drive.h"
@@ -424,7 +424,7 @@ class FootballRobotPlus final : public basic::app::Robot {
     static vex::motor& fr_motor = basic::chassis::x_chassis_fr_motor(hardware_.football_chassis);
     static vex::motor& bl_motor = basic::chassis::x_chassis_bl_motor(hardware_.football_chassis);
     static vex::motor& br_motor = basic::chassis::x_chassis_br_motor(hardware_.football_chassis);
-    // L1/L2/R1/R2 �������ش����л��Ľǵ����ת�������ã�
+    // L1/L2/R1/R2 ????????????��??????????????????
     if (state_.controller.press_l1) fl_test_spin_ = !fl_test_spin_;
     if (state_.controller.press_l2) fr_test_spin_ = !fr_test_spin_;
     if (state_.controller.press_r1) bl_test_spin_ = !bl_test_spin_;
@@ -507,7 +507,7 @@ class FootballRobotPlus final : public basic::app::Robot {
     const bool has_live_ball = has_live_intercept_target(vision, now_ms);
     if (!has_live_ball) {
       run_intercept_gimbal_scan_step();
-      // 没有目标时只扫云台，底盘保持静止。
+      // û��Ŀ��ʱֻɨ��̨�����̱��־�ֹ��
       stop_drive(vex::hold);
       return;
     }
@@ -751,7 +751,7 @@ class FootballRobotPlus final : public basic::app::Robot {
     return strafe_pct;
   }
 
-  /// ���� X �����Ľ����������Ԥ������
+  /// ???? X ???????????????????????
   void limit_drive_output() {
     const basic::chassis::XChassisState& state =
         basic::chassis::x_chassis_state(hardware_.football_chassis);
@@ -776,13 +776,13 @@ class FootballRobotPlus final : public basic::app::Robot {
         state.stop_brake_type);
   }
 
-  /// ʹ�� X-drive mecanum �˶�ѧ�ֽ�ǰ��/ƽ��/��תָ��
+  /// ??? X-drive mecanum ??????????/???/??????
   void apply_drive_request(
       double forward_pct,
       double strafe_pct,
       double turn_pct,
       vex::brakeType brake_type) {
-    // X-drive mecanum �˶�ѧ�ֽ⣺
+    // X-drive mecanum ???????
     // fl = forward + strafe + turn
     // fr = forward - strafe - turn
     // bl = forward - strafe + turn
@@ -810,7 +810,7 @@ class FootballRobotPlus final : public basic::app::Robot {
         bl_pct,
         br_pct,
         brake_type);
-    limit_drive_output();
+    // limit_drive_output();
   }
 
   void stop_drive(vex::brakeType drive_brake_type) {
@@ -861,9 +861,9 @@ class FootballRobotPlus final : public basic::app::Robot {
       return;
     }
 
-    printf(
+    /*printf(
         "%.1f",
-        intercept_state_.gimbal_zero_deg);
+        intercept_state_.gimbal_zero_deg);*/
   }
 
   RobotHardware hardware_;
