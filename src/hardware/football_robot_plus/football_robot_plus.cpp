@@ -1,4 +1,4 @@
-#include "hardware/robot_selector.h"
+﻿#include "hardware/robot_selector.h"
 
 #include "chassis/x_chassis.h"
 #include "chassis/x_drive.h"
@@ -228,7 +228,7 @@ class FootballRobotPlus final : public basic::app::Robot {
       handle_vision_target_color_select();
       refresh_external_vision();
       handle_pose_readout();
-      show_current_screen();
+      //show_current_screen();
       handle_auto_mode_toggle();
 
       if (auto_mode_enabled_) {
@@ -239,7 +239,7 @@ class FootballRobotPlus final : public basic::app::Robot {
         stop_drive(vex::coast);
       }
 
-      vex::this_thread::sleep_for(kBackgroundLoopDelayMs);
+      vex::this_thread::sleep_for(10);
     }
   }
 
@@ -316,26 +316,34 @@ class FootballRobotPlus final : public basic::app::Robot {
   }
 
   void run_manual_control_step() {
-    // X/Y/A/B 按键边沿触发切换四角电机满转（调试用）
-    if (state_.controller.press_x) fl_test_spin_ = !fl_test_spin_;
-    if (state_.controller.press_y) fr_test_spin_ = !fr_test_spin_;
-    if (state_.controller.press_a) bl_test_spin_ = !bl_test_spin_;
-    if (state_.controller.press_b) br_test_spin_ = !br_test_spin_;
+    static vex::motor& fl_motor = basic::chassis::x_chassis_fl_motor(hardware_.football_chassis);
+    static vex::motor& fr_motor = basic::chassis::x_chassis_fr_motor(hardware_.football_chassis);
+    static vex::motor& bl_motor = basic::chassis::x_chassis_bl_motor(hardware_.football_chassis);
+    static vex::motor& br_motor = basic::chassis::x_chassis_br_motor(hardware_.football_chassis);
+    // L1/L2/R1/R2 按键边沿触发切换四角电机满转（调试用）
+    if (state_.controller.press_l1) fl_test_spin_ = !fl_test_spin_;
+    if (state_.controller.press_l2) fr_test_spin_ = !fr_test_spin_;
+    if (state_.controller.press_r1) bl_test_spin_ = !bl_test_spin_;
+    if (state_.controller.press_r2) br_test_spin_ = !br_test_spin_;
+
+    if (fl_test_spin_) {
+      printf("%.2f\n", fl_motor.velocity(vex::velocityUnits::pct));
+      basic::control::velocitycontrol(fl_motor, 100.0);
+    }
+    if (fr_test_spin_) {
+      printf("%.2f\n", fr_motor.velocity(vex::velocityUnits::pct));
+      basic::control::velocitycontrol(fr_motor, 100.0);
+    }
+    if (bl_test_spin_) {
+      printf("%.2f\n", bl_motor.velocity(vex::velocityUnits::pct));
+      basic::control::velocitycontrol(bl_motor, 100.0);
+    }
+    if (br_test_spin_) {
+      printf("%.2f\n", br_motor.velocity(vex::velocityUnits::pct));
+      basic::control::velocitycontrol(br_motor, 100.0);
+    }
 
     if (fl_test_spin_ || fr_test_spin_ || bl_test_spin_ || br_test_spin_) {
-      basic::control::velocitycontrol(
-          basic::chassis::x_chassis_fl_motor(hardware_.football_chassis),
-          fl_test_spin_ ? 100.0 : 0.0);
-      basic::control::velocitycontrol(
-          basic::chassis::x_chassis_fr_motor(hardware_.football_chassis),
-          fr_test_spin_ ? 100.0 : 0.0);
-      basic::control::velocitycontrol(
-          basic::chassis::x_chassis_bl_motor(hardware_.football_chassis),
-          bl_test_spin_ ? 100.0 : 0.0);
-      basic::control::velocitycontrol(
-          basic::chassis::x_chassis_br_motor(hardware_.football_chassis),
-          br_test_spin_ ? 100.0 : 0.0);
-
       return;
     }
 
@@ -344,7 +352,7 @@ class FootballRobotPlus final : public basic::app::Robot {
             state_.controller,
             basic::chassis::x_chassis_state(hardware_.football_chassis).stop_brake_type);
     basic::chassis::x_chassis_update(hardware_.football_chassis, command);
-    limit_drive_output();
+    //limit_drive_output();
   }
 
   void run_resident_autonomous_step() {

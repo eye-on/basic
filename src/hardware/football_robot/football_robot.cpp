@@ -258,8 +258,7 @@ class FootballRobot final : public basic::app::Robot {
       } else {
         stop_drive_and_actuator_motion(vex::coast);
       }
-
-      vex::this_thread::sleep_for(kBackgroundLoopDelayMs);
+      vex::this_thread::sleep_for(10);
     }
   }
 

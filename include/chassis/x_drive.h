@@ -1,4 +1,4 @@
-#ifndef BASIC_INCLUDE_X_DRIVE_H_
+﻿#ifndef BASIC_INCLUDE_X_DRIVE_H_
 #define BASIC_INCLUDE_X_DRIVE_H_
 
 #include "chassis/arcade_drive.h"
@@ -237,6 +237,27 @@ void x_drive_set_output(
   chassis.state().bl_pct = bl_pct;
   chassis.state().br_pct = br_pct;
   chassis.state().stop_brake_type = brake_type;
+  // 电机 rpm → 轮边 MPS 换算: mps = rpm / 60 * (π × 0.1062m)
+  constexpr double kRpmToMps = 3.14159265358979 * 0.1062 / 60.0;
+  // 积分: ∫ v × √2/2 × dt, dt=10ms
+  constexpr double kIntegralStep = 0.7071067811865475 * 0.01;
+  static double fl_int = 0.0, fr_int = 0.0, bl_int = 0.0, br_int = 0.0;
+
+  double fl_mps = x_chassis_fl_motor(chassis).velocity(vex::rpm) * kRpmToMps;
+  double fr_mps = x_chassis_fr_motor(chassis).velocity(vex::rpm) * kRpmToMps;
+  double bl_mps = x_chassis_bl_motor(chassis).velocity(vex::rpm) * kRpmToMps;
+  double br_mps = x_chassis_br_motor(chassis).velocity(vex::rpm) * kRpmToMps;
+
+  fl_int += fl_mps * kIntegralStep;
+  fr_int += fr_mps * kIntegralStep;
+  bl_int += bl_mps * kIntegralStep;
+  br_int += br_mps * kIntegralStep;
+
+  printf("%d", vex::timer::system());
+  printf(",%.2f,%.3f",     fl_mps, fl_int);
+  printf(",%.2f,%.3f",     fr_mps, fr_int);
+  printf(",%.2f,%.3f",     bl_mps, bl_int);
+  printf(",%.2f,%.3f\n",   br_mps, br_int);
   detail::apply_group_output_pid(chassis.fl_motors(), chassis.fl_pid(), fl_pct, brake_type);
   detail::apply_group_output_pid(chassis.fr_motors(), chassis.fr_pid(), fr_pct, brake_type);
   detail::apply_group_output_pid(chassis.bl_motors(), chassis.bl_pid(), bl_pct, brake_type);
