@@ -3,23 +3,23 @@
 		"${config:vexrobotics.vexcode.Cpp.Sdk.Home}\\V5\\V5_20240802_15_00_00\\vexv5\\gcc\\include\\sys"
 	],
 	"clangd.arguments": [
-		"--query-driver=C:\\Users\\a\\AppData\\Roaming\\Code\\User\\globalStorage\\vexrobotics.vexcode\\tools\\cpp\\toolchain_win32\\clang\\bin\\clang.exe"
+		"--query-driver=C:\\Users\\19674\\AppData\\Roaming\\Code\\User\\globalStorage\\vexrobotics.vexcode\\tools\\cpp\\toolchain_win32\\clang\\bin\\clang.exe"
 	],
 	"clangd.fallbackFlags": [
 		"-std=gnu++17",
-		"-IC:/Users/a/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/include",
-		"-IC:/Users/a/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/clang/8.0.0/include",
-		"-IC:/Users/a/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/gcc/include/c++/4.9.3",
-		"-IC:/Users/a/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/gcc/include/c++/4.9.3/arm-none-eabi/armv7-ar/thumb",
-		"-IC:/Users/a/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/gcc/include",
-		"-LC:/Users/a/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/gcc/libs",
+		"-IC:/Users/19674/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/include",
+		"-IC:/Users/19674/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/clang/8.0.0/include",
+		"-IC:/Users/19674/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/gcc/include/c++/4.9.3",
+		"-IC:/Users/19674/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/gcc/include/c++/4.9.3/arm-none-eabi/armv7-ar/thumb",
+		"-IC:/Users/19674/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/gcc/include",
+		"-LC:/Users/19674/AppData/Roaming/Code/User/globalStorage/vexrobotics.vexcode/sdk/cpp/V5/V5_20240802_15_00_00/vexv5/gcc/libs",
 		"-lvexv5",
 		"-lstdc++",
 		"-lgcc",
 		"--target=arm-none-eabi",
 		"-mthumb",
-		"-IC:/Users/a/Documents/local/basic/include",
-		"-IC:/Users/a/Documents/local/basic/src"
+		"-IC:/Users/19674/Documents/vex-vscode-projects/basic/include",
+		"-IC:/Users/19674/Documents/vex-vscode-projects/basic/src"
 	],
 	"C_Cpp.errorSquiggles": "disabled"
 }

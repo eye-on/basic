@@ -3,7 +3,6 @@
 
 #include "chassis/x_chassis.h"
 #include "hardware/football_robot_plus/external_vision_serial.h"
-#include "identify/vision_sensor.h"
 #include "vex.h"
 
 namespace basic::hardware::football_robot_plus {
@@ -14,7 +13,6 @@ inline const int kFrontLeftMotorPort = vex::PORT1;
 inline const int kBackLeftMotorPort = vex::PORT12;
 inline const int kFrontRightMotorPort = vex::PORT19;
 inline const int kBackRightMotorPort = vex::PORT10;
-inline const int kVisionSensorPort = vex::PORT20;
 /// 左前轮（Front-Left）PID 参数
 inline constexpr basic::control::pid::Pid::Config kFlPidCfg{
     0.0, 0.0, 0.0,
@@ -43,13 +41,11 @@ struct RobotHardware {
   vex::brain brain;
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{vex::PORT11};
-  basic::identify::VisionSensorIdentifier vision_identifier;
   ExternalVisionSerial external_vision;
   basic::chassis::XChassis football_chassis;
 
   RobotHardware()
-      : vision_identifier(kVisionSensorPort),
-        external_vision(kExternalVisionPort),
+      : external_vision(kExternalVisionPort),
         football_chassis(basic::chassis::x_chassis_init({
             {{
                 {kFrontLeftMotorPort, vex::ratio18_1, true},
