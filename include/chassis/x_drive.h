@@ -237,7 +237,11 @@ void x_drive_set_output(
   chassis.state().bl_pct = bl_pct;
   chassis.state().br_pct = br_pct;
   chassis.state().stop_brake_type = brake_type;
-  printf("%d,%.2f,%.2f\n", vex::timer::system(), fl_pct, chassis.fl_motors()[0].velocity(vex::velocityUnits::pct));
+  printf("%d", vex::timer::system());
+  printf(",%.2f,%.2f",fl_pct,x_chassis_fl_motor(chassis).velocity(vex::pct));
+  printf(",%.2f,%.2f",fr_pct,x_chassis_fr_motor(chassis).velocity(vex::pct));
+  printf(",%.2f,%.2f",bl_pct,x_chassis_bl_motor(chassis).velocity(vex::pct));
+  printf(",%.2f,%.2f\n",br_pct,x_chassis_br_motor(chassis).velocity(vex::pct));
   detail::apply_group_output_pid(chassis.fl_motors(), chassis.fl_pid(), fl_pct, brake_type);
   detail::apply_group_output_pid(chassis.fr_motors(), chassis.fr_pid(), fr_pct, brake_type);
   detail::apply_group_output_pid(chassis.bl_motors(), chassis.bl_pid(), bl_pct, brake_type);

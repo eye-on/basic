@@ -228,7 +228,7 @@ class FootballRobotPlus final : public basic::app::Robot {
       handle_vision_target_color_select();
       refresh_external_vision();
       handle_pose_readout();
-      show_current_screen();
+      //show_current_screen();
       handle_auto_mode_toggle();
 
       if (auto_mode_enabled_) {
@@ -239,7 +239,7 @@ class FootballRobotPlus final : public basic::app::Robot {
         stop_drive(vex::coast);
       }
 
-      vex::this_thread::sleep_for(kBackgroundLoopDelayMs);
+      vex::this_thread::sleep_for(10);
     }
   }
 
