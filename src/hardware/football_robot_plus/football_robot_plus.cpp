@@ -185,6 +185,7 @@ class FootballRobotPlus final : public basic::app::Robot {
   void initialize() override {
     configure_vision(default_vision_config_for_sensor());
     sync_camera_gimbal_state();
+    sync_dual_motor_actuator_state();
     hardware_.calibrate_inertial_sensor();
     hardware_.inertial.resetRotation();
     hardware_.inertial.resetHeading();
@@ -340,6 +341,7 @@ class FootballRobotPlus final : public basic::app::Robot {
   void run_background_tasks() {
     while (true) {
       basic::input::controller_update(hardware_.brain, hardware_.controller, state_.controller);
+      sync_dual_motor_actuator_state();
       handle_vision_target_color_select();
       refresh_external_vision();
       handle_auto_mode_toggle();
@@ -904,9 +906,20 @@ class FootballRobotPlus final : public basic::app::Robot {
     sync_camera_gimbal_state();
   }
 
+  void stop_dual_motor_actuator(vex::brakeType brake_type) {
+    basic::mechanism::dual_motor_actuator_stop(hardware_.dual_motor_actuator, brake_type);
+    sync_dual_motor_actuator_state();
+  }
+
   void sync_camera_gimbal_state() {
     basic::mechanism::camera_gimbal_refresh_state(hardware_.camera_gimbal);
     state_.camera_gimbal = basic::mechanism::camera_gimbal_state(hardware_.camera_gimbal);
+  }
+
+  void sync_dual_motor_actuator_state() {
+    basic::mechanism::dual_motor_actuator_refresh_state(hardware_.dual_motor_actuator);
+    state_.dual_motor_actuator =
+        basic::mechanism::dual_motor_actuator_state(hardware_.dual_motor_actuator);
   }
 
   void refresh_external_vision() {

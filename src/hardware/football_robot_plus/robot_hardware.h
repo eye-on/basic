@@ -4,6 +4,7 @@
 #include "chassis/x_chassis.h"
 #include "hardware/football_robot_plus/external_vision_serial.h"
 #include "mechanism/camera_gimbal.h"
+#include "mechanism/dual_motor_actuator.h"
 #include "vex.h"
 
 namespace basic::hardware::football_robot_plus {
@@ -15,6 +16,15 @@ inline const int kFrontLeftMotorPort = vex::PORT10;
 inline const int kBackLeftMotorPort = vex::PORT8;
 inline const int kFrontRightMotorPort = vex::PORT1;
 inline const int kBackRightMotorPort = vex::PORT2;
+inline const int kSecondaryAngleSwitchMotorPort = vex::PORT14;
+inline const int kPrimarySequenceMotorPort = vex::PORT15;
+inline constexpr double kPrimarySequenceStage1Deg = 45.0;
+inline constexpr double kPrimarySequenceStage2Deg = 315.0;
+inline constexpr double kPrimarySequenceSpeedPct = 30.0;
+inline constexpr double kSecondaryAngleADeg = 0.0;
+inline constexpr double kSecondaryAngleBDeg = 180.0;
+inline constexpr double kSecondaryAngleSpeedPct = 30.0;
+inline constexpr double kSecondaryAngleToleranceDeg = 5.0;
 /// 左前轮（Front-Left）PID 参数
 inline constexpr basic::control::pid::Pid::Config kFlPidCfg{
     0.3, 0.05, 0.001,
@@ -45,12 +55,24 @@ struct RobotHardware {
   vex::inertial inertial{vex::PORT19};
   ExternalVisionSerial external_vision;
   basic::mechanism::CameraGimbal camera_gimbal;
+  basic::mechanism::DualMotorActuator dual_motor_actuator;
   basic::chassis::XChassis football_chassis;
 
   RobotHardware()
       : external_vision(kExternalVisionPort),
         camera_gimbal(basic::mechanism::camera_gimbal_init({
             {kCameraGimbalMotorPort, vex::ratio36_1, false},
+        })),
+        dual_motor_actuator(basic::mechanism::dual_motor_actuator_init({
+            {kPrimarySequenceMotorPort, vex::ratio36_1, false},
+            {kSecondaryAngleSwitchMotorPort, vex::ratio18_1, false},
+            kPrimarySequenceStage1Deg,
+            kPrimarySequenceStage2Deg,
+            kPrimarySequenceSpeedPct,
+            kSecondaryAngleADeg,
+            kSecondaryAngleBDeg,
+            kSecondaryAngleSpeedPct,
+            kSecondaryAngleToleranceDeg,
         })),
         football_chassis(basic::chassis::x_chassis_init({
             {{
