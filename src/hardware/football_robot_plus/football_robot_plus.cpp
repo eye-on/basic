@@ -424,7 +424,7 @@ class FootballRobotPlus final : public basic::app::Robot {
     static vex::motor& fr_motor = basic::chassis::x_chassis_fr_motor(hardware_.football_chassis);
     static vex::motor& bl_motor = basic::chassis::x_chassis_bl_motor(hardware_.football_chassis);
     static vex::motor& br_motor = basic::chassis::x_chassis_br_motor(hardware_.football_chassis);
-    // L1/L2/R1/R2 按键边沿触发切换四角电机满转（调试用）
+    // L1/L2/R1/R2 �������ش����л��Ľǵ����ת�������ã�
     if (state_.controller.press_l1) fl_test_spin_ = !fl_test_spin_;
     if (state_.controller.press_l2) fr_test_spin_ = !fr_test_spin_;
     if (state_.controller.press_r1) bl_test_spin_ = !bl_test_spin_;
@@ -750,7 +750,7 @@ class FootballRobotPlus final : public basic::app::Robot {
     return strafe_pct;
   }
 
-  /// 限制 X 底盘四角输出不超过预设上限
+  /// ���� X �����Ľ����������Ԥ������
   void limit_drive_output() {
     const basic::chassis::XChassisState& state =
         basic::chassis::x_chassis_state(hardware_.football_chassis);
@@ -775,13 +775,13 @@ class FootballRobotPlus final : public basic::app::Robot {
         state.stop_brake_type);
   }
 
-  /// 使用 X-drive mecanum 运动学分解前后/平移/旋转指令
+  /// ʹ�� X-drive mecanum �˶�ѧ�ֽ�ǰ��/ƽ��/��תָ��
   void apply_drive_request(
       double forward_pct,
       double strafe_pct,
       double turn_pct,
       vex::brakeType brake_type) {
-    // X-drive mecanum 运动学分解：
+    // X-drive mecanum �˶�ѧ�ֽ⣺
     // fl = forward + strafe + turn
     // fr = forward - strafe - turn
     // bl = forward - strafe + turn
@@ -860,13 +860,9 @@ class FootballRobotPlus final : public basic::app::Robot {
       return;
     }
 
-    const bool has_ball = has_live_intercept_target(vision, now_ms);
     printf(
-        "ts=%d S=%.1f B=%.1f ball=%d\n",
-        now_ms,
-        current_intercept_line_position_mm(),
-        current_gimbal_relative_deg(),
-        has_ball ? 1 : 0);
+        "%.1f",
+        intercept_state_.gimbal_zero_deg);
   }
 
   RobotHardware hardware_;
