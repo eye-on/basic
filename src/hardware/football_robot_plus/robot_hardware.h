@@ -3,12 +3,14 @@
 
 #include "chassis/x_chassis.h"
 #include "hardware/football_robot_plus/external_vision_serial.h"
+#include "mechanism/camera_gimbal.h"
 #include "vex.h"
 
 namespace basic::hardware::football_robot_plus {
 
 inline constexpr int kRefreshTime = 10;
 inline constexpr double kDriveOutputLimitPct = 70.0;
+inline const int kCameraGimbalMotorPort = vex::PORT11;
 inline const int kFrontLeftMotorPort = vex::PORT10;
 inline const int kBackLeftMotorPort = vex::PORT8;
 inline const int kFrontRightMotorPort = vex::PORT1;
@@ -42,10 +44,14 @@ struct RobotHardware {
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{vex::PORT19};
   ExternalVisionSerial external_vision;
+  basic::mechanism::CameraGimbal camera_gimbal;
   basic::chassis::XChassis football_chassis;
 
   RobotHardware()
       : external_vision(kExternalVisionPort),
+        camera_gimbal(basic::mechanism::camera_gimbal_init({
+            {kCameraGimbalMotorPort, vex::ratio36_1, false},
+        })),
         football_chassis(basic::chassis::x_chassis_init({
             {{
                 {kFrontLeftMotorPort, vex::ratio18_1, true},

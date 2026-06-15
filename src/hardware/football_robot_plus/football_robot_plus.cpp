@@ -31,25 +31,25 @@ inline constexpr double kAutoMaxForwardPct = 25.0;
 inline constexpr double kAutoTurningForwardLimitPct = 10.0;
 inline constexpr double kAutoMaxTurnPct = 60.0;
 inline constexpr double kAutoTurnDirectionSign = -1.0;
+inline constexpr int kCameraGimbalInputDeadzonePct = 5;
+inline constexpr double kGimbalScanLimitDeg = 45.0;
+inline constexpr double kGimbalScanSpeedPct = 18.0;
+inline constexpr double kGimbalTrackToleranceDeg = 2.0;
+inline constexpr double kGimbalTrackGainPctPerDeg = 2.2;
+inline constexpr double kGimbalTrackMinPct = 8.0;
+inline constexpr double kGimbalTrackMaxPct = 35.0;
+inline constexpr double kGimbalTrackDirectionSign = 1.0;
+inline constexpr double kInterceptGimbalCenterToleranceDeg = 5.0;
+inline constexpr double kInterceptStrafeGainPctPerDeg = 2.4;
+inline constexpr double kInterceptStrafeMinPct = 12.0;
+inline constexpr double kInterceptStrafeMaxPct = 38.0;
+inline constexpr double kInterceptStrafeDirectionSign = 1.0;
+inline constexpr double kInterceptHeadingHoldToleranceDeg = 2.0;
+inline constexpr double kInterceptHeadingHoldGainPctPerDeg = 1.0;
+inline constexpr double kInterceptHeadingHoldMinPct = 8.0;
+inline constexpr double kInterceptHeadingHoldMaxPct = 24.0;
+inline constexpr double kFallbackImageHalfFovDeg = 30.0;
 inline constexpr double kInterceptLineHalfWidthMm = 900.0;
-inline constexpr double kInterceptPose45Deg = 45.0;
-inline constexpr double kInterceptPoseToleranceDeg = 4.0;
-inline constexpr double kInterceptPoseTurnGainPctPerDeg = 1.0;
-inline constexpr double kInterceptPoseTurnMinPct = 12.0;
-inline constexpr double kInterceptPoseTurnMaxPct = 40.0;
-inline constexpr double kInterceptLineGainPctPerMm = 0.30;
-inline constexpr double kInterceptLineMinPct = 22.0;
-inline constexpr double kInterceptLineMaxPct = 100.0;
-inline constexpr double kInterceptLineAlignedToleranceMm = 35.0;
-inline constexpr int kInterceptScanHoldMs = 350;
-inline constexpr int kInterceptPoseHoldMs = 220;
-inline constexpr double kInterceptPoseSwitchHysteresisMm = 70.0;
-inline constexpr double kInterceptMaxForwardJumpMm = 500.0;
-inline constexpr double kInterceptMaxLateralJumpMm = 700.0;
-inline constexpr int kBallTrackHistorySize = 8;
-inline constexpr int kBallTrackMinSamples = 4;
-inline constexpr int kBallTrackHistoryMaxAgeMs = 800;
-inline constexpr int kBallTrackMinDeltaMs = 25;
 inline constexpr int kExternalVisionStaleTimeoutMs = 500;
 inline constexpr int kPoseReadoutHoldMs = 1500;
 
@@ -59,43 +59,12 @@ enum class AutoMode {
   kIntercept,
 };
 
-enum class InterceptPose {
-  kForward,
-  kLeft45,
-  kRight45,
-};
-
-struct BallTrackSample {
-  double x_mm{0.0};
-  double z_mm{0.0};
-  int time_ms{0};
-  bool valid{false};
-};
-
-struct InterceptPrediction {
-  bool valid{false};
-  bool has_ball{false};
-  bool in_bounds{false};
-  double current_forward_mm{0.0};
-  double current_right_mm{0.0};
-  double intercept_right_mm{0.0};
-  double heading_error_rad{basic::vision::nan_value()};
-};
-
 struct InterceptState {
-  std::array<BallTrackSample, kBallTrackHistorySize> history{};
-  int history_count{0};
-  int last_seen_time_ms{0};
-  int scan_phase{0};
   int scan_phase_started_ms{0};
   double line_heading_deg{0.0};
-  double world_s_robot_mm{0.0};
-  double last_odom_forward_mm{0.0};
-  double last_odom_strafe_mm{0.0};
-  bool pose_initialized{false};
-  InterceptPose target_pose{InterceptPose::kForward};
-  int target_pose_started_ms{0};
-  int last_pose_switch_ms{0};
+  double line_origin_right_mm{0.0};
+  double gimbal_zero_deg{0.0};
+  int gimbal_scan_direction{1};
 };
 
 double clamp_value(double value, double lo, double hi) {
@@ -195,6 +164,7 @@ class FootballRobotPlus final : public basic::app::Robot {
  public:
   void initialize() override {
     configure_vision(default_vision_config_for_sensor());
+    sync_camera_gimbal_state();
     hardware_.calibrate_inertial_sensor();
     hardware_.inertial.resetRotation();
     hardware_.inertial.resetHeading();
@@ -208,7 +178,6 @@ class FootballRobotPlus final : public basic::app::Robot {
     hardware_.external_vision.initialize();
     set_vision_target_color(basic::identify::VisionTargetColor::kRed);
     hardware_.show_calibrated();
-    show_mode_status();
   }
 
   void bind_background_tasks() override {
@@ -327,227 +296,13 @@ class FootballRobotPlus final : public basic::app::Robot {
   }
 
   void reset_intercept_state() {
+    sync_camera_gimbal_state();
     intercept_state_ = InterceptState{};
     intercept_state_.line_heading_deg = local_inertial_heading_deg();
-    intercept_state_.world_s_robot_mm = 0.0;
-    intercept_state_.last_odom_forward_mm = odometry().x_m * 1000.0;
-    intercept_state_.last_odom_strafe_mm = odometry().y_m * 1000.0;
-    intercept_state_.pose_initialized = true;
-    intercept_state_.target_pose = InterceptPose::kForward;
     intercept_state_.scan_phase_started_ms = hardware_.brain.timer(vex::timeUnits::msec);
-    intercept_state_.target_pose_started_ms = intercept_state_.scan_phase_started_ms;
-    intercept_state_.last_pose_switch_ms = intercept_state_.scan_phase_started_ms;
-  }
-
-  void request_intercept_pose(InterceptPose pose, int now_ms) {
-    if (pose == intercept_state_.target_pose) {
-      return;
-    }
-    if (now_ms - intercept_state_.last_pose_switch_ms < kInterceptPoseHoldMs) {
-      return;
-    }
-    intercept_state_.target_pose = pose;
-    intercept_state_.target_pose_started_ms = now_ms;
-    intercept_state_.last_pose_switch_ms = now_ms;
-  }
-
-  bool has_intercept_pose(InterceptPose pose) {
-    const double error_deg =
-        std::fabs(normalize_angle_deg(local_inertial_heading_deg() - intercept_pose_heading_deg(pose)));
-    return error_deg <= kInterceptPoseToleranceDeg;
-  }
-
-  double intercept_pose_heading_deg(InterceptPose pose) const {
-    switch (pose) {
-      case InterceptPose::kLeft45:
-        return normalize_angle_deg(intercept_state_.line_heading_deg - kInterceptPose45Deg);
-      case InterceptPose::kRight45:
-        return normalize_angle_deg(intercept_state_.line_heading_deg + kInterceptPose45Deg);
-      case InterceptPose::kForward:
-      default:
-        return intercept_state_.line_heading_deg;
-    }
-  }
-
-  bool resolve_ball_position_in_start_frame(
-      const FootballVisionState& vision,
-      double* line_normal_mm,
-      double* line_position_mm) {
-    if (line_normal_mm == nullptr || line_position_mm == nullptr ||
-        !vision.estimate_available || !vision.last_estimate.valid) {
-      return false;
-    }
-
-    const basic::vision::Vec3 robot_position = camera_point_to_robot_frame(
-        vision.config.camera_extrinsics,
-        vision.last_estimate.position_camera_mm);
-    if (!is_finite(robot_position.x) || !is_finite(robot_position.z)) {
-      return false;
-    }
-
-    const double heading_error_rad = degrees_to_radians(
-        normalize_angle_deg(local_inertial_heading_deg() - intercept_state_.line_heading_deg));
-    const double cos_robot = std::cos(heading_error_rad);
-    const double sin_robot = std::sin(heading_error_rad);
-
-    const double body_forward_mm = robot_position.z;
-    const double body_right_mm = robot_position.x;
-    const double ball_line_normal_mm =
-        body_forward_mm * cos_robot - body_right_mm * sin_robot;
-    const double ball_line_position_mm =
-        intercept_state_.world_s_robot_mm +
-        body_forward_mm * sin_robot + body_right_mm * cos_robot;
-
-    *line_normal_mm = ball_line_normal_mm;
-    *line_position_mm = ball_line_position_mm;
-    return true;
-  }
-
-  void push_ball_track_sample(double line_normal_mm, double line_position_mm, int now_ms) {
-    if (intercept_state_.history_count > 0) {
-      const BallTrackSample& last =
-          intercept_state_.history[intercept_state_.history_count - 1];
-      if (last.valid) {
-        const int dt_ms = now_ms - last.time_ms;
-        if (dt_ms < kBallTrackMinDeltaMs) {
-          return;
-        }
-        if (std::fabs(line_normal_mm - last.x_mm) > kInterceptMaxForwardJumpMm ||
-            std::fabs(line_position_mm - last.z_mm) > kInterceptMaxLateralJumpMm) {
-          return;
-        }
-      }
-    }
-
-    if (intercept_state_.history_count < kBallTrackHistorySize) {
-      intercept_state_.history[intercept_state_.history_count++] =
-          BallTrackSample{line_normal_mm, line_position_mm, now_ms, true};
-      return;
-    }
-
-    for (int i = 1; i < kBallTrackHistorySize; ++i) {
-      intercept_state_.history[i - 1] = intercept_state_.history[i];
-    }
-    intercept_state_.history[kBallTrackHistorySize - 1] =
-        BallTrackSample{line_normal_mm, line_position_mm, now_ms, true};
-  }
-
-  void prune_ball_track_history(int now_ms) {
-    int write_index = 0;
-    for (int i = 0; i < intercept_state_.history_count; ++i) {
-      const BallTrackSample sample = intercept_state_.history[i];
-      if (!sample.valid) {
-        continue;
-      }
-      if (now_ms < sample.time_ms || now_ms - sample.time_ms > kBallTrackHistoryMaxAgeMs) {
-        continue;
-      }
-      intercept_state_.history[write_index++] = sample;
-    }
-    for (int i = write_index; i < kBallTrackHistorySize; ++i) {
-      intercept_state_.history[i] = BallTrackSample{};
-    }
-    intercept_state_.history_count = write_index;
-  }
-
-  void update_ball_track(const FootballVisionState& vision, int now_ms) {
-    prune_ball_track_history(now_ms);
-    double line_normal_mm = 0.0;
-    double line_position_mm = 0.0;
-    if (!resolve_ball_position_in_start_frame(vision, &line_normal_mm, &line_position_mm)) {
-      return;
-    }
-
-    push_ball_track_sample(line_normal_mm, line_position_mm, now_ms);
-    intercept_state_.last_seen_time_ms = now_ms;
-  }
-
-  void update_intercept_pose_estimate() {
-    const double current_forward_mm = odometry().x_m * 1000.0;
-    const double current_right_mm = odometry().y_m * 1000.0;
-    if (!intercept_state_.pose_initialized) {
-      intercept_state_.last_odom_forward_mm = current_forward_mm;
-      intercept_state_.last_odom_strafe_mm = current_right_mm;
-      intercept_state_.pose_initialized = true;
-      return;
-    }
-
-    const double delta_forward_mm = current_forward_mm - intercept_state_.last_odom_forward_mm;
-    const double delta_right_mm = current_right_mm - intercept_state_.last_odom_strafe_mm;
-    intercept_state_.last_odom_forward_mm = current_forward_mm;
-    intercept_state_.last_odom_strafe_mm = current_right_mm;
-
-    if (std::fabs(delta_forward_mm) < 1e-3 && std::fabs(delta_right_mm) < 1e-3) {
-      return;
-    }
-
-    const double current_heading_error_deg = std::fabs(
-        normalize_angle_deg(local_inertial_heading_deg() -
-                            intercept_pose_heading_deg(intercept_state_.target_pose)));
-
-    if (current_heading_error_deg <= kInterceptPoseToleranceDeg + 1.0) {
-      double delta_s_mm = 0.0;
-      switch (intercept_state_.target_pose) {
-        case InterceptPose::kLeft45:
-        case InterceptPose::kRight45:
-          delta_s_mm = delta_right_mm;
-          break;
-        case InterceptPose::kForward:
-        default:
-          delta_s_mm = 0.0;
-          break;
-      }
-      intercept_state_.world_s_robot_mm += delta_s_mm;
-    }
-  }
-
-  InterceptPrediction make_intercept_prediction(int now_ms) {
-    InterceptPrediction prediction;
-    prediction.valid = intercept_state_.history_count > 0;
-    prediction.has_ball = prediction.valid;
-    if (!prediction.valid) {
-      return prediction;
-    }
-
-    const BallTrackSample& latest =
-        intercept_state_.history[intercept_state_.history_count - 1];
-    prediction.current_forward_mm = latest.x_mm;
-    prediction.current_right_mm = latest.z_mm;
-    prediction.intercept_right_mm =
-        latest.z_mm;
-    prediction.in_bounds =
-        std::fabs(prediction.intercept_right_mm) <= kInterceptLineHalfWidthMm;
-    prediction.in_bounds =
-        std::fabs(prediction.intercept_right_mm) <= kInterceptLineHalfWidthMm;
-    return prediction;
-  }
-
-  void run_intercept_scan_step(int now_ms) {
-    prune_ball_track_history(now_ms);
-
-    const double current_heading_deg = local_inertial_heading_deg();
-    const double elapsed_ms = static_cast<double>(now_ms - intercept_state_.scan_phase_started_ms);
-    if (elapsed_ms >= kInterceptScanHoldMs) {
-      intercept_state_.scan_phase = (intercept_state_.scan_phase + 1) % 3;
-      intercept_state_.scan_phase_started_ms = now_ms;
-    }
-
-    const InterceptPose scan_pose =
-        intercept_state_.scan_phase == 0
-            ? InterceptPose::kForward
-            : (intercept_state_.scan_phase == 1 ? InterceptPose::kLeft45 : InterceptPose::kRight45);
-    request_intercept_pose(scan_pose, now_ms);
-
-    const double target_heading_deg = intercept_pose_heading_deg(scan_pose);
-    const double heading_error_deg = normalize_angle_deg(target_heading_deg - current_heading_deg);
-    double turn_pct = clamp_abs(
-        heading_error_deg * kInterceptPoseTurnGainPctPerDeg * kAutoTurnDirectionSign,
-        kInterceptPoseTurnMaxPct);
-    if (std::fabs(heading_error_deg) > kInterceptPoseToleranceDeg) {
-      turn_pct = signed_min_speed(turn_pct, kInterceptPoseTurnMinPct);
-    }
-
-    apply_drive_request(0.0, 0.0, turn_pct, vex::hold);
+    intercept_state_.line_origin_right_mm = odometry().y_m * 1000.0;
+    intercept_state_.gimbal_zero_deg = state_.camera_gimbal.motor_position_deg;
+    intercept_state_.gimbal_scan_direction = 1;
   }
 
   static void start_background_tasks() {
@@ -563,15 +318,17 @@ class FootballRobotPlus final : public basic::app::Robot {
   }
 
   void run_background_tasks() {
-    show_mode_status();
     while (true) {
       basic::input::controller_update(hardware_.brain, hardware_.controller, state_.controller);
       handle_vision_target_color_select();
       refresh_external_vision();
-      handle_pose_readout();
-      //show_current_screen();
       handle_auto_mode_toggle();
       handle_intercept_mode_toggle();
+      if (auto_mode_ == AutoMode::kManual && should_accept_manual_control()) {
+        run_camera_gimbal_manual_step();
+      } else if (auto_mode_ != AutoMode::kIntercept) {
+        stop_camera_gimbal(vex::hold);
+      }
 
       if (auto_mode_ == AutoMode::kFaceTarget) {
         run_face_target_step();
@@ -616,37 +373,11 @@ class FootballRobotPlus final : public basic::app::Robot {
   }
 
   void handle_pose_readout() {
-    if (!state_.controller.press_x) {
-      return;
-    }
-
-    pose_readout_until_ms_ = hardware_.brain.timer(vex::timeUnits::msec) + kPoseReadoutHoldMs;
-    hardware_.controller.Screen.clearScreen();
-    hardware_.controller.Screen.setCursor(1, 1);
-    if (!state_.vision.estimate_available || !state_.vision.last_estimate.valid) {
-      hardware_.controller.Screen.print("OBJ: INVALID");
-      hardware_.controller.Screen.setCursor(2, 1);
-      hardware_.controller.Screen.print("NO VALID TARGET");
-      return;
-    }
-
-    const basic::vision::Vec3 robot_position = camera_point_to_robot_frame(
-        state_.vision.config.camera_extrinsics,
-        state_.vision.last_estimate.position_camera_mm);
-    hardware_.controller.Screen.print(
-        "X:%5.0f Y:%5.0f",
-        robot_position.x,
-        robot_position.y);
-    hardware_.controller.Screen.setCursor(2, 1);
-    hardware_.controller.Screen.print("Z:%5.0f", robot_position.z);
+    return;
   }
 
   void show_current_screen() {
-    const int now_ms = hardware_.brain.timer(vex::timeUnits::msec);
-    if (now_ms <= pose_readout_until_ms_) {
-      return;
-    }
-    show_vision_status();
+    return;
   }
 
   void handle_auto_mode_toggle() {
@@ -659,7 +390,6 @@ class FootballRobotPlus final : public basic::app::Robot {
     if (auto_mode_ == AutoMode::kFaceTarget) {
       reset_intercept_state();
     }
-    show_mode_status();
   }
 
   void handle_intercept_mode_toggle() {
@@ -668,11 +398,25 @@ class FootballRobotPlus final : public basic::app::Robot {
     }
 
     auto_mode_ = auto_mode_ == AutoMode::kIntercept ? AutoMode::kManual : AutoMode::kIntercept;
+    intercept_debug_print_enabled_ = auto_mode_ == AutoMode::kIntercept;
     stop_drive(auto_mode_ == AutoMode::kManual ? vex::coast : vex::hold);
     if (auto_mode_ == AutoMode::kIntercept) {
       reset_intercept_state();
     }
-    show_mode_status();
+  }
+
+  void run_camera_gimbal_manual_step() {
+    const int axis_input_pct = state_.controller.axis3;
+    if (std::abs(axis_input_pct) < kCameraGimbalInputDeadzonePct) {
+      basic::mechanism::camera_gimbal_stop(hardware_.camera_gimbal, vex::hold);
+      sync_camera_gimbal_state();
+      return;
+    }
+
+    basic::mechanism::camera_gimbal_set_output(
+        hardware_.camera_gimbal,
+        static_cast<double>(axis_input_pct));
+    sync_camera_gimbal_state();
   }
 
   void run_manual_control_step() {
@@ -757,63 +501,22 @@ class FootballRobotPlus final : public basic::app::Robot {
   void run_intercept_step() {
     const int now_ms = hardware_.brain.timer(vex::timeUnits::msec);
     const FootballVisionState vision = state_.vision;
-    update_intercept_pose_estimate();
-    update_ball_track(vision, now_ms);
+    sync_camera_gimbal_state();
+    print_intercept_debug(now_ms, vision);
 
-    const bool has_live_ball =
-        vision.last_detection.has_detection && vision.class_filter_passed &&
-        now_ms >= vision.last_update_time_ms &&
-        now_ms - vision.last_update_time_ms <= kVisionStaleTimeoutMs;
+    const bool has_live_ball = has_live_intercept_target(vision, now_ms);
     if (!has_live_ball) {
-      run_intercept_scan_step(now_ms);
+      run_intercept_gimbal_scan_step();
+      apply_drive_request(0.0, 0.0, make_intercept_heading_hold_turn_pct(), vex::hold);
       return;
     }
 
-    const InterceptPrediction prediction = make_intercept_prediction(now_ms);
-    if (!prediction.valid) {
-      stop_drive(vex::hold);
-      return;
-    }
-
-    const double line_position_error_mm =
-        prediction.current_right_mm - intercept_state_.world_s_robot_mm;
-    InterceptPose desired_pose =
-        line_position_error_mm >= kInterceptPoseSwitchHysteresisMm
-            ? InterceptPose::kRight45
-            : (line_position_error_mm <= -kInterceptPoseSwitchHysteresisMm
-                   ? InterceptPose::kLeft45
-                   : intercept_state_.target_pose);
-    if (desired_pose == InterceptPose::kForward) {
-      desired_pose = line_position_error_mm >= 0.0 ? InterceptPose::kRight45 : InterceptPose::kLeft45;
-    }
-    request_intercept_pose(desired_pose, now_ms);
-
-    const double line_move_pct = signed_min_speed(
-        clamp_abs(line_position_error_mm * kInterceptLineGainPctPerMm, kInterceptLineMaxPct),
-        kInterceptLineMinPct);
-
-    const double target_heading_deg = intercept_pose_heading_deg(intercept_state_.target_pose);
-    const double heading_error_deg =
-        normalize_angle_deg(target_heading_deg - local_inertial_heading_deg());
-    double turn_pct = clamp_abs(
-        heading_error_deg * kInterceptPoseTurnGainPctPerDeg * kAutoTurnDirectionSign,
-        kInterceptPoseTurnMaxPct);
-    if (std::fabs(heading_error_deg) > kInterceptPoseToleranceDeg) {
-      turn_pct = signed_min_speed(turn_pct, kInterceptPoseTurnMinPct);
-    }
-
-    const bool pose_locked = std::fabs(heading_error_deg) <= kInterceptPoseToleranceDeg;
-    if (!pose_locked) {
-      apply_drive_request(0.0, 0.0, turn_pct, vex::hold);
-      return;
-    }
-
-    if (std::fabs(line_position_error_mm) <= kInterceptLineAlignedToleranceMm) {
-      apply_drive_request(0.0, 0.0, turn_pct, vex::hold);
-      return;
-    }
-
-    apply_drive_request(0.0, line_move_pct, turn_pct, vex::hold);
+    run_intercept_gimbal_track_step(vision);
+    apply_drive_request(
+        0.0,
+        make_intercept_strafe_pct_from_gimbal(),
+        make_intercept_heading_hold_turn_pct(),
+        vex::hold);
   }
 
   bool has_recent_target(const FootballVisionState& vision, int now_ms) const {
@@ -938,6 +641,115 @@ class FootballRobotPlus final : public basic::app::Robot {
     return basic::vision::nan_value();
   }
 
+  bool has_live_intercept_target(const FootballVisionState& vision, int now_ms) const {
+    return vision.last_detection.has_detection && vision.class_filter_passed &&
+           vision.last_detection.bbox_px.valid() &&
+           now_ms >= vision.last_update_time_ms &&
+           now_ms - vision.last_update_time_ms <= kVisionStaleTimeoutMs;
+  }
+
+  double current_intercept_line_position_mm() {
+    return odometry().y_m * 1000.0 - intercept_state_.line_origin_right_mm;
+  }
+
+  double current_gimbal_relative_deg() {
+    return state_.camera_gimbal.motor_position_deg - intercept_state_.gimbal_zero_deg;
+  }
+
+  double resolve_target_bearing_deg(const FootballVisionState& vision) {
+    if (!vision.last_detection.bbox_px.valid()) {
+      return basic::vision::nan_value();
+    }
+
+    const double bbox_center_x_px =
+        vision.last_detection.bbox_px.x + vision.last_detection.bbox_px.width * 0.5;
+    const basic::vision::CameraModel camera =
+        resolve_camera_model(vision.config, vision.last_detection);
+    if (camera.valid() && is_finite(bbox_center_x_px) && is_finite(camera.cx) &&
+        is_finite(camera.fx) && std::fabs(camera.fx) > 1e-6) {
+      return radians_to_degrees(std::atan((bbox_center_x_px - camera.cx) / camera.fx));
+    }
+
+    const double image_width_px = resolve_image_width_px(vision);
+    if (!is_positive_finite(image_width_px) || !is_finite(bbox_center_x_px)) {
+      return basic::vision::nan_value();
+    }
+
+    const double image_center_px = image_width_px * 0.5;
+    return ((bbox_center_x_px - image_center_px) / image_center_px) *
+           kFallbackImageHalfFovDeg;
+  }
+
+  double make_intercept_heading_hold_turn_pct() {
+    const double heading_error_deg =
+        normalize_angle_deg(intercept_state_.line_heading_deg - local_inertial_heading_deg());
+    if (std::fabs(heading_error_deg) <= kInterceptHeadingHoldToleranceDeg) {
+      return 0.0;
+    }
+
+    double turn_pct = clamp_abs(
+        heading_error_deg * kInterceptHeadingHoldGainPctPerDeg * kAutoTurnDirectionSign,
+        kInterceptHeadingHoldMaxPct);
+    if (std::fabs(turn_pct) < kInterceptHeadingHoldMinPct) {
+      turn_pct = turn_pct >= 0.0 ? kInterceptHeadingHoldMinPct : -kInterceptHeadingHoldMinPct;
+    }
+    return turn_pct;
+  }
+
+  void run_intercept_gimbal_scan_step() {
+    double relative_deg = current_gimbal_relative_deg();
+    if (relative_deg >= kGimbalScanLimitDeg) {
+      intercept_state_.gimbal_scan_direction = -1;
+    } else if (relative_deg <= -kGimbalScanLimitDeg) {
+      intercept_state_.gimbal_scan_direction = 1;
+    }
+
+    basic::mechanism::camera_gimbal_set_output(
+        hardware_.camera_gimbal,
+        static_cast<double>(intercept_state_.gimbal_scan_direction) * kGimbalScanSpeedPct);
+    sync_camera_gimbal_state();
+  }
+
+  void run_intercept_gimbal_track_step(const FootballVisionState& vision) {
+    const double bearing_deg = resolve_target_bearing_deg(vision);
+    if (!is_finite(bearing_deg) || std::fabs(bearing_deg) <= kGimbalTrackToleranceDeg) {
+      stop_camera_gimbal(vex::hold);
+      return;
+    }
+
+    double motor_pct = clamp_abs(
+        bearing_deg * kGimbalTrackGainPctPerDeg * kGimbalTrackDirectionSign,
+        kGimbalTrackMaxPct);
+    if (std::fabs(motor_pct) < kGimbalTrackMinPct) {
+      motor_pct = motor_pct >= 0.0 ? kGimbalTrackMinPct : -kGimbalTrackMinPct;
+    }
+
+    basic::mechanism::camera_gimbal_set_output(hardware_.camera_gimbal, motor_pct);
+    sync_camera_gimbal_state();
+  }
+
+  double make_intercept_strafe_pct_from_gimbal() {
+    const double gimbal_error_deg = current_gimbal_relative_deg();
+    if (std::fabs(gimbal_error_deg) <= kInterceptGimbalCenterToleranceDeg) {
+      return 0.0;
+    }
+
+    double strafe_pct = clamp_abs(
+        gimbal_error_deg * kInterceptStrafeGainPctPerDeg * kInterceptStrafeDirectionSign,
+        kInterceptStrafeMaxPct);
+    if (std::fabs(strafe_pct) < kInterceptStrafeMinPct) {
+      strafe_pct = strafe_pct >= 0.0 ? kInterceptStrafeMinPct : -kInterceptStrafeMinPct;
+    }
+
+    const double line_position_mm = current_intercept_line_position_mm();
+    if ((line_position_mm >= kInterceptLineHalfWidthMm && strafe_pct > 0.0) ||
+        (line_position_mm <= -kInterceptLineHalfWidthMm && strafe_pct < 0.0)) {
+      return 0.0;
+    }
+
+    return strafe_pct;
+  }
+
   /// 限制 X 底盘四角输出不超过预设上限
   void limit_drive_output() {
     const basic::chassis::XChassisState& state =
@@ -1004,6 +816,16 @@ class FootballRobotPlus final : public basic::app::Robot {
     basic::chassis::x_chassis_stop(hardware_.football_chassis, drive_brake_type);
   }
 
+  void stop_camera_gimbal(vex::brakeType brake_type) {
+    basic::mechanism::camera_gimbal_stop(hardware_.camera_gimbal, brake_type);
+    sync_camera_gimbal_state();
+  }
+
+  void sync_camera_gimbal_state() {
+    basic::mechanism::camera_gimbal_refresh_state(hardware_.camera_gimbal);
+    state_.camera_gimbal = basic::mechanism::camera_gimbal_state(hardware_.camera_gimbal);
+  }
+
   void refresh_external_vision() {
     ExternalVisionPacket packet;
     const bool any_update = hardware_.external_vision.poll(&packet);
@@ -1026,58 +848,25 @@ class FootballRobotPlus final : public basic::app::Robot {
   }
 
   void show_vision_status() {
-    const FootballVisionState& vision = state_.vision;
-    const bool online = vision.external_link.online;
-
-    hardware_.controller.Screen.setCursor(1, 1);
-    if (auto_mode_ == AutoMode::kIntercept) {
-      hardware_.controller.Screen.print("MODE: INTERCEPT   ");
-    } else if (auto_mode_ == AutoMode::kFaceTarget) {
-      hardware_.controller.Screen.print("MODE: FACE TARGET ");
-    } else {
-      hardware_.controller.Screen.print("MODE: MANUAL      ");
-    }
-
-    if (!online) {
-      hardware_.controller.Screen.setCursor(2, 1);
-      hardware_.controller.Screen.print("VISION: SERIAL OFF ");
-      hardware_.controller.Screen.setCursor(3, 1);
-      hardware_.controller.Screen.print(
-          "ERR:%2d TS:%4d ",
-          vision.external_link.parse_error_count,
-          vision.external_link.last_source_timestamp_ms);
-      return;
-    }
-
-    hardware_.controller.Screen.setCursor(2, 1);
-    hardware_.controller.Screen.print(
-        "T:%4d C:%c I:%1d ",
-        vision.last_detection.source_timestamp_ms,
-        vision.external_link.reported_color_code,
-        vision.last_detection.class_id);
-
-    hardware_.controller.Screen.setCursor(3, 1);
-    if (auto_mode_ == AutoMode::kIntercept) {
-      hardware_.controller.Screen.print(
-          "S:%5.0f B:%5.0f %c ",
-          intercept_state_.world_s_robot_mm,
-          intercept_state_.history_count > 0
-              ? intercept_state_.history[intercept_state_.history_count - 1].z_mm
-              : 0.0,
-          intercept_state_.target_pose == InterceptPose::kLeft45
-              ? 'L'
-              : (intercept_state_.target_pose == InterceptPose::kRight45 ? 'R' : 'F'));
-      return;
-    }
-
-    hardware_.controller.Screen.print(
-        "X:%3d Y:%3d    ",
-        static_cast<int>(vision.last_detection.bbox_px.x),
-        static_cast<int>(vision.last_detection.bbox_px.y));
+    return;
   }
 
   void show_mode_status() {
-    show_vision_status();
+    return;
+  }
+
+  void print_intercept_debug(int now_ms, const FootballVisionState& vision) {
+    if (!intercept_debug_print_enabled_ || auto_mode_ != AutoMode::kIntercept) {
+      return;
+    }
+
+    const bool has_ball = has_live_intercept_target(vision, now_ms);
+    printf(
+        "ts=%d S=%.1f B=%.1f ball=%d\n",
+        now_ms,
+        current_intercept_line_position_mm(),
+        current_gimbal_relative_deg(),
+        has_ball ? 1 : 0);
   }
 
   RobotHardware hardware_;
@@ -1090,6 +879,7 @@ class FootballRobotPlus final : public basic::app::Robot {
   bool fr_test_spin_{false};
   bool bl_test_spin_{false};
   bool br_test_spin_{false};
+  bool intercept_debug_print_enabled_{false};
   int pose_readout_until_ms_{0};
 
   friend FootballRobotPlus& current_football_robot_plus();

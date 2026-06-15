@@ -3,12 +3,14 @@
 
 #include "hardware/football_robot_plus/vision.h"
 #include "hardware/shared/state_types.h"
+#include "mechanism/camera_gimbal.h"
 
 namespace basic::hardware::football_robot_plus {
 
 struct RobotState {
   basic::hardware::shared::ControllerInputState controller;
   FootballVisionState vision;
+  basic::mechanism::CameraGimbalState camera_gimbal;
   basic::hardware::shared::AutonomousState autonomous;
 };
 
