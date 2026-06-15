@@ -38,11 +38,11 @@ inline constexpr double kGimbalTrackToleranceDeg = 2.0;
 inline constexpr double kGimbalTrackGainPctPerDeg = 2.2;
 inline constexpr double kGimbalTrackMinPct = 8.0;
 inline constexpr double kGimbalTrackMaxPct = 35.0;
-inline constexpr double kGimbalTrackDirectionSign = 1.0;
+inline constexpr double kGimbalTrackDirectionSign = -1.0;
 inline constexpr double kInterceptGimbalCenterToleranceDeg = 5.0;
-inline constexpr double kInterceptStrafeGainPctPerDeg = 2.4;
-inline constexpr double kInterceptStrafeMinPct = 12.0;
-inline constexpr double kInterceptStrafeMaxPct = 38.0;
+inline constexpr double kInterceptStrafeGainPctPerDeg = 20.0;
+inline constexpr double kInterceptStrafeMinPct = 14.0;
+inline constexpr double kInterceptStrafeMaxPct = 100.0;
 inline constexpr double kInterceptStrafeDirectionSign = 1.0;
 inline constexpr double kInterceptHeadingHoldToleranceDeg = 2.0;
 inline constexpr double kInterceptHeadingHoldGainPctPerDeg = 1.0;
@@ -153,7 +153,7 @@ FootballVisionConfig default_vision_config_for_sensor() {
   config.camera_extrinsics.pitch_deg = 0.0;
   // Camera is mounted upside down, so rotate its image axes 180 deg about
   // the optical axis before interpreting detections in robot coordinates.
-  config.camera_extrinsics.yaw_deg = 180.0;
+  config.camera_extrinsics.yaw_deg = 0.0;
   return config;
 }
 
@@ -507,7 +507,8 @@ class FootballRobotPlus final : public basic::app::Robot {
     const bool has_live_ball = has_live_intercept_target(vision, now_ms);
     if (!has_live_ball) {
       run_intercept_gimbal_scan_step();
-      apply_drive_request(0.0, 0.0, make_intercept_heading_hold_turn_pct(), vex::hold);
+      // 没有目标时只扫云台，底盘保持静止。
+      stop_drive(vex::hold);
       return;
     }
 
