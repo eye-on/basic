@@ -24,7 +24,7 @@ inline constexpr double kPrimarySequenceSpeedPct = 30.0;
 inline constexpr double kSecondaryAngleADeg = 0.0;
 inline constexpr double kSecondaryAngleBDeg = -112.0;
 inline constexpr double kSecondaryAngleSpeedPct = 30.0;
-inline constexpr double kSecondaryAngleToleranceDeg = 5.0;
+inline constexpr double kSecondaryAngleToleranceDeg = 3.0;
 /// 左前轮（Front-Left）PID 参数
 inline constexpr basic::control::pid::Pid::Config kFlPidCfg{
     0.3, 0.05, 0.001,
