@@ -441,11 +441,24 @@ class FootballRobotPlus final : public basic::app::Robot {
     sync_camera_gimbal_state();
   }
 
+  void run_dual_motor_actuator_manual_step() {
+    basic::mechanism::DualMotorActuatorCommand command;
+    command.run_primary_sequence = state_.controller.press_x;
+    command.toggle_secondary_target_state = state_.controller.press_a;
+    if (!command.run_primary_sequence && !command.toggle_secondary_target_state) {
+      return;
+    }
+
+    basic::mechanism::dual_motor_actuator_update(hardware_.dual_motor_actuator, command);
+    sync_dual_motor_actuator_state();
+  }
+
   void run_manual_control_step() {
     static vex::motor& fl_motor = basic::chassis::x_chassis_fl_motor(hardware_.football_chassis);
     static vex::motor& fr_motor = basic::chassis::x_chassis_fr_motor(hardware_.football_chassis);
     static vex::motor& bl_motor = basic::chassis::x_chassis_bl_motor(hardware_.football_chassis);
     static vex::motor& br_motor = basic::chassis::x_chassis_br_motor(hardware_.football_chassis);
+    run_dual_motor_actuator_manual_step();
     // L1/L2/R1/R2 ????????????��??????????????????
     if (state_.controller.press_l1) fl_test_spin_ = !fl_test_spin_;
     if (state_.controller.press_l2) fr_test_spin_ = !fr_test_spin_;
