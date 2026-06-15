@@ -9,10 +9,10 @@ namespace basic::hardware::football_robot_plus {
 
 inline constexpr int kRefreshTime = 10;
 inline constexpr double kDriveOutputLimitPct = 70.0;
-inline const int kFrontLeftMotorPort = vex::PORT1;
-inline const int kBackLeftMotorPort = vex::PORT12;
-inline const int kFrontRightMotorPort = vex::PORT19;
-inline const int kBackRightMotorPort = vex::PORT10;
+inline const int kFrontLeftMotorPort = vex::PORT10;
+inline const int kBackLeftMotorPort = vex::PORT8;
+inline const int kFrontRightMotorPort = vex::PORT1;
+inline const int kBackRightMotorPort = vex::PORT2;
 /// 左前轮（Front-Left）PID 参数
 inline constexpr basic::control::pid::Pid::Config kFlPidCfg{
     0.5, 0.0, 0.0,
@@ -40,7 +40,7 @@ inline constexpr basic::control::pid::Pid::Config kBrPidCfg{
 struct RobotHardware {
   vex::brain brain;
   vex::controller controller{vex::controllerType::primary};
-  vex::inertial inertial{vex::PORT11};
+  vex::inertial inertial{vex::PORT19};
   ExternalVisionSerial external_vision;
   basic::chassis::XChassis football_chassis;
 

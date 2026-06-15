@@ -86,9 +86,9 @@ FootballVisionConfig default_vision_config_for_sensor() {
   config.camera.k3 = 0.517875520;
   config.football_diameter_mm = kDefaultFootballDiameterMm;
   config.expected_class_id = -1;
-  config.camera_extrinsics.x_mm = 0.0;
+  config.camera_extrinsics.x_mm = -50.0;
   config.camera_extrinsics.y_mm = 0.0;
-  config.camera_extrinsics.z_mm = 0.0;
+  config.camera_extrinsics.z_mm = 150.0;
   config.camera_extrinsics.roll_deg = 0.0;
   config.camera_extrinsics.pitch_deg = 0.0;
   config.camera_extrinsics.yaw_deg = 0.0;
