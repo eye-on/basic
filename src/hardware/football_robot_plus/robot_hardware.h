@@ -61,7 +61,7 @@ struct RobotHardware {
   RobotHardware()
       : external_vision(kExternalVisionPort),
         camera_gimbal(basic::mechanism::camera_gimbal_init({
-            {kCameraGimbalMotorPort, vex::ratio36_1, false},
+            {kCameraGimbalMotorPort, vex::ratio6_1, false},
         })),
         dual_motor_actuator(basic::mechanism::dual_motor_actuator_init({
             {kPrimarySequenceMotorPort, vex::ratio36_1, false},
@@ -76,16 +76,16 @@ struct RobotHardware {
         })),
         football_chassis(basic::chassis::x_chassis_init({
             {{
-                {kFrontLeftMotorPort, vex::ratio18_1, true},
+                {kFrontLeftMotorPort, vex::ratio18_1, false},
             }},
             {{
-                {kFrontRightMotorPort, vex::ratio18_1, false},
+                {kFrontRightMotorPort, vex::ratio18_1, true},
             }},
             {{
-                {kBackLeftMotorPort, vex::ratio18_1, true},
+                {kBackLeftMotorPort, vex::ratio18_1, false},
             }},
             {{
-                {kBackRightMotorPort, vex::ratio18_1, false},
+                {kBackRightMotorPort, vex::ratio18_1, true},
             }},
             2,
             {{kFlPidCfg}},
