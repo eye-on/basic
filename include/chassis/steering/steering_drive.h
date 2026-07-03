@@ -134,6 +134,14 @@ public:
 
   const SteeringKinematicsConfig& kinematics_config() const { return kinematics_config_; }
 
+  /// 四轮机械标零
+  void calibrate_zero() {
+    fr_.calibrate_zero();
+    fl_.calibrate_zero();
+    br_.calibrate_zero();
+    bl_.calibrate_zero();
+  }
+
 private:
   WheelUnit fr_;
   WheelUnit fl_;
@@ -189,6 +197,11 @@ inline void steering_update(SteeringDrive& chassis, const ArcadeDriveCommand& co
   chassis.fl().control(2 * targets.fl.velocity_pct, targets.fl.heading_degrees, brake);
   chassis.br().control(2 * targets.br.velocity_pct, targets.br.heading_degrees, brake);
   chassis.bl().control(2 * targets.bl.velocity_pct, targets.bl.heading_degrees, brake);
+}
+
+/// 舵轮底盘机械标零
+inline void steering_calibrate_zero(SteeringDrive& chassis) {
+  chassis.calibrate_zero();
 }
 
 }  // namespace basic::chassis::steering

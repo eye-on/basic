@@ -54,6 +54,9 @@ struct WheelUnitConfig {
   double motor_max_rpm{600};  // 电机最高转速（蓝盒600，绿盒200，红盒100）
   double initial_angle_a{0.0};  // 手动标定时设置编码器零点 A，为 0 则自动捕获
   double initial_angle_b{0.0};  // 手动标定时设置编码器零点 B，为 0 则自动捕获
+  int32_t rotation_port{-1};     // rotation sensor 端口，-1 表示不使用
+  bool rotation_reversed{false}; // rotation sensor 是否反转
+  double rotation_offset{0.0};   // 标定偏移：轮子物理指向 0° 时 rotation.angle() 的值
 };
 
 struct WheelUnitState {
@@ -79,6 +82,10 @@ class WheelUnit {
   const double pct_to_mps_factor_;
   /// 轮组极速 (m/s) = motor_max_rpm / 60 × 轮周长
   const double wheel_max_speed_mps_;
+  /// 绝对编码器（可选，用于断电保持航向）
+  vex::rotation* rotation_{nullptr};
+  /// rotation sensor 标零偏移量
+  double rotation_offset_{0.0};
 
 public:
   WheelUnit(vex::motor&& motor_a, vex::motor&& motor_b,
@@ -88,7 +95,9 @@ public:
              const basic::control::pid::Pid::Config& avpid_cfg,
              const first_order_adrc::Controller::Config& adrc_a_cfg,
              const first_order_adrc::Controller::Config& adrc_b_cfg,
-             double motor_max_rpm)
+             double motor_max_rpm,
+             vex::rotation* rotation = nullptr,
+             double rotation_offset = 0.0)
       : motor_a_(std::move(motor_a)),
         motor_b_(std::move(motor_b)),
         state_{0.0, 0.0, 0.0, init_angle_a, init_angle_b},
@@ -98,15 +107,36 @@ public:
         adrc_a_(adrc_a_cfg),
         adrc_b_(adrc_b_cfg),
         pct_to_mps_factor_(motor_max_rpm / 100.0 / 60.0 * kWheelCircumference),
-        wheel_max_speed_mps_(motor_max_rpm / 60.0 * kWheelCircumference) {}
+        wheel_max_speed_mps_(motor_max_rpm / 60.0 * kWheelCircumference),
+        rotation_(rotation),
+        rotation_offset_(rotation_offset) {}
 
   double wheel_max_speed_mps() const { return wheel_max_speed_mps_; }
   double heading() const { return state_.heading; }
 
-  /// 打印当前编码器位置与航向（用于手动标定 initial_angle）
+  /// 机械标零：将当前物理位置记录为航向 0°，重置所有控制器
+  void calibrate_zero() {
+    if (rotation_ != nullptr) {
+      rotation_offset_ = rotation_->angle(vex::deg);
+    } else {
+      state_.initial_angle_a = motor_a_.position(vex::deg);
+      state_.initial_angle_b = motor_b_.position(vex::deg);
+    }
+    velocity_pid.reset();
+    heading_pid.reset();
+    angular_velocity_pid.reset();
+    update();
+  }
+
+  /// 打印当前编码器位置与航向（用于手动标定）
   void print_position() {
-    printf("  motor_a=%.1f deg  motor_b=%.1f deg  heading=%.1f deg\n",
-           motor_a_.position(vex::deg), motor_b_.position(vex::deg), state_.heading);
+    if (rotation_ != nullptr) {
+      printf("  rot_angle=%.1f deg  rot_offset=%.1f deg  heading=%.1f deg\n",
+             rotation_->angle(vex::deg), rotation_offset_, state_.heading);
+    } else {
+      printf("  motor_a=%.1f deg  motor_b=%.1f deg  heading=%.1f deg\n",
+             motor_a_.position(vex::deg), motor_b_.position(vex::deg), state_.heading);
+    }
   }
 
   void update() {
@@ -116,8 +146,13 @@ public:
     const double vel_a = motor_a_.velocity(vex::pct);
     const double vel_b = motor_b_.velocity(vex::pct);
 
-    // 差速器：heading/steer=两电机平均×齿轮比, vel=差速÷2
-    state_.heading = detail::wrap_180((angle_a + angle_b) * 0.5 * kSteerGearRatio);
+    // 航向：优先使用绝对编码器（rotation sensor），否则用电机差速推算
+    if (rotation_ != nullptr) {
+      state_.heading = detail::wrap_180(rotation_->angle(vex::deg) - rotation_offset_);
+    } else {
+      state_.heading = detail::wrap_180((angle_a + angle_b) * 0.5 * kSteerGearRatio);
+    }
+    // steer/vel=差速器解算
     state_.steer_velocity = (vel_a + vel_b) * 0.5 * kSteerGearRatio;
     state_.velocity = (vel_a - vel_b) * 0.5 * kWheelGearRatio;
   }
@@ -195,6 +230,12 @@ inline WheelUnit make_wheel_unit(const WheelUnitConfig& config) {
     init_angle_b = motor_b.position(vex::deg);
   }
 
+  // 构造绝对编码器（若已安装）
+  vex::rotation* rotation = nullptr;
+  if (config.rotation_port >= 0) {
+    rotation = new vex::rotation(config.rotation_port, config.rotation_reversed);
+  }
+
   return WheelUnit{
       std::move(motor_a),
       std::move(motor_b),
@@ -206,6 +247,8 @@ inline WheelUnit make_wheel_unit(const WheelUnitConfig& config) {
       config.adrc_a,
       config.adrc_b,
       config.motor_max_rpm,
+      rotation,
+      config.rotation_offset,
   };
 }
 }  // namespace detail

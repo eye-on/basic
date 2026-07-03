@@ -48,6 +48,11 @@ inline void new_chassis_stop(
   new_chassis_update(chassis, stop_command);
 }
 
+/// 机械标零：将底盘四个舵轮当前物理位置记录为航向 0°
+inline void new_chassis_calibrate_zero(NewChassis& chassis) {
+  basic::chassis::steering::steering_calibrate_zero(chassis);
+}
+
 inline NewChassisState& new_chassis_state(NewChassis& chassis) {
   return chassis.state();
 }
