@@ -39,7 +39,9 @@ inline double shortest_path_target(double target, double current) {
 }  // namespace detail
 
 constexpr double kSteerGearRatio = 23.0 / 92.0;
+constexpr double kHalfSteerGearRatio = kSteerGearRatio * 0.5;  // 预计算，避免每帧乘法
 constexpr double kWheelGearRatio = 1.0;
+constexpr double kHalfWheelGearRatio = kWheelGearRatio * 0.5;  // = 0.5
 constexpr double kWheelRadiusMm = 25.0;
 constexpr double kWheelCircumference = 2.0 * M_PI * kWheelRadiusMm * 1e-3; // m
 
@@ -57,6 +59,18 @@ struct WheelUnitConfig {
   int32_t rotation_port{-1};     // rotation sensor 端口，-1 表示不使用
   bool rotation_reversed{false}; // rotation sensor 是否反转
   double rotation_offset{0.0};   // 标定偏移：轮子物理指向 0° 时 rotation.angle() 的值
+
+  /// 便捷构造：统一 PID 配置，ADRC 使用默认值
+  static inline WheelUnitConfig simple(
+      basic::device::MotorConfig motor_a,
+      basic::device::MotorConfig motor_b,
+      const basic::control::pid::Pid::Config& velo_pid,
+      const basic::control::pid::Pid::Config& head_pid,
+      const basic::control::pid::Pid::Config& av_pid,
+      double max_rpm = 200) {
+    return {motor_a, motor_b, velo_pid, head_pid, av_pid,
+            {}, {}, max_rpm};
+  }
 };
 
 struct WheelUnitState {
@@ -150,11 +164,11 @@ public:
     if (rotation_ != nullptr) {
       state_.heading = detail::wrap_180(rotation_->angle(vex::deg) - rotation_offset_);
     } else {
-      state_.heading = detail::wrap_180((angle_a + angle_b) * 0.5 * kSteerGearRatio);
+      state_.heading = detail::wrap_180((angle_a + angle_b) * kHalfSteerGearRatio);
     }
     // steer/vel=差速器解算
-    state_.steer_velocity = (vel_a + vel_b) * 0.5 * kSteerGearRatio;
-    state_.velocity = (vel_a - vel_b) * 0.5 * kWheelGearRatio;
+    state_.steer_velocity = (vel_a + vel_b) * kHalfSteerGearRatio;
+    state_.velocity = (vel_a - vel_b) * kHalfWheelGearRatio;
   }
 
   void control(double target_velocity_pct,

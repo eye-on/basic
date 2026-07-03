@@ -8,14 +8,18 @@
 #include "wheel_unit.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
+#include <tuple>
 #include <utility>
 
 namespace basic::chassis::steering {
 
 constexpr double kRadToDeg = 180.0 / M_PI;
+/// 速度缩放因子：运动学输出 ≤100pct，实际需更大驱动力克服地面摩擦（经验值）
+constexpr double kVelocityScaleFactor = 2.0;
+/// square_to_circle 归一化常量：0.5 / 100²，预计算避免每帧两次除法
+constexpr double kSqToCircleNorm = 0.5 / (100.0 * 100.0);  // = 0.00005
 
 enum class ControllerAxis {
   kAxis1,
@@ -43,6 +47,16 @@ struct SteeringKinematicsConfig {
   double half_wheelbase_ratio{0.707};   // hw / √(hw²+ht²), ω=100时各轮 speed=100
   /// 半轮距 / 回转半径，无因次比值
   double half_track_width_ratio{0.707}; // ht / √(hw²+ht²)
+
+  /// 从物理尺寸构造（半轴距, 半轮距，单位一致即可）
+  /// 例如 from_dimensions(120.0, 100.0) → {0.768, 0.640}
+  static inline SteeringKinematicsConfig from_dimensions(
+      double half_wheelbase, double half_track) {
+    const double r = std::sqrt(half_wheelbase * half_wheelbase +
+                               half_track * half_track);
+    if (r == 0.0) return {0.707, 0.707};  // 防御除零
+    return {half_wheelbase / r, half_track / r};
+  }
 };
 
 struct WheelTarget {
@@ -60,10 +74,8 @@ struct SteeringKinematicsResult {
 /// 矩形→圆映射（FG mapping），消除摇杆对角线超速
 /// 输入/输出均在 pct 域 [-100, 100]，映射是齐次的无需归一化
 inline std::pair<double, double> square_to_circle(double x, double y) {
-  const double x_norm = x / 100.0;
-  const double y_norm = y / 100.0;
-  const double u = x * std::sqrt(1.0 - 0.5 * y_norm * y_norm);
-  const double v = y * std::sqrt(1.0 - 0.5 * x_norm * x_norm);
+  const double u = x * std::sqrt(1.0 - kSqToCircleNorm * y * y);
+  const double v = y * std::sqrt(1.0 - kSqToCircleNorm * x * x);
   return {u, v};
 }
 
@@ -159,31 +171,34 @@ inline SteeringDrive steering_init(const SteeringDriveConfig& config) {
 inline int controller_axis_value(
     const basic::hardware::shared::ControllerInputState& input,
     ControllerAxis axis) {
-  switch (axis) {
-    case ControllerAxis::kAxis1:
-      return input.axis1;
-    case ControllerAxis::kAxis2:
-      return input.axis2;
-    case ControllerAxis::kAxis3:
-      return input.axis3;
-    case ControllerAxis::kAxis4:
-    default:
-      return input.axis4;
-  }
+  if (axis == ControllerAxis::kAxis1) return input.axis1;
+  if (axis == ControllerAxis::kAxis2) return input.axis2;
+  if (axis == ControllerAxis::kAxis3) return input.axis3;
+  return input.axis4;
+}
+
+/// 摇杆死区（pct 域）
+inline double apply_deadzone(double pct, int threshold) {
+  return (std::abs(pct) < threshold) ? 0.0 : pct;
 }
 
 inline void steering_update(SteeringDrive& chassis, const ArcadeDriveCommand& command) {
   const vex::brakeType brake = command.stop_brake_type;
-
-  // 摇杆死区（pct 域）
   const int dz = chassis.deadzone();
-  auto deadzone = [dz](double pct) { return (std::abs(pct) < dz) ? 0.0 : pct; };
-  const double vx = deadzone(command.vx_pct);
-  const double vy = deadzone(command.vy_pct);
-  const double omega = deadzone(command.omega_pct);
 
-  // 矩形→圆映射，消除对角线超速
-  auto [vx_mapped, vy_mapped] = square_to_circle(vx, vy);
+  // 摇杆死区
+  const double vx = apply_deadzone(command.vx_pct, dz);
+  const double vy = apply_deadzone(command.vy_pct, dz);
+  const double omega = apply_deadzone(command.omega_pct, dz);
+
+  // 矩形→圆映射（vx 或 vy 为零时映射无效果，跳过 sqrt）
+  double vx_mapped, vy_mapped;
+  if (vx == 0.0 || vy == 0.0) {
+    vx_mapped = vx;
+    vy_mapped = vy;
+  } else {
+    std::tie(vx_mapped, vy_mapped) = square_to_circle(vx, vy);
+  }
 
   chassis.state().vx_pct = vx_mapped;
   chassis.state().vy_pct = vy_mapped;
@@ -193,10 +208,11 @@ inline void steering_update(SteeringDrive& chassis, const ArcadeDriveCommand& co
   const SteeringKinematicsResult targets = steering_kinematics_solve(
       vx_mapped, vy_mapped, omega, chassis.kinematics_config());
 
-  chassis.fr().control(2 * targets.fr.velocity_pct, targets.fr.heading_degrees, brake);
-  chassis.fl().control(2 * targets.fl.velocity_pct, targets.fl.heading_degrees, brake);
-  chassis.br().control(2 * targets.br.velocity_pct, targets.br.heading_degrees, brake);
-  chassis.bl().control(2 * targets.bl.velocity_pct, targets.bl.heading_degrees, brake);
+  // 速度缩放补偿（经验值）
+  chassis.fr().control(kVelocityScaleFactor * targets.fr.velocity_pct, targets.fr.heading_degrees, brake);
+  chassis.fl().control(kVelocityScaleFactor * targets.fl.velocity_pct, targets.fl.heading_degrees, brake);
+  chassis.br().control(kVelocityScaleFactor * targets.br.velocity_pct, targets.br.heading_degrees, brake);
+  chassis.bl().control(kVelocityScaleFactor * targets.bl.velocity_pct, targets.bl.heading_degrees, brake);
 }
 
 /// 舵轮底盘机械标零
