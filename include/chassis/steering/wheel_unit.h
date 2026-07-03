@@ -52,6 +52,8 @@ struct WheelUnitConfig {
   first_order_adrc::Controller::Config adrc_a;
   first_order_adrc::Controller::Config adrc_b;
   double motor_max_rpm{600};  // 电机最高转速（蓝盒600，绿盒200，红盒100）
+  double initial_angle_a{0.0};  // 手动标定时设置编码器零点 A，为 0 则自动捕获
+  double initial_angle_b{0.0};  // 手动标定时设置编码器零点 B，为 0 则自动捕获
 };
 
 struct WheelUnitState {
@@ -100,6 +102,12 @@ public:
 
   double wheel_max_speed_mps() const { return wheel_max_speed_mps_; }
   double heading() const { return state_.heading; }
+
+  /// 打印当前编码器位置与航向（用于手动标定 initial_angle）
+  void print_position() {
+    printf("  motor_a=%.1f deg  motor_b=%.1f deg  heading=%.1f deg\n",
+           motor_a_.position(vex::deg), motor_b_.position(vex::deg), state_.heading);
+  }
 
   void update() {
     const double angle_a = motor_a_.position(vex::deg) - state_.initial_angle_a;
@@ -175,9 +183,17 @@ namespace detail {
 inline WheelUnit make_wheel_unit(const WheelUnitConfig& config) {
   vex::motor motor_a{config.motor_a.port, config.motor_a.gear_ratio, config.motor_a.reversed};
   vex::motor motor_b{config.motor_b.port, config.motor_b.gear_ratio, config.motor_b.reversed};
-  vex::this_thread::sleep_for(50);
-  const double init_angle_a = motor_a.position(vex::deg);
-  const double init_angle_b = motor_b.position(vex::deg);
+  // 手动标定：config 中 initial_angle 非零则使用配置值，否则自动捕获编码器位置
+  const bool manual_calib = config.initial_angle_a != 0.0 || config.initial_angle_b != 0.0;
+  double init_angle_a, init_angle_b;
+  if (manual_calib) {
+    init_angle_a = config.initial_angle_a;
+    init_angle_b = config.initial_angle_b;
+  } else {
+    vex::this_thread::sleep_for(50);
+    init_angle_a = motor_a.position(vex::deg);
+    init_angle_b = motor_b.position(vex::deg);
+  }
 
   return WheelUnit{
       std::move(motor_a),
