@@ -10,19 +10,18 @@ inline constexpr int kRefreshTime = 10;
 inline constexpr int kSensorLoopDelay = 50;
 
 inline constexpr basic::control::pid::Pid::Config kVeloPidCfg{
-    0.7, 0.0, 0.0,
-    -100.0, 100.0, -10.0, 10.0, 3,
-    basic::control::pid::Type::kIncremental};
+    200.0, 0.0, 0.0,
+    -200.0, 200.0, -200.0, 200.0, 0.05};   
+
+//{30, 0.5, 0.0,-200.0, 200.0, -50.0, 50.0, 0.05}
 
 inline constexpr basic::control::pid::Pid::Config kHeadingPidCfg{
-    1, 0.0, 0.0,
-    -100, 100, -1000.0, 1000.0, 1};
+    1.0, 0.0, 0.0,
+    -25.0, 25.0, -1000.0, 1000.0, 0.5};  
 
 inline constexpr basic::control::pid::Pid::Config kAngularVelocityPidCfg{
-    0.5, 0.0, 0.0,
-    -100.0, 100.0, -10.0, 10.0, 1,
-    basic::control::pid::Type::kIncremental};
-
+    6.0, 0.0, 0.0,
+    -100.0, 100.0, -10.0, 10.0, 0.5};   
 inline constexpr first_order_adrc::Controller::Config kAdrcCfg;
 
 struct RobotHardware {
@@ -31,45 +30,49 @@ struct RobotHardware {
   vex::inertial inertial{vex::PORT11};
   basic::chassis::NewChassis new_chassis;
 
-  RobotHardware()
+  RobotHardware() //fr fl br bl
       : new_chassis(basic::chassis::new_chassis_init({
             {
+                {vex::PORT3, vex::ratio18_1, true},
+                {vex::PORT2, vex::ratio18_1, true},
+                kVeloPidCfg,
+                kHeadingPidCfg,
+                kAngularVelocityPidCfg,
+                kAdrcCfg,
+                kAdrcCfg,
+                200
+            },
+            {
                 {vex::PORT12, vex::ratio18_1, true},
-                {vex::PORT20, vex::ratio18_1, true},
+                {vex::PORT13, vex::ratio18_1, true},
                 kVeloPidCfg,
                 kHeadingPidCfg,
                 kAngularVelocityPidCfg,
                 kAdrcCfg,
                 kAdrcCfg,
+                200
             },
             {
-                {vex::PORT3, vex::ratio6_1, true},
-                {vex::PORT4, vex::ratio6_1, true},
+                {vex::PORT10, vex::ratio18_1, true},
+                {vex::PORT9, vex::ratio18_1, true},
                 kVeloPidCfg,
                 kHeadingPidCfg,
                 kAngularVelocityPidCfg,
                 kAdrcCfg,
                 kAdrcCfg,
+                200
             },
             {
-                {vex::PORT5, vex::ratio6_1, true},
-                {vex::PORT6, vex::ratio6_1, true},
+                {vex::PORT19, vex::ratio18_1, true},
+                {vex::PORT18, vex::ratio18_1, true},
                 kVeloPidCfg,
                 kHeadingPidCfg,
                 kAngularVelocityPidCfg,
                 kAdrcCfg,
                 kAdrcCfg,
+                200
             },
-            {
-                {vex::PORT7, vex::ratio6_1, true},
-                {vex::PORT8, vex::ratio6_1, true},
-                kVeloPidCfg,
-                kHeadingPidCfg,
-                kAngularVelocityPidCfg,
-                kAdrcCfg,
-                kAdrcCfg,
-            },
-            1,
+            5,
         })) {}
 
   void calibrate_inertial_sensor() {

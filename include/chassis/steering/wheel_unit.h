@@ -22,6 +22,15 @@ inline double wrap_180(double angle) {
   return angle;
 }
 
+/// 将角度差映射到 [-90, 90]，±180° 等价于 0°
+/// 用于舵轮航向规划：轮组 0° 和 180° 驱动效果相同（仅轮速反向）
+inline double wrap_90(double diff) {
+  diff = wrap_180(diff);
+  if (diff > 90.0) diff -= 180.0;
+  else if (diff < -90.0) diff += 180.0;
+  return diff;
+}
+
 /// 计算从 current 到 target 的最短路径目标值
 inline double shortest_path_target(double target, double current) {
   return current + wrap_180(target - current);
@@ -29,10 +38,9 @@ inline double shortest_path_target(double target, double current) {
 
 }  // namespace detail
 
-constexpr double kSteerGearRatio = 11.0 / 62.0;
-constexpr double kHalfSteerGearRatio = kSteerGearRatio * 0.5;
+constexpr double kSteerGearRatio = 23.0 / 92.0;
 constexpr double kWheelGearRatio = 1.0;
-constexpr double kWheelRadiusMm = 50.0;
+constexpr double kWheelRadiusMm = 25.0;
 constexpr double kWheelCircumference = 2.0 * M_PI * kWheelRadiusMm * 1e-3; // m
 
 struct WheelUnitConfig {
@@ -67,6 +75,8 @@ class WheelUnit {
   /// pct → m/s 转换因子（构造时预计算，避免每帧重复运算）
   /// mps = pct × factor, 其中 factor = max_rpm / 100 / 60 × 2πr
   const double pct_to_mps_factor_;
+  /// 轮组极速 (m/s) = motor_max_rpm / 60 × 轮周长
+  const double wheel_max_speed_mps_;
 
 public:
   WheelUnit(vex::motor&& motor_a, vex::motor&& motor_b,
@@ -85,7 +95,11 @@ public:
         angular_velocity_pid(avpid_cfg),
         adrc_a_(adrc_a_cfg),
         adrc_b_(adrc_b_cfg),
-        pct_to_mps_factor_(motor_max_rpm / 100.0 / 60.0 * kWheelCircumference) {}
+        pct_to_mps_factor_(motor_max_rpm / 100.0 / 60.0 * kWheelCircumference),
+        wheel_max_speed_mps_(motor_max_rpm / 60.0 * kWheelCircumference) {}
+
+  double wheel_max_speed_mps() const { return wheel_max_speed_mps_; }
+  double heading() const { return state_.heading; }
 
   void update() {
     const double angle_a = motor_a_.position(vex::deg) - state_.initial_angle_a;
@@ -94,51 +108,66 @@ public:
     const double vel_a = motor_a_.velocity(vex::pct);
     const double vel_b = motor_b_.velocity(vex::pct);
 
-    // 直接写入 state_，避免创建中间局部变量
-    state_.heading = (angle_a + angle_b) * kHalfSteerGearRatio;
-    state_.steer_velocity = (vel_a + vel_b) * kHalfSteerGearRatio;
-    state_.velocity = (vel_a - vel_b) * kWheelGearRatio * 0.5;
+    // 差速器：heading/steer=两电机平均×齿轮比, vel=差速÷2
+    state_.heading = detail::wrap_180((angle_a + angle_b) * 0.5 * kSteerGearRatio);
+    state_.steer_velocity = (vel_a + vel_b) * 0.5 * kSteerGearRatio;
+    state_.velocity = (vel_a - vel_b) * 0.5 * kWheelGearRatio;
   }
 
-  void control(double target_velocity_mps,
+  void control(double target_velocity_pct,
                double target_heading,
                vex::brakeType brake_type) {
     update();
 
-    // 航向误差（一次 wrap_180，两处复用：路径规划 + 复位判定）
-    const double heading_error = detail::wrap_180(target_heading - state_.heading);
+    // 轮速目标 pct → m/s（运动学输出为 pct，在此处转为物理量）
+    const double target_mps = target_velocity_pct / 100.0 * wheel_max_speed_mps_;
+    // 反馈值 pct → m/s
+    const double feedback_mps = state_.velocity * pct_to_mps_factor_;
 
-    // 航向角位置环
-    const auto heading_result = heading_pid.update(
-        state_.heading + heading_error, state_.heading);
+    // 航向误差（模 180°：0°与180°等价），取短路径，映射到 [-90, 90]
+    const double raw_error = detail::wrap_180(target_heading - state_.heading);
+    const double heading_error = detail::wrap_90(raw_error);
+    const bool flip = std::abs(raw_error) > 90.0;
+
+    // 航向角位置环 — 以 heading_error 为 setpoint、0 为 feedback
+    // PID 内部 error = heading_error - 0 = heading_error
+    const auto heading_result = heading_pid.update(heading_error, 0.0);
 
     // 航向角速度环
     const auto steer_result = angular_velocity_pid.update(
         heading_result.ctrl, state_.steer_velocity);
 
-    // 反馈值 pct → m/s
-    const double feedback_mps = state_.velocity * pct_to_mps_factor_;
-
-    // 轮速环
-    const auto velocity_result = velocity_pid.update(target_velocity_mps, feedback_mps);
+    // 轮速环（翻转时速度取反，轮速反向等效于航向转180°）
+    const double effective_target_mps = flip ? -target_mps : target_mps;
+    const auto velocity_result = velocity_pid.update(effective_target_mps, feedback_mps);
 
     // 复位判定（复用 heading_error，避免二次 wrap_180）
-    if (std::abs(heading_error) < 0.5 && std::abs(state_.steer_velocity) < 1.0) {
+    if (std::abs(heading_error) < 0.5 && std::abs(state_.steer_velocity) < 0.5) {
       heading_pid.reset();
       angular_velocity_pid.reset();
     }
-    if (std::abs(target_velocity_mps) < 0.01 && std::abs(feedback_mps) < 0.01) {
+    if (std::abs(effective_target_mps) < 0.01 && std::abs(feedback_mps) < 0.01) {
       velocity_pid.reset();
     }
 
     // 组合输出，超限时等比例缩放
     const double v = velocity_result.ctrl;
     const double s = steer_result.ctrl;
-    const double max_abs = std::max(std::abs(v + s), std::abs(-v + s));
+    const double a_speed =0.5 * (v + s);
+    const double b_speed =0.5 * (-v + s);
+    const double max_abs = std::max(std::abs(a_speed), std::abs(b_speed));
     const double scale = (max_abs > 100.0) ? (100.0 / max_abs) : 1.0;
 
-    basic::control::adrc_torque_control(motor_a_, (v + s) * scale, adrc_a_);
-    basic::control::adrc_torque_control(motor_b_, (-v + s) * scale, adrc_b_);
+    //basic::control::adrc_torque_control(motor_a_, a_speed * scale, adrc_a_);
+    //basic::control::adrc_torque_control(motor_b_, b_speed * scale, adrc_b_);
+    basic::control::velocitycontrol(motor_a_, a_speed * scale, vex::pct);
+    basic::control::velocitycontrol(motor_b_, b_speed * scale, vex::pct);
+
+    /*printf("W|v_in:%.0f v_tgt:%.2f v_fb:%.2f v_out:%.0f | h_tgt:%.0f h_fb:%.0f h_err:%.0f h_out:%.0f | s_out:%.0f a:%.0f b:%.0f\n",
+           target_velocity_pct, target_mps, feedback_mps, v * scale,
+           target_heading, state_.heading, heading_error, heading_result.ctrl,
+           s * scale,
+           a_speed * scale, b_speed * scale);*/
   }
 };
 
@@ -146,7 +175,7 @@ namespace detail {
 inline WheelUnit make_wheel_unit(const WheelUnitConfig& config) {
   vex::motor motor_a{config.motor_a.port, config.motor_a.gear_ratio, config.motor_a.reversed};
   vex::motor motor_b{config.motor_b.port, config.motor_b.gear_ratio, config.motor_b.reversed};
-  vex::this_thread::sleep_for(10);
+  vex::this_thread::sleep_for(50);
   const double init_angle_a = motor_a.position(vex::deg);
   const double init_angle_b = motor_b.position(vex::deg);
 
