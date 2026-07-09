@@ -36,6 +36,10 @@ inline double shortest_path_target(double target, double current) {
   return current + wrap_180(target - current);
 }
 
+inline double clamp_value(double value, double lo, double hi) {
+  return std::max(lo, std::min(value, hi));
+}
+
 }  // namespace detail
 
 constexpr double kSteerGearRatio = 23.0 / 92.0;
@@ -44,6 +48,8 @@ constexpr double kWheelGearRatio = 1.0;
 constexpr double kHalfWheelGearRatio = kWheelGearRatio * 0.5;  // = 0.5
 constexpr double kWheelRadiusMm = 25.0;
 constexpr double kWheelCircumference = 2.0 * M_PI * kWheelRadiusMm * 1e-3; // m
+constexpr double kMotorOutputLimitPct = 100.0;
+constexpr double kSharedMotorBudgetPct = 2.0 * kMotorOutputLimitPct;
 
 struct WheelUnitConfig {
   basic::device::MotorConfig motor_a;
@@ -208,23 +214,32 @@ public:
     }
 
     // 组合输出，超限时等比例缩放
-    const double v = velocity_result.ctrl;
-    const double s = steer_result.ctrl;
-    const double a_speed =0.5 * (v + s);
-    const double b_speed =0.5 * (-v + s);
-    const double max_abs = std::max(std::abs(a_speed), std::abs(b_speed));
-    const double scale = (max_abs > 100.0) ? (100.0 / max_abs) : 1.0;
+    const double s = detail::clamp_value(
+        steer_result.ctrl, -kSharedMotorBudgetPct, kSharedMotorBudgetPct);
+    const double drive_budget = std::max(0.0, kSharedMotorBudgetPct - std::abs(s));
+    const double v = detail::clamp_value(
+        velocity_result.ctrl, -drive_budget, drive_budget);
+    const double a_speed = 0.5 * (v + s);
+    const double b_speed = 0.5 * (-v + s);
 
-    //basic::control::adrc_torque_control(motor_a_, a_speed * scale, adrc_a_);
-    //basic::control::adrc_torque_control(motor_b_, b_speed * scale, adrc_b_);
-    basic::control::velocitycontrol(motor_a_, a_speed * scale, vex::pct);
-    basic::control::velocitycontrol(motor_b_, b_speed * scale, vex::pct);
+    //basic::control::adrc_torque_control(motor_a_, a_speed, adrc_a_);
+    //basic::control::adrc_torque_control(motor_b_, b_speed, adrc_b_);
+    basic::control::velocitycontrol(
+        motor_a_,
+        detail::clamp_value(
+            a_speed, -kMotorOutputLimitPct, kMotorOutputLimitPct),
+        vex::pct);
+    basic::control::velocitycontrol(
+        motor_b_,
+        detail::clamp_value(
+            b_speed, -kMotorOutputLimitPct, kMotorOutputLimitPct),
+        vex::pct);
 
     /*printf("W|v_in:%.0f v_tgt:%.2f v_fb:%.2f v_out:%.0f | h_tgt:%.0f h_fb:%.0f h_err:%.0f h_out:%.0f | s_out:%.0f a:%.0f b:%.0f\n",
-           target_velocity_pct, target_mps, feedback_mps, v * scale,
+           target_velocity_pct, target_mps, feedback_mps, v,
            target_heading, state_.heading, heading_error, heading_result.ctrl,
-           s * scale,
-           a_speed * scale, b_speed * scale);*/
+           s,
+           a_speed, b_speed);*/
   }
 };
 

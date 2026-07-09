@@ -21,7 +21,7 @@ inline constexpr basic::control::pid::Pid::Config kHeadingPidCfg{
 
 inline constexpr basic::control::pid::Pid::Config kAngularVelocityPidCfg{
     6.0, 0.0, 0.0,
-    -100.0, 100.0, -10.0, 10.0, 0.5};   
+    -200.0, 200.0, -10.0, 10.0, 0.5};   
 inline constexpr first_order_adrc::Controller::Config kAdrcCfg;
 
 struct RobotHardware {
