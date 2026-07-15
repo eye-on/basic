@@ -16,6 +16,10 @@ namespace basic::hardware::football_robot {
 basic::app::Robot& get_robot();
 }
 
+namespace basic::hardware::looklook {
+basic::app::Robot& get_robot();
+}
+
 namespace basic::hardware {
 
 basic::app::Robot& get_current_robot() {
@@ -28,6 +32,8 @@ basic::app::Robot& get_current_robot() {
       return new_robot::get_robot();
     case RobotIdentity::kFootballRobot:
       return football_robot::get_robot();
+    case RobotIdentity::kLooklook:
+      return looklook::get_robot();
     default:
       return basic_robot::get_robot();
   }
