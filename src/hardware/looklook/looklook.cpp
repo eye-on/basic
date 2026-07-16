@@ -4,6 +4,7 @@
 #include "hardware/looklook/robot_hardware.h"
 #include "hardware/looklook/robot_state.h"
 #include "input/controller.h"
+#include "mechanism/gripper.h"
 #include "mechanism/linear_lift.h"
 
 namespace basic::hardware::looklook {
@@ -48,6 +49,9 @@ class LooklookRobot final : public basic::app::Robot {
       basic::mechanism::linear_lift_update(
           hardware_.lift,
           basic::mechanism::linear_lift_command_from_controller(state_.controller));
+      basic::mechanism::gripper_update(
+          hardware_.gripper,
+          basic::mechanism::gripper_command_from_controller(state_.controller));
       vex::this_thread::sleep_for(kRefreshTime);
     }
 
@@ -70,6 +74,7 @@ class LooklookRobot final : public basic::app::Robot {
     state_.controller = basic::hardware::shared::ControllerInputState{};
     basic::chassis::x_chassis_stop(hardware_.x_chassis, drive_brake_type);
     basic::mechanism::linear_lift_stop(hardware_.lift, vex::hold);
+    basic::mechanism::gripper_stop(hardware_.gripper, vex::hold);
   }
 
   RobotHardware hardware_;
