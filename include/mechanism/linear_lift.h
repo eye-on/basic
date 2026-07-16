@@ -22,6 +22,7 @@ struct LinearLiftConfig {
   vex::rotationUnits position_units{vex::deg};
   double sync_max_deviation{50.0};          // 两电机同步最大偏差
   double decel_threshold{50.0};              // 限位前减速区宽度（0=不减速直接急停）
+  double decel_min_speed_pct{5.0};           // 减速区保底速度（不低于此值，保持电机出力）
   vex::brakeType stop_brake_type{vex::hold}; // 停止模式
 };
 

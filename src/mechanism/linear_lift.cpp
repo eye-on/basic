@@ -114,16 +114,22 @@ void linear_lift_update(LinearLift& mechanism, const LinearLiftCommand& command)
   const double factor1 = decel_factor(pos1, motor1_slot.position_min, motor1_slot.position_max, threshold, up);
   const double factor2 = decel_factor(pos2, motor2_slot.position_min, motor2_slot.position_max, threshold, up);
 
+  const double min_speed = mechanism.config().decel_min_speed_pct;
+
   if (factor1 <= 0.0) {
     stopcontrol(mechanism.lift_motor1(), stop_brake);
   } else {
-    velocitycontrol(mechanism.lift_motor1(), speed * factor1, vex::pct);
+    const double raw = speed * factor1;
+    const double clamped = (raw > 0) ? std::max(raw, min_speed) : std::min(raw, -min_speed);
+    velocitycontrol(mechanism.lift_motor1(), clamped, vex::pct);
   }
 
   if (factor2 <= 0.0) {
     stopcontrol(mechanism.lift_motor2(), stop_brake);
   } else {
-    velocitycontrol(mechanism.lift_motor2(), speed * factor2, vex::pct);
+    const double raw = speed * factor2;
+    const double clamped = (raw > 0) ? std::max(raw, min_speed) : std::min(raw, -min_speed);
+    velocitycontrol(mechanism.lift_motor2(), clamped, vex::pct);
   }
 
   refresh_state(mechanism);

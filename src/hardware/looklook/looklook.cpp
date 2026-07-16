@@ -46,6 +46,15 @@ class LooklookRobot final : public basic::app::Robot {
           basic::chassis::x_chassis_command_from_controller(
               state_.controller,
               basic::chassis::x_chassis_state(hardware_.x_chassis).stop_brake_type));
+      printf("cmd: FL=%.1f FR=%.1f BL=%.1f BR=%.1f | vel: FL=%.1f FR=%.1f BL=%.1f BR=%.1f\n",
+             basic::chassis::x_chassis_state(hardware_.x_chassis).fl_pct,
+             basic::chassis::x_chassis_state(hardware_.x_chassis).fr_pct,
+             basic::chassis::x_chassis_state(hardware_.x_chassis).bl_pct,
+             basic::chassis::x_chassis_state(hardware_.x_chassis).br_pct,
+             basic::chassis::x_chassis_fl(hardware_.x_chassis).velocity(vex::pct),
+             basic::chassis::x_chassis_fr(hardware_.x_chassis).velocity(vex::pct),
+             basic::chassis::x_chassis_bl(hardware_.x_chassis).velocity(vex::pct),
+             basic::chassis::x_chassis_br(hardware_.x_chassis).velocity(vex::pct));
       basic::mechanism::linear_lift_update(
           hardware_.lift,
           basic::mechanism::linear_lift_command_from_controller(state_.controller));

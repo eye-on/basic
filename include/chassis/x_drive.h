@@ -172,7 +172,9 @@ struct XDriveConfig {
   std::array<basic::device::MotorConfig, BlCount> bl_motors;  // ???????????
   std::array<basic::device::MotorConfig, BrCount> br_motors;  // ??????????
   int deadzone{10};
-  double turn_sensitivity{1.0};  // 旋转灵敏度，1.0=默认，<1.0=减速
+  double forward_sensitivity{1.0};  // 前后灵敏度
+  double strafe_sensitivity{1.0};   // 左右灵敏度
+  double turn_sensitivity{1.0};     // 旋转灵敏度
   /// ??????? PID ????????????????? PID ????????
   std::array<basic::control::pid::Pid::Config, FlCount> fl_pid_configs{};
   std::array<basic::control::pid::Pid::Config, FrCount> fr_pid_configs{};
@@ -193,6 +195,8 @@ class XDrive {
         bl_motors_(detail::make_motor_array(config.bl_motors)),
         br_motors_(detail::make_motor_array(config.br_motors)),
         deadzone_(config.deadzone),
+        forward_sensitivity_(config.forward_sensitivity),
+        strafe_sensitivity_(config.strafe_sensitivity),
         turn_sensitivity_(config.turn_sensitivity),
         fl_pid_(detail::make_pid_array(config.fl_pid_configs)),
         fr_pid_(detail::make_pid_array(config.fr_pid_configs)),
@@ -237,6 +241,14 @@ class XDrive {
 
   int deadzone() const {
     return deadzone_;
+  }
+
+  double forward_sensitivity() const {
+    return forward_sensitivity_;
+  }
+
+  double strafe_sensitivity() const {
+    return strafe_sensitivity_;
   }
 
   double turn_sensitivity() const {
@@ -297,6 +309,8 @@ class XDrive {
   std::array<basic::control::pid::Pid, BlCount> bl_pid_;
   std::array<basic::control::pid::Pid, BrCount> br_pid_;
   int deadzone_{10};
+  double forward_sensitivity_{1.0};
+  double strafe_sensitivity_{1.0};
   double turn_sensitivity_{1.0};
   XDriveState state_;
 };
@@ -355,8 +369,8 @@ void x_drive_update(
     return std::abs(input) > deadzone ? static_cast<double>(input) : 0.0;
   };
 
-  const double forward = apply_deadzone(command.forward_input_pct);
-  const double strafe = apply_deadzone(command.strafe_input_pct);
+  const double forward = apply_deadzone(command.forward_input_pct) * chassis.forward_sensitivity();
+  const double strafe = apply_deadzone(command.strafe_input_pct) * chassis.strafe_sensitivity();
   const double turn = apply_deadzone(command.turn_input_pct) * chassis.turn_sensitivity();
 
   // fl = forward + strafe + turn
