@@ -11,7 +11,7 @@ namespace basic::hardware::looklook::autonomous {
 inline constexpr double kWheelDiameterMm = 158.75;
 inline constexpr double kPi = 3.141592653589793;
 inline constexpr double kSqrt2 = 1.4142135623730951;
-inline constexpr double kEffectiveCircumferenceMm = kPi * kWheelDiameterMm / kSqrt2;
+inline constexpr double kEffectiveCircumferenceMm = kPi * kWheelDiameterMm;
 inline constexpr double kWheelDegPerMm = 360.0 / kEffectiveCircumferenceMm;
 
 inline constexpr double kDefaultSpeedPct = 50.0;
