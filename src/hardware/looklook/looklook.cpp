@@ -1,6 +1,6 @@
 #include "hardware/robot_selector.h"
 
-#include "chassis/h_chassis.h"
+#include "chassis/x_chassis.h"
 #include "hardware/looklook/robot_hardware.h"
 #include "hardware/looklook/robot_state.h"
 #include "input/controller.h"
@@ -40,11 +40,11 @@ class LooklookRobot final : public basic::app::Robot {
   void run_driver_control_loop() {
     while (should_run_driver_control()) {
       basic::input::controller_update(hardware_.brain, hardware_.controller, state_.controller);
-      basic::chassis::h_chassis_update(
-          hardware_.h_chassis,
-          basic::chassis::h_chassis_command_from_controller(
+      basic::chassis::x_chassis_update(
+          hardware_.x_chassis,
+          basic::chassis::x_chassis_command_from_controller(
               state_.controller,
-              basic::chassis::h_chassis_state(hardware_.h_chassis).stop_brake_type));
+              basic::chassis::x_chassis_state(hardware_.x_chassis).stop_brake_type));
       basic::mechanism::linear_lift_update(
           hardware_.lift,
           basic::mechanism::linear_lift_command_from_controller(state_.controller));
@@ -68,7 +68,7 @@ class LooklookRobot final : public basic::app::Robot {
 
   void stop_all_outputs(vex::brakeType drive_brake_type) {
     state_.controller = basic::hardware::shared::ControllerInputState{};
-    basic::chassis::h_chassis_stop(hardware_.h_chassis, drive_brake_type);
+    basic::chassis::x_chassis_stop(hardware_.x_chassis, drive_brake_type);
     basic::mechanism::linear_lift_stop(hardware_.lift, vex::hold);
   }
 

@@ -56,25 +56,34 @@ LinearLift linear_lift_init(const LinearLiftConfig& config) {
 LinearLiftCommand linear_lift_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input) {
   LinearLiftCommand command;
-  command.open_loop_up = input.r1;
-  command.open_loop_down = input.r2;
+  command.toggle_up = input.press_up;
+  command.toggle_down = input.press_down;
   return command;
 }
 
 void linear_lift_update(LinearLift& mechanism, const LinearLiftCommand& command) {
-  mechanism.state().open_loop_up = command.open_loop_up;
-  mechanism.state().open_loop_down = command.open_loop_down;
+  // 边缘触发：按一下切换方向状态
+  if (command.toggle_up) {
+    mechanism.state().open_loop_up = !mechanism.state().open_loop_up;
+    mechanism.state().open_loop_down = false;
+  }
+  if (command.toggle_down) {
+    mechanism.state().open_loop_down = !mechanism.state().open_loop_down;
+    mechanism.state().open_loop_up = false;
+  }
 
-  if (!command.enabled || (!command.open_loop_up && !command.open_loop_down) ||
-      (command.open_loop_up && command.open_loop_down)) {
+  const bool up = mechanism.state().open_loop_up;
+  const bool down = mechanism.state().open_loop_down;
+
+  if (!command.enabled || (!up && !down) || (up && down)) {
     stopcontrol(mechanism.lift_motor1(), vex::hold);
     stopcontrol(mechanism.lift_motor2(), vex::hold);
     refresh_state(mechanism);
     return;
   }
 
-  const double speed = command.open_loop_up ? +mechanism.config().open_loop_speed_pct
-                                            : -mechanism.config().open_loop_speed_pct;
+  const double speed = up ? +mechanism.config().open_loop_speed_pct
+                          : -mechanism.config().open_loop_speed_pct;
 
   const auto& motor1_slot = mechanism.config().lift_motor1;
   const auto& motor2_slot = mechanism.config().lift_motor2;
@@ -139,9 +148,9 @@ void linear_lift_set_position(LinearLift& mechanism, double position) {
   target2 = std::max(motor2_slot.position_min, std::min(target2, motor2_slot.position_max));
 
   mechanism.lift_motor1().spinToPosition(
-      target1, c.position_units, c.closed_loop_speed_pct, vex::pct, false);
+      target1, c.position_units, c.closed_loop_speed_pct, vex::velocityUnits::pct, false);
   mechanism.lift_motor2().spinToPosition(
-      target2, c.position_units, c.closed_loop_speed_pct, vex::pct, false);
+      target2, c.position_units, c.closed_loop_speed_pct, vex::velocityUnits::pct, false);
 
   refresh_state(mechanism);
 }

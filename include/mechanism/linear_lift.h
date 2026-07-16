@@ -22,8 +22,8 @@ struct LinearLiftConfig {
 };
 
 struct LinearLiftCommand {
-  bool open_loop_up{false};    // 手动上升
-  bool open_loop_down{false};  // 手动下降
+  bool toggle_up{false};    // press_up → 切换上升
+  bool toggle_down{false};  // press_down → 切换下降
   bool enabled{true};
 };
 
