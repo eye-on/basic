@@ -6,7 +6,7 @@ namespace basic::hardware::looklook::autonomous {
 
 namespace {
 
-inline constexpr double kVPeakPct = 30.0;
+inline constexpr double kVPeakPct = 15.0;
 inline constexpr double kTurnPct = 25.0;
 inline constexpr int kPauseMs = 300;
 inline constexpr int kLongPauseMs = 1000;

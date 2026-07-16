@@ -29,7 +29,17 @@ inline const int kInertialPort = vex::PORT17;
 
 // 底盘参数
 inline constexpr int kDriveWheelTrackMm = 10;
-inline constexpr basic::control::pid::Pid::Config kDefaultPid{};
+inline constexpr basic::control::pid::Pid::Config kDrivePid{
+    0.4,    // kp
+    0.05,   // ki
+    0.0,    // kd
+    -100.0, // out_min
+    100.0,  // out_max
+    -30.0,  // i_term_min
+    30.0,   // i_term_max
+    0.1,    // deadzone
+    basic::control::pid::Type::kPosition,
+};
 
 struct RobotHardware {
   vex::brain brain;
@@ -47,7 +57,7 @@ struct RobotHardware {
             {{ {kBackLeftMotorPort, vex::ratio6_1, false} }},    // 左后 BL
             {{ {kBackRightMotorPort, vex::ratio6_1, true} }},  // 右后 BR
             kDriveWheelTrackMm, 0.4, 0.4, 0.2,  // deadzone, forward, strafe, turn_sensitivity
-            {{kDefaultPid}}, {{kDefaultPid}}, {{kDefaultPid}}, {{kDefaultPid}},
+            {{kDrivePid}}, {{kDrivePid}}, {{kDrivePid}}, {{kDrivePid}},
         })),
         lift(basic::mechanism::linear_lift_init({
             {{kLiftMotor1Port, vex::ratio18_1, true}, 0, 500},

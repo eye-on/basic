@@ -355,10 +355,10 @@ void x_drive_set_output(
   chassis.state().bl_pct = bl_pct;
   chassis.state().br_pct = br_pct;
   chassis.state().stop_brake_type = brake_type;
-  detail::apply_group_output(chassis.fl_motors(), fl_pct, brake_type);
-  detail::apply_group_output(chassis.fr_motors(), fr_pct, brake_type);
-  detail::apply_group_output(chassis.bl_motors(), bl_pct, brake_type);
-  detail::apply_group_output(chassis.br_motors(), br_pct, brake_type);
+  detail::apply_group_output_pid(chassis.fl_motors(), chassis.fl_pid(), fl_pct, brake_type);
+  detail::apply_group_output_pid(chassis.fr_motors(), chassis.fr_pid(), fr_pct, brake_type);
+  detail::apply_group_output_pid(chassis.bl_motors(), chassis.bl_pid(), bl_pct, brake_type);
+  detail::apply_group_output_pid(chassis.br_motors(), chassis.br_pid(), br_pct, brake_type);
 }
 
 template <std::size_t FlCount, std::size_t FrCount,

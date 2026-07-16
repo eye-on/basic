@@ -46,10 +46,7 @@ class LooklookRobot final : public basic::app::Robot {
       auto cmd = basic::chassis::x_chassis_command_from_controller(
           state_.controller,
           basic::chassis::x_chassis_state(hardware_.x_chassis).stop_brake_type);
-      cmd.turn_correction_pct = basic::chassis::heading_hold_update(
-          hardware_.heading_hold,
-          cmd.turn_input_pct,
-          hardware_.inertial.heading(vex::deg));
+      // IMU 航向保持已关闭
       basic::chassis::x_chassis_update(hardware_.x_chassis, cmd);
       basic::mechanism::linear_lift_update(
           hardware_.lift,
