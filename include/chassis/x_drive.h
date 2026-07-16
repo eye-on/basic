@@ -149,6 +149,7 @@ struct XDriveCommand {
   int forward_input_pct{0};
   int strafe_input_pct{0};
   int turn_input_pct{0};
+  double turn_correction_pct{0.0};
   vex::brakeType stop_brake_type{vex::coast};
 };
 
@@ -334,6 +335,7 @@ inline XDriveCommand x_drive_command_from_controller(
       controller_axis_value(input, forward_axis),
       controller_axis_value(input, strafe_axis),
       controller_axis_value(input, turn_axis),
+      0.0,
       stop_brake_type,
   };
 }
@@ -371,7 +373,8 @@ void x_drive_update(
 
   const double forward = apply_deadzone(command.forward_input_pct) * chassis.forward_sensitivity();
   const double strafe = apply_deadzone(command.strafe_input_pct) * chassis.strafe_sensitivity();
-  const double turn = apply_deadzone(command.turn_input_pct) * chassis.turn_sensitivity();
+  const double turn = apply_deadzone(command.turn_input_pct) * chassis.turn_sensitivity()
+                      + command.turn_correction_pct;
 
   // fl = forward + strafe + turn
   // fr = forward - strafe - turn

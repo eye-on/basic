@@ -1,6 +1,7 @@
 #ifndef BASIC_SRC_HARDWARE_LOOKLOOK_AUTONOMOUS_H_
 #define BASIC_SRC_HARDWARE_LOOKLOOK_AUTONOMOUS_H_
 
+#include "chassis/heading_hold.h"
 #include "hardware/looklook/robot_hardware.h"
 #include "hardware/looklook/robot_state.h"
 #include "vex.h"

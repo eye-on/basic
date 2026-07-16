@@ -1,6 +1,7 @@
 #ifndef BASIC_SRC_HARDWARE_LOOKLOOK_ROBOT_HARDWARE_H_
 #define BASIC_SRC_HARDWARE_LOOKLOOK_ROBOT_HARDWARE_H_
 
+#include "chassis/heading_hold.h"
 #include "chassis/x_chassis.h"
 #include "mechanism/gripper.h"
 #include "mechanism/linear_lift.h"
@@ -35,6 +36,7 @@ struct RobotHardware {
   vex::controller controller{vex::controllerType::primary};
   vex::inertial inertial{kInertialPort};
   basic::chassis::XChassis x_chassis;
+  basic::chassis::HeadingHold heading_hold;
   basic::mechanism::LinearLift lift;
   basic::mechanism::Gripper gripper;
 
@@ -57,6 +59,7 @@ struct RobotHardware {
             vex::deg, 50.0, 50.0, 5.0,  // position_units, sync, decel, decel_min
             vex::hold,          // stop_brake_type
         })),
+        heading_hold(basic::chassis::heading_hold_init({})),
         gripper(basic::mechanism::gripper_init({
             {{kGripperMotorPort, vex::ratio6_1, false}},
         })) {}

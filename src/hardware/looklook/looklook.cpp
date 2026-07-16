@@ -1,6 +1,8 @@
 #include "hardware/robot_selector.h"
 
+#include "chassis/heading_hold.h"
 #include "chassis/x_chassis.h"
+#include "hardware/looklook/autonomous.h"
 #include "hardware/looklook/robot_hardware.h"
 #include "hardware/looklook/robot_state.h"
 #include "input/controller.h"
@@ -41,20 +43,14 @@ class LooklookRobot final : public basic::app::Robot {
   void run_driver_control_loop() {
     while (should_run_driver_control()) {
       basic::input::controller_update(hardware_.brain, hardware_.controller, state_.controller);
-      basic::chassis::x_chassis_update(
-          hardware_.x_chassis,
-          basic::chassis::x_chassis_command_from_controller(
-              state_.controller,
-              basic::chassis::x_chassis_state(hardware_.x_chassis).stop_brake_type));
-      printf("cmd: FL=%.1f FR=%.1f BL=%.1f BR=%.1f | vel: FL=%.1f FR=%.1f BL=%.1f BR=%.1f\n",
-             basic::chassis::x_chassis_state(hardware_.x_chassis).fl_pct,
-             basic::chassis::x_chassis_state(hardware_.x_chassis).fr_pct,
-             basic::chassis::x_chassis_state(hardware_.x_chassis).bl_pct,
-             basic::chassis::x_chassis_state(hardware_.x_chassis).br_pct,
-             basic::chassis::x_chassis_fl(hardware_.x_chassis).velocity(vex::pct),
-             basic::chassis::x_chassis_fr(hardware_.x_chassis).velocity(vex::pct),
-             basic::chassis::x_chassis_bl(hardware_.x_chassis).velocity(vex::pct),
-             basic::chassis::x_chassis_br(hardware_.x_chassis).velocity(vex::pct));
+      auto cmd = basic::chassis::x_chassis_command_from_controller(
+          state_.controller,
+          basic::chassis::x_chassis_state(hardware_.x_chassis).stop_brake_type);
+      cmd.turn_correction_pct = basic::chassis::heading_hold_update(
+          hardware_.heading_hold,
+          cmd.turn_input_pct,
+          hardware_.inertial.heading(vex::deg));
+      basic::chassis::x_chassis_update(hardware_.x_chassis, cmd);
       basic::mechanism::linear_lift_update(
           hardware_.lift,
           basic::mechanism::linear_lift_command_from_controller(state_.controller));
@@ -73,6 +69,7 @@ class LooklookRobot final : public basic::app::Robot {
     }
 
     stop_all_outputs(vex::hold);
+    autonomous::run_routine(hardware_, state_, *competition_);
   }
 
   bool should_run_driver_control() const {
