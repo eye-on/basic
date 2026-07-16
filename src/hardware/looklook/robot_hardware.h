@@ -44,7 +44,7 @@ struct RobotHardware {
             {{ {kFrontRightMotorPort, vex::ratio6_1, true} }}, // 右前 FR
             {{ {kBackLeftMotorPort, vex::ratio6_1, false} }},    // 左后 BL
             {{ {kBackRightMotorPort, vex::ratio6_1, true} }},  // 右后 BR
-            kDriveWheelTrackMm,
+            kDriveWheelTrackMm, 0.2,  // deadzone, turn_sensitivity
             {{kDefaultPid}}, {{kDefaultPid}}, {{kDefaultPid}}, {{kDefaultPid}},
         })),
         lift(basic::mechanism::linear_lift_init({

@@ -172,6 +172,7 @@ struct XDriveConfig {
   std::array<basic::device::MotorConfig, BlCount> bl_motors;  // ???????????
   std::array<basic::device::MotorConfig, BrCount> br_motors;  // ??????????
   int deadzone{10};
+  double turn_sensitivity{1.0};  // 旋转灵敏度，1.0=默认，<1.0=减速
   /// ??????? PID ????????????????? PID ????????
   std::array<basic::control::pid::Pid::Config, FlCount> fl_pid_configs{};
   std::array<basic::control::pid::Pid::Config, FrCount> fr_pid_configs{};
@@ -192,6 +193,7 @@ class XDrive {
         bl_motors_(detail::make_motor_array(config.bl_motors)),
         br_motors_(detail::make_motor_array(config.br_motors)),
         deadzone_(config.deadzone),
+        turn_sensitivity_(config.turn_sensitivity),
         fl_pid_(detail::make_pid_array(config.fl_pid_configs)),
         fr_pid_(detail::make_pid_array(config.fr_pid_configs)),
         bl_pid_(detail::make_pid_array(config.bl_pid_configs)),
@@ -235,6 +237,10 @@ class XDrive {
 
   int deadzone() const {
     return deadzone_;
+  }
+
+  double turn_sensitivity() const {
+    return turn_sensitivity_;
   }
 
   /// ????? PID ????????????
@@ -291,6 +297,7 @@ class XDrive {
   std::array<basic::control::pid::Pid, BlCount> bl_pid_;
   std::array<basic::control::pid::Pid, BrCount> br_pid_;
   int deadzone_{10};
+  double turn_sensitivity_{1.0};
   XDriveState state_;
 };
 
@@ -350,7 +357,7 @@ void x_drive_update(
 
   const double forward = apply_deadzone(command.forward_input_pct);
   const double strafe = apply_deadzone(command.strafe_input_pct);
-  const double turn = apply_deadzone(command.turn_input_pct);
+  const double turn = apply_deadzone(command.turn_input_pct) * chassis.turn_sensitivity();
 
   // fl = forward + strafe + turn
   // fr = forward - strafe - turn
