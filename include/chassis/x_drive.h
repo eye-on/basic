@@ -2,12 +2,11 @@
 #define BASIC_INCLUDE_X_DRIVE_H_
 
 #include "chassis/arcade_drive.h"
-#include "control/pid/controller.hpp"
 
 namespace basic::chassis {
 
-/// ?????????????????????????
-/// x ???? forward ????????y ???? strafe ??????
+/// 十字型全向轮底盘里程计：由四轮速度积分得到位姿
+/// x 轴对应 forward 前后方向，y 轴对应 strafe 平移方向
 struct XDriveOdometry {
   double x_m{0.0};
   double y_m{0.0};
@@ -26,45 +25,6 @@ struct XDriveOdometry {
 };
 
 namespace detail {
-
-/// ????????????y?? PID ??????????
-template <std::size_t Count, std::size_t... Indices>
-std::array<basic::control::pid::Pid, Count> make_pid_array_impl(
-    const std::array<basic::control::pid::Pid::Config, Count>& configs,
-    std::index_sequence<Indices...>) {
-  return {{basic::control::pid::Pid{configs[Indices]}...}};
-}
-
-template <std::size_t Count>
-std::array<basic::control::pid::Pid, Count> make_pid_array(
-    const std::array<basic::control::pid::Pid::Config, Count>& configs) {
-  return make_pid_array_impl(configs, std::make_index_sequence<Count>{});
-}
-
-/// ??? PID ???????????????????
-/// ??????????? PID ???????????????????
-template <std::size_t Count>
-void apply_group_output_pid(
-    std::array<vex::motor, Count>& motors,
-    std::array<basic::control::pid::Pid, Count>& pids,
-    double pct,
-    vex::brakeType brake_type) {
-  for (std::size_t i = 0; i < Count; ++i) {
-    if (pct != 0.0) {
-      const double current_vel = motors[i].velocity(vex::pct);
-      //printf("%.2f,%.2f\n",pct,current_vel);
-      if (std::abs(pct) < 2 && std::abs(current_vel) < 2) {
-        pids[i].reset();
-      }
-      const auto result = pids[i].update(pct, current_vel);
-      basic::control::velocitycontrol(motors[i], result.ctrl, vex::pct);
-      // ?????????????????????????????????? PID????????????
-      }
-      else {
-      basic::control::stopcontrol(motors[i], brake_type);
-      pids[i].reset();}
-  } 
-}
 
 template <std::size_t Count>
 double average_group_velocity(
@@ -143,8 +103,7 @@ inline void update_odometry(
 
 }  // namespace detail
 
-/// ??????????????X-Drive?????????
-/// ?????????????????????????
+/// 十字型全向轮底盘（X-Drive）控制指令
 struct XDriveCommand {
   int forward_input_pct{0};
   int strafe_input_pct{0};
@@ -153,7 +112,7 @@ struct XDriveCommand {
   vex::brakeType stop_brake_type{vex::coast};
 };
 
-/// ??????????????X-Drive????????
+/// 十字型全向轮底盘（X-Drive）状态
 struct XDriveState {
   double fl_pct{0.0};
   double fr_pct{0.0};
@@ -163,28 +122,23 @@ struct XDriveState {
   XDriveOdometry odometry{};
 };
 
-/// ??????????????X-Drive??????
-/// ?????????????????????????????????X ???????
+/// 十字型全向轮底盘（X-Drive）配置
+/// 四个角各一组电机，几何上按 X 型排布
 template <std::size_t FlCount, std::size_t FrCount,
           std::size_t BlCount, std::size_t BrCount>
 struct XDriveConfig {
-  std::array<basic::device::MotorConfig, FlCount> fl_motors;  // ??????????
-  std::array<basic::device::MotorConfig, FrCount> fr_motors;  // ??????????
-  std::array<basic::device::MotorConfig, BlCount> bl_motors;  // ???????????
-  std::array<basic::device::MotorConfig, BrCount> br_motors;  // ??????????
+  std::array<basic::device::MotorConfig, FlCount> fl_motors;  // 左前电机组
+  std::array<basic::device::MotorConfig, FrCount> fr_motors;  // 右前电机组
+  std::array<basic::device::MotorConfig, BlCount> bl_motors;  // 左后电机组
+  std::array<basic::device::MotorConfig, BrCount> br_motors;  // 右后电机组
   int deadzone{10};
   double forward_sensitivity{1.0};  // 前后灵敏度
   double strafe_sensitivity{1.0};   // 左右灵敏度
   double turn_sensitivity{1.0};     // 旋转灵敏度
-  /// ??????? PID ????????????????? PID ????????
-  std::array<basic::control::pid::Pid::Config, FlCount> fl_pid_configs{};
-  std::array<basic::control::pid::Pid::Config, FrCount> fr_pid_configs{};
-  std::array<basic::control::pid::Pid::Config, BlCount> bl_pid_configs{};
-  std::array<basic::control::pid::Pid::Config, BrCount> br_pid_configs{};
 };
 
-/// ??????????????X-Drive??
-/// ???????????????????? X ????????? mecanum ?????????????
+/// 十字型全向轮底盘（X-Drive）
+/// 简单速控：输出百分比直接下发为电机速度指令，不经 PID
 template <std::size_t FlCount, std::size_t FrCount,
           std::size_t BlCount, std::size_t BrCount>
 class XDrive {
@@ -198,13 +152,9 @@ class XDrive {
         deadzone_(config.deadzone),
         forward_sensitivity_(config.forward_sensitivity),
         strafe_sensitivity_(config.strafe_sensitivity),
-        turn_sensitivity_(config.turn_sensitivity),
-        fl_pid_(detail::make_pid_array(config.fl_pid_configs)),
-        fr_pid_(detail::make_pid_array(config.fr_pid_configs)),
-        bl_pid_(detail::make_pid_array(config.bl_pid_configs)),
-        br_pid_(detail::make_pid_array(config.br_pid_configs)) {}
+        turn_sensitivity_(config.turn_sensitivity) {}
 
-  /// ??????Front-Left????????????
+  /// 左前（Front-Left）电机组
   std::array<vex::motor, FlCount>& fl_motors() {
     return fl_motors_;
   }
@@ -213,7 +163,7 @@ class XDrive {
     return fl_motors_;
   }
 
-  /// ??????Front-Right????????????
+  /// 右前（Front-Right）电机组
   std::array<vex::motor, FrCount>& fr_motors() {
     return fr_motors_;
   }
@@ -222,7 +172,7 @@ class XDrive {
     return fr_motors_;
   }
 
-  /// ???????Back-Left????????????
+  /// 左后（Back-Left）电机组
   std::array<vex::motor, BlCount>& bl_motors() {
     return bl_motors_;
   }
@@ -231,7 +181,7 @@ class XDrive {
     return bl_motors_;
   }
 
-  /// ??????Back-Right????????????
+  /// 右后（Back-Right）电机组
   std::array<vex::motor, BrCount>& br_motors() {
     return br_motors_;
   }
@@ -256,42 +206,6 @@ class XDrive {
     return turn_sensitivity_;
   }
 
-  /// ????? PID ????????????
-  std::array<basic::control::pid::Pid, FlCount>& fl_pid() {
-    return fl_pid_;
-  }
-
-  const std::array<basic::control::pid::Pid, FlCount>& fl_pid() const {
-    return fl_pid_;
-  }
-
-  /// ????? PID ????????????
-  std::array<basic::control::pid::Pid, FrCount>& fr_pid() {
-    return fr_pid_;
-  }
-
-  const std::array<basic::control::pid::Pid, FrCount>& fr_pid() const {
-    return fr_pid_;
-  }
-
-  /// ?????? PID ????????????
-  std::array<basic::control::pid::Pid, BlCount>& bl_pid() {
-    return bl_pid_;
-  }
-
-  const std::array<basic::control::pid::Pid, BlCount>& bl_pid() const {
-    return bl_pid_;
-  }
-
-  /// ????? PID ????????????
-  std::array<basic::control::pid::Pid, BrCount>& br_pid() {
-    return br_pid_;
-  }
-
-  const std::array<basic::control::pid::Pid, BrCount>& br_pid() const {
-    return br_pid_;
-  }
-
   XDriveState& state() {
     return state_;
   }
@@ -305,10 +219,6 @@ class XDrive {
   std::array<vex::motor, FrCount> fr_motors_;
   std::array<vex::motor, BlCount> bl_motors_;
   std::array<vex::motor, BrCount> br_motors_;
-  std::array<basic::control::pid::Pid, FlCount> fl_pid_;
-  std::array<basic::control::pid::Pid, FrCount> fr_pid_;
-  std::array<basic::control::pid::Pid, BlCount> bl_pid_;
-  std::array<basic::control::pid::Pid, BrCount> br_pid_;
   int deadzone_{10};
   double forward_sensitivity_{1.0};
   double strafe_sensitivity_{1.0};
@@ -316,7 +226,7 @@ class XDrive {
   XDriveState state_;
 };
 
-/// ??????????????????
+/// 初始化十字型全向轮底盘
 template <std::size_t FlCount, std::size_t FrCount,
           std::size_t BlCount, std::size_t BrCount>
 XDrive<FlCount, FrCount, BlCount, BrCount> x_drive_init(
@@ -324,7 +234,7 @@ XDrive<FlCount, FrCount, BlCount, BrCount> x_drive_init(
   return XDrive<FlCount, FrCount, BlCount, BrCount>(config);
 }
 
-/// ??????????????????????????????????
+/// 从遥控器输入生成底盘控制指令（指定前后 / 平移 / 旋转轴）
 inline XDriveCommand x_drive_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input,
     ControllerAxis forward_axis,
@@ -340,7 +250,7 @@ inline XDriveCommand x_drive_command_from_controller(
   };
 }
 
-/// ???????????????????????????
+/// 直接设置四轮输出（简单速控：非零下发速度百分比，零则按刹车类型停止）
 template <std::size_t FlCount, std::size_t FrCount,
           std::size_t BlCount, std::size_t BrCount>
 void x_drive_set_output(
@@ -355,10 +265,10 @@ void x_drive_set_output(
   chassis.state().bl_pct = bl_pct;
   chassis.state().br_pct = br_pct;
   chassis.state().stop_brake_type = brake_type;
-  detail::apply_group_output_pid(chassis.fl_motors(), chassis.fl_pid(), fl_pct, brake_type);
-  detail::apply_group_output_pid(chassis.fr_motors(), chassis.fr_pid(), fr_pct, brake_type);
-  detail::apply_group_output_pid(chassis.bl_motors(), chassis.bl_pid(), bl_pct, brake_type);
-  detail::apply_group_output_pid(chassis.br_motors(), chassis.br_pid(), br_pct, brake_type);
+  detail::apply_group_output(chassis.fl_motors(), fl_pct, brake_type);
+  detail::apply_group_output(chassis.fr_motors(), fr_pct, brake_type);
+  detail::apply_group_output(chassis.bl_motors(), bl_pct, brake_type);
+  detail::apply_group_output(chassis.br_motors(), br_pct, brake_type);
 }
 
 template <std::size_t FlCount, std::size_t FrCount,
@@ -427,7 +337,7 @@ const XDriveState& x_drive_state(
   return chassis.state();
 }
 
-/// ????????????????????????????
+/// 里程计访问（可修改 / 只读）
 template <std::size_t FlCount, std::size_t FrCount,
           std::size_t BlCount, std::size_t BrCount>
 XDriveOdometry& x_drive_odometry(

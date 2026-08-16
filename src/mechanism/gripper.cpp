@@ -1,7 +1,5 @@
 #include "mechanism/gripper.h"
 
-#include <algorithm>
-
 #include "control/motor_control.h"
 
 namespace basic::mechanism {
@@ -11,6 +9,7 @@ namespace {
 using basic::control::get_done;
 using basic::control::get_position;
 using basic::control::stopcontrol;
+using basic::control::torquecontrol;
 
 vex::motor make_motor(const basic::device::MotorConfig& config) {
   return vex::motor{config.port, config.gear_ratio, config.reversed};
@@ -28,7 +27,10 @@ void refresh_state(Gripper& mechanism) {
 
 Gripper::Gripper(const GripperConfig& config)
     : config_(config),
-      motor_(make_motor(config.motor.motor)) {}
+      motor_(make_motor(config.motor.motor)) {
+  // 开局夹爪物理上处于夹紧位置：编码器对齐到行程上限（当前配置为 30）
+  motor_.setPosition(config_.motor.position_max, config_.position_units);
+}
 
 vex::motor& Gripper::motor() { return motor_; }
 const vex::motor& Gripper::motor() const { return motor_; }
@@ -46,7 +48,7 @@ Gripper gripper_init(const GripperConfig& config) {
 GripperCommand gripper_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input) {
   GripperCommand command;
-  command.toggle = input.press_r2;
+  command.toggle = input.press_b;
   return command;
 }
 
@@ -63,14 +65,15 @@ void gripper_update(Gripper& mechanism, const GripperCommand& command) {
   const auto& c = mechanism.config();
   const auto& slot = c.motor;
 
-  // 根据模式选择目标位置，并做软件限位 clamp
-  double target = (mechanism.state().mode == GripperMode::kClosed)
-                      ? slot.position_max
-                      : slot.position_min;
-  target = std::max(slot.position_min, std::min(target, slot.position_max));
-
-  mechanism.motor().spinToPosition(
-      target, c.position_units, c.speed_pct, vex::velocityUnits::pct, false);
+  if (mechanism.state().mode == GripperMode::kClosed) {
+    // 夹住：持续输出力矩朝行程上限方向，堵转后即以恒定力矩保持夹紧
+    torquecontrol(mechanism.motor(), c.clamp_torque_nm);
+  } else {
+    // 松开：闭环回到行程下限
+    mechanism.motor().spinToPosition(
+        slot.position_min, c.position_units, c.speed_pct,
+        vex::velocityUnits::pct, false);
+  }
 
   refresh_state(mechanism);
 }

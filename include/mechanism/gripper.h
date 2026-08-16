@@ -22,6 +22,7 @@ struct GripperMotorSlot {
 struct GripperConfig {
   GripperMotorSlot motor;
   double speed_pct{60.0};                       // 闭环运动速度
+  double clamp_torque_nm{0.3};                  // 夹紧保持力矩（Nm），正值朝行程上限（夹住）方向
   vex::rotationUnits position_units{vex::deg};  // 位置单位
 };
 
@@ -30,7 +31,8 @@ struct GripperCommand {
 };
 
 struct GripperState {
-  GripperMode mode{GripperMode::kOpen};
+  // 开局夹爪物理上处于夹紧位置：初始模式为夹住，初始化时编码器对齐到行程上限
+  GripperMode mode{GripperMode::kClosed};
   double motor_position{0.0};
   bool at_target{true};
 };

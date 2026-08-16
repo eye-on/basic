@@ -8,7 +8,7 @@
 
 namespace basic::hardware::looklook::autonomous {
 
-inline constexpr double kWheelDiameterMm = 158.75;
+inline constexpr double kWheelDiameterMm = 98;
 inline constexpr double kPi = 3.141592653589793;
 inline constexpr double kSqrt2 = 1.4142135623730951;
 inline constexpr double kEffectiveCircumferenceMm = kPi * kWheelDiameterMm;
