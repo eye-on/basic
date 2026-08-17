@@ -16,10 +16,8 @@
 namespace basic::chassis::steering {
 
 constexpr double kRadToDeg = 180.0 / M_PI;
-/// 速度缩放因子：运动学输出 ≤100pct，实际需更大驱动力克服地面摩擦（经验值）
-constexpr double kVelocityScaleFactor = 2.0;
 /// square_to_circle 归一化常量：0.5 / 100²，预计算避免每帧两次除法
-constexpr double kSqToCircleNorm = 0.5 / (100.0 * 100.0);  // = 0.00005
+constexpr double kSqToCircleNorm = 0.5 / (100.0 * 100.0);
 
 enum class ControllerAxis {
   kAxis1,
@@ -208,11 +206,11 @@ inline void steering_update(SteeringDrive& chassis, const ArcadeDriveCommand& co
   const SteeringKinematicsResult targets = steering_kinematics_solve(
       vx_mapped, vy_mapped, omega, chassis.kinematics_config());
 
-  // 速度缩放补偿（经验值）
-  chassis.fr().control(kVelocityScaleFactor * targets.fr.velocity_pct, targets.fr.heading_degrees, brake);
-  chassis.fl().control(kVelocityScaleFactor * targets.fl.velocity_pct, targets.fl.heading_degrees, brake);
-  chassis.br().control(kVelocityScaleFactor * targets.br.velocity_pct, targets.br.heading_degrees, brake);
-  chassis.bl().control(kVelocityScaleFactor * targets.bl.velocity_pct, targets.bl.heading_degrees, brake);
+  // 运动学输出（pct 域）直接传入轮组；满速补偿由 WheelUnit 内部前馈完成
+  chassis.fr().control(targets.fr.velocity_pct, targets.fr.heading_degrees, brake);
+  chassis.fl().control(targets.fl.velocity_pct, targets.fl.heading_degrees, brake);
+  chassis.br().control(targets.br.velocity_pct, targets.br.heading_degrees, brake);
+  chassis.bl().control(targets.bl.velocity_pct, targets.bl.heading_degrees, brake);
 }
 
 /// 舵轮底盘机械标零

@@ -13,7 +13,7 @@ enum class RobotIdentity {
   kLooklook,
 };
 
-inline constexpr RobotIdentity kSelectedRobot = RobotIdentity::kLooklook;
+inline constexpr RobotIdentity kSelectedRobot = RobotIdentity::kNewRobot;
 
 basic::app::Robot& get_current_robot();
 
