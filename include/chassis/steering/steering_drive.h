@@ -152,6 +152,24 @@ public:
     bl_.calibrate_zero();
   }
 
+  /// 四轮物理回正（返回 true = 全部完成；未完成需周期调用）
+  bool align_to_physical_zero() {
+    bool all_done = true;
+    all_done = fr_.align_to_physical_zero() && all_done;
+    all_done = fl_.align_to_physical_zero() && all_done;
+    all_done = br_.align_to_physical_zero() && all_done;
+    all_done = bl_.align_to_physical_zero() && all_done;
+    return all_done;
+  }
+
+  /// 底盘停止（零电压，力控停止 = 自然滑行）
+  void stop() {
+    fr_.stop();
+    fl_.stop();
+    br_.stop();
+    bl_.stop();
+  }
+
 private:
   WheelUnit fr_;
   WheelUnit fl_;

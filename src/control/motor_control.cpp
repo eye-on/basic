@@ -40,6 +40,17 @@ void velocitycontrol(vex::motor& motor, double velocity, vex::velocityUnits unit
   motor.spin(direction_from_value(velocity), magnitude(velocity), units);
 }
 
+void voltagecontrol(vex::motor& motor, double voltage_mv) {
+  if (voltage_mv == 0.0) {
+    stopcontrol(motor);
+    return;
+  }
+
+  motor.setMaxTorque(100.0, vex::pct);
+  motor.spin(direction_from_value(voltage_mv), magnitude(voltage_mv),
+             vex::voltageUnits::mV);
+}
+
 void torquecontrol(vex::motor& motor, double torque_nm) {
   if (torque_nm == 0.0) {
     stopcontrol(motor);

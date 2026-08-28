@@ -13,6 +13,9 @@ void velocitycontrol(vex::motor& motor, double velocity);
 void velocitycontrol(vex::motor& motor, double velocity, vex::percentUnits units);
 void velocitycontrol(vex::motor& motor, double velocity, vex::velocityUnits units);
 
+/// 力控：直接给定电机电压（±12000 mV = ±12V），扭矩 ∝ 电压，不经过固件速度环
+void voltagecontrol(vex::motor& motor, double voltage_mv);
+
 void torquecontrol(vex::motor& motor, double torque_nm);
 void stopcontrol(vex::motor& motor, vex::brakeType mode = vex::coast);
 

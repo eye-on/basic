@@ -52,6 +52,10 @@ constexpr double kMotorOutputLimitPct = 100.0;
 constexpr double kSharedMotorBudgetPct = 2.0 * kMotorOutputLimitPct;
 /// 轮速前馈增益：差速器正解 轮速 = (a-b)×0.5，故差速预算需 ×(1/0.5) 使「轮速 pct = 目标 pct」
 constexpr double kWheelVelocityFeedforward = 1.0 / kHalfWheelGearRatio;  // = 2.0
+/// 静摩擦补偿（力控）：指令非零但幅值不足时提升到最小可动电压（pct 域）
+/// 消除力控下「小误差→小电压→被静摩擦吃掉→不动」的死区问题
+constexpr double kSteerFrictionKickPct = 3.0;   // ≈ 0.36V
+constexpr double kDriveFrictionKickPct = 2.0;   // ≈ 0.24V
 
 struct WheelUnitConfig {
   basic::device::MotorConfig motor_a;
@@ -70,6 +74,8 @@ struct WheelUnitConfig {
   double analog_zero_raw{0.0};               // 三线编码手动基准（raw），0 = 上电自动捕获
   double analog_deadband_raw{1.0};           // 模拟读数滞环死区（raw 域，±1 = ±0.088°）
   int debug_id{0};                           // 调试打印 ID（0=FR, 1=FL, 2=BR, 3=BL）
+  double align_tolerance_deg{1.0};           // 物理回正到位容差（度）
+  int align_timeout_ms{2500};                // 物理回正超时（毫秒）
 
   /// 便捷构造：统一 PID 配置，ADRC 使用默认值
   static inline WheelUnitConfig simple(
@@ -123,6 +129,16 @@ class WheelUnit {
   double last_accepted_raw_{0.0};
   /// 调试打印 ID
   int debug_id_{0};
+  /// pct → 电压因子（力控，±100 pct = ±12000 mV，无除法）
+  const double pct_to_voltage_mv_{120.0};
+  /// 物理回正到位容差（度）
+  double align_tolerance_deg_{1.0};
+  /// 物理回正超时（毫秒）
+  int align_timeout_ms_{2500};
+  /// 物理回正累计时间（毫秒）
+  int align_elapsed_ms_{0};
+  /// 调试打印节流计数
+  int print_tick_{0};
 
 public:
   WheelUnit(vex::motor&& motor_a, vex::motor&& motor_b,
@@ -138,7 +154,9 @@ public:
              bool analog_reversed = false,
              double analog_zero_raw = 0.0,
              double analog_deadband_raw = 1.0,
-             int debug_id = 0)
+             int debug_id = 0,
+             double align_tolerance_deg = 1.0,
+             int align_timeout_ms = 2500)
       : motor_a_(std::move(motor_a)),
         motor_b_(std::move(motor_b)),
         state_{0.0, 0.0, 0.0, 0.0, 0.0, init_angle_a, init_angle_b},
@@ -155,7 +173,9 @@ public:
         analog_zero_raw_(analog_zero_raw),
         last_accepted_raw_(analog_zero_raw),
         analog_deadband_raw_(analog_deadband_raw),
-        debug_id_(debug_id) {}
+        debug_id_(debug_id),
+        align_tolerance_deg_(align_tolerance_deg),
+        align_timeout_ms_(align_timeout_ms) {}
 
   double wheel_max_speed_mps() const { return wheel_max_speed_mps_; }
   double heading() const { return state_.heading; }
@@ -185,6 +205,61 @@ public:
     heading_pid.reset();
     angular_velocity_pid.reset();
     update();
+  }
+
+  /// 停止：零电压（力控停止 = 自然滑行，无保持力矩）
+  void stop() {
+    basic::control::voltagecontrol(motor_a_, 0.0);
+    basic::control::voltagecontrol(motor_b_, 0.0);
+  }
+
+  /// 物理回正：以标零位置（analog_zero_raw_）为目标调用闭环控制。
+  /// 关键：误差只用 wrap_180（最短路径），不做 wrap_90——0° 与 180° 是不同位置。
+  /// 返回 true 表示完成（到位/超时/无编码器）；未完成时需周期调用。
+  bool align_to_physical_zero() {
+    if (analog_ == nullptr) {
+      return true;  // 无三线编码器：无需回正
+    }
+
+    align_elapsed_ms_ += 10;
+    if (align_elapsed_ms_ >= align_timeout_ms_) {
+      stop();
+      align_elapsed_ms_ = 0;
+      return true;  // 超时强制通过
+    }
+
+    update();
+
+    // 非 wrap 误差：目标 0°，误差 = wrap_180(0 - heading)
+    // heading=+170° → 误差 -170°（转 170° 到物理 0°，而非 wrap_90 的 +10° 到 180°）
+    const double heading_error = detail::wrap_180(-state_.heading);
+
+    if (std::fabs(heading_error) <= align_tolerance_deg_) {
+      stop();
+      align_elapsed_ms_ = 0;
+      velocity_pid.reset();
+      heading_pid.reset();
+      angular_velocity_pid.reset();
+      return true;
+    }
+
+    // 闭环回正：航向位置环 → 转向角速度环 → 电压（复用正常控制链路）
+    const auto heading_result = heading_pid.update(heading_error, 0.0);
+    const auto steer_result =
+        angular_velocity_pid.update(heading_result.ctrl, state_.steer_velocity);
+
+    double s = detail::clamp_value(
+        steer_result.ctrl, -kSharedMotorBudgetPct, kSharedMotorBudgetPct);
+    // 静摩擦 kick：小指令提升到最小可动电压
+    if (s != 0.0 && std::fabs(s) < kSteerFrictionKickPct) {
+      s = (s > 0.0 ? 1.0 : -1.0) * kSteerFrictionKickPct;
+    }
+
+    // 纯转向通道（v=0）：a = b = s/2
+    const double volt = 0.5 * s * pct_to_voltage_mv_;
+    basic::control::voltagecontrol(motor_a_, volt);
+    basic::control::voltagecontrol(motor_b_, volt);
+    return false;
   }
 
   /// 打印当前编码器位置与航向（用于手动标定）
@@ -232,15 +307,15 @@ public:
                vex::brakeType brake_type) {
     update();
 
-    // 调试打印：仅第一个轮组（FR）输出，节流每 10 拍 1 次
-    if (debug_id_ == 0) {
-      static int print_tick = 0;
-      if (++print_tick >= 10) {
-        print_tick = 0;
-        printf("W[%d]|raw:%.0f analog:%.2f motor:%.2f target:%.2f fused:%.2f\n",
-               debug_id_, last_accepted_raw_, state_.analog_deg,
-               state_.motor_steer_deg, target_heading, state_.heading);
-      }
+    // 调试打印：全部四轮，10Hz 节流（每行 ~45 字节 × 4 轮 ≈ 1.8KB/s，带宽安全）
+    if (++print_tick_ >= 10) {
+      print_tick_ = 0;
+      static const char* kNames[] = {"FR", "FL", "BR", "BL"};
+      const char* name = (debug_id_ >= 0 && debug_id_ < 4) ? kNames[debug_id_] : "??";
+      printf("%s|a:%.0frpm b:%.0frpm steer_v:%.1f wheel_v:%.1f tgt:%.1f\n",
+             name,
+             motor_a_.velocity(vex::rpm), motor_b_.velocity(vex::rpm),
+             state_.steer_velocity, state_.velocity, target_velocity_pct);
     }
 
     // 轮速目标 pct → m/s（运动学输出为 pct，在此处转为物理量）
@@ -270,42 +345,42 @@ public:
     const double effective_target_pct = flip ? -target_velocity_pct : target_velocity_pct;
     const double v_ff = kWheelVelocityFeedforward * effective_target_pct;
 
-    // 复位判定（复用 heading_error，避免二次 wrap_180）
+    // 复位判定（阈值与各环死区对齐）
     if (std::abs(heading_error) < 0.5 && std::abs(state_.steer_velocity) < 0.5) {
       heading_pid.reset();
       angular_velocity_pid.reset();
     }
-    if (std::abs(effective_target_mps) < 0.01 && std::abs(feedback_mps) < 0.01) {
+    if (std::abs(effective_target_mps) < 0.1 && std::abs(feedback_mps) < 0.1) {
       velocity_pid.reset();
     }
 
-    // 组合输出，超限时等比例缩放
-    const double s = detail::clamp_value(
+    // 组合输出（差速预算：转向优先，总预算 200）
+    double s = detail::clamp_value(
         steer_result.ctrl, -kSharedMotorBudgetPct, kSharedMotorBudgetPct);
     const double drive_budget = std::max(0.0, kSharedMotorBudgetPct - std::abs(s));
-    const double v = detail::clamp_value(
+    double v = detail::clamp_value(
         v_ff + velocity_result.ctrl, -drive_budget, drive_budget);
-    const double a_speed = 0.5 * (v + s);
-    const double b_speed = 0.5 * (-v + s);
 
-    //basic::control::adrc_torque_control(motor_a_, a_speed, adrc_a_);
-    //basic::control::adrc_torque_control(motor_b_, b_speed, adrc_b_);
-    basic::control::velocitycontrol(
+    // 静摩擦补偿：指令非零但幅值不足时提升到最小可动电压
+    if (s != 0.0 && std::fabs(s) < kSteerFrictionKickPct) {
+      s = (s > 0.0 ? 1.0 : -1.0) * kSteerFrictionKickPct;
+    }
+    if (v != 0.0 && std::fabs(v) < kDriveFrictionKickPct) {
+      v = (v > 0.0 ? 1.0 : -1.0) * kDriveFrictionKickPct;
+    }
+
+    const double a_pct = 0.5 * (v + s);
+    const double b_pct = 0.5 * (-v + s);
+
+    // 力控下发：pct → 电压（不经过固件速度环，扭矩 ∝ 电压）
+    basic::control::voltagecontrol(
         motor_a_,
-        detail::clamp_value(
-            a_speed, -kMotorOutputLimitPct, kMotorOutputLimitPct),
-        vex::pct);
-    basic::control::velocitycontrol(
+        detail::clamp_value(a_pct, -kMotorOutputLimitPct, kMotorOutputLimitPct) *
+            pct_to_voltage_mv_);
+    basic::control::voltagecontrol(
         motor_b_,
-        detail::clamp_value(
-            b_speed, -kMotorOutputLimitPct, kMotorOutputLimitPct),
-        vex::pct);
-
-    /*printf("W|v_in:%.0f v_tgt:%.2f v_fb:%.2f v_out:%.0f | h_tgt:%.0f h_fb:%.0f h_err:%.0f h_out:%.0f | s_out:%.0f a:%.0f b:%.0f\n",
-           target_velocity_pct, target_mps, feedback_mps, v,
-           target_heading, state_.heading, heading_error, heading_result.ctrl,
-           s,
-           a_speed, b_speed);*/
+        detail::clamp_value(b_pct, -kMotorOutputLimitPct, kMotorOutputLimitPct) *
+            pct_to_voltage_mv_);
   }
 };
 
@@ -358,6 +433,8 @@ inline WheelUnit make_wheel_unit(const WheelUnitConfig& config) {
       analog_zero_raw,
       config.analog_deadband_raw,
       config.debug_id,
+      config.align_tolerance_deg,
+      config.align_timeout_ms,
   };
 }
 }  // namespace detail

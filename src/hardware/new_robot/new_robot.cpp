@@ -52,6 +52,12 @@ class NewRobot final : public basic::app::Robot {
   }
 
   void run_driver_control_loop() {
+    // 上电后先将四轮物理回正到各自标零位置（同步 PROS 行为：
+    // 误差只走 wrap_180 最短路径，0° 与 180° 是不同位置）
+    while (!basic::chassis::new_chassis_align_to_physical_zero(hardware_.new_chassis)) {
+      vex::this_thread::sleep_for(kRefreshTime);
+    }
+
     while (should_run_driver_control()) {
       basic::input::controller_update(hardware_.brain, hardware_.controller, state_.controller);
       basic::chassis::new_chassis_update(
