@@ -10,7 +10,7 @@ inline constexpr int kRefreshTime = 10;
 inline constexpr int kSensorLoopDelay = 50;
 
 // 三线模拟编码器（模拟输入 0-4095，绝对位置，断电保持航向）
-// 每个占 1 个三线口（A-H）；分配（实际接线）：FL→A, FR→B, BR→C, BL→D
+// 每个占 1 个三线口（A-H）；分配（实际接线）：FL→A, FR→B, BR→C, BL→E
 inline constexpr double kAnalogFullScaleDeg = 360.0;  // 0-4095 满量程对应角度行程
 inline constexpr bool kAnalogReversed = false;        // 装车后若航向读数反向，改为 true
 // 标零位置已持久化（最新实测 zero 值，按 ADI 通道跟随编码器硬件）：
@@ -18,7 +18,7 @@ inline constexpr bool kAnalogReversed = false;        // 装车后若航向读�
 inline constexpr double kAnalogZeroRawFr = 3535.0;    // 右前，ADI B
 inline constexpr double kAnalogZeroRawFl = 3663.0;    // 左前，ADI A
 inline constexpr double kAnalogZeroRawBr = 1310.0;    // 右后，ADI C
-inline constexpr double kAnalogZeroRawBl = 2416.0;    // 左后，ADI D
+inline constexpr double kAnalogZeroRawBl = 2416.0;    // 左后，ADI E
 inline constexpr double kAnalogDeadbandRaw = 8.0;     // 模拟读数滞环死区（raw，±8 = ±0.70°）
 inline constexpr double kMotorMaxRpm = 600.0;        // 轮组电机极速（ratio6_1 蓝盒 = 600rpm）
 inline constexpr double kAlignToleranceDeg = 1.0;     // 物理回正容差（度）
@@ -119,7 +119,7 @@ struct RobotHardware {
                 kMotorMaxRpm,
                 0.0,
                 0.0,
-                &brain.ThreeWirePort.D,  // analog_port（BL→D）
+                &brain.ThreeWirePort.E,  // analog_port（BL→E）
                 kAnalogFullScaleDeg,
                 kAnalogReversed,
                 kAnalogZeroRawBl,  // 持久标零：2416
