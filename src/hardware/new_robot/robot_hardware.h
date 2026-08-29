@@ -10,13 +10,14 @@ inline constexpr int kRefreshTime = 10;
 inline constexpr int kSensorLoopDelay = 50;
 
 // 三线模拟编码器（模拟输入 0-4095，绝对位置，断电保持航向）
-// 每个占 1 个三线口（A-H）；分配（实际接线）：FR→A, FL→C, BR→B, BL→D
+// 每个占 1 个三线口（A-H）；分配（实际接线）：FL→A, FR→B, BR→C, BL→D
 inline constexpr double kAnalogFullScaleDeg = 360.0;  // 0-4095 满量程对应角度行程
 inline constexpr bool kAnalogReversed = false;        // 装车后若航向读数反向，改为 true
-// 标零位置已持久化（最新实测 zero 值）：上电物理回正将转到这些位置
-inline constexpr double kAnalogZeroRawFr = 3663.0;    // 右前，ADI A
-inline constexpr double kAnalogZeroRawFl = 1310.0;    // 左前，ADI C
-inline constexpr double kAnalogZeroRawBr = 3535.0;    // 右后，ADI B
+// 标零位置已持久化（最新实测 zero 值，按 ADI 通道跟随编码器硬件）：
+// 上电物理回正将转到这些位置
+inline constexpr double kAnalogZeroRawFr = 3535.0;    // 右前，ADI B
+inline constexpr double kAnalogZeroRawFl = 3663.0;    // 左前，ADI A
+inline constexpr double kAnalogZeroRawBr = 1310.0;    // 右后，ADI C
 inline constexpr double kAnalogZeroRawBl = 2416.0;    // 左后，ADI D
 inline constexpr double kAnalogDeadbandRaw = 8.0;     // 模拟读数滞环死区（raw，±8 = ±0.70°）
 inline constexpr double kMotorMaxRpm = 600.0;        // 轮组电机极速（ratio6_1 蓝盒 = 600rpm）
@@ -45,11 +46,11 @@ struct RobotHardware {
   vex::inertial inertial{vex::PORT11};
   basic::chassis::NewChassis new_chassis;
 
-  RobotHardware() //fr fl br bl（实际接线：FR=7/8, FL=5/6, BR=1/13, BL=3/4）
+  RobotHardware() //fr fl br bl（实际接线：FR=1/2, FL=11/13, BR=9/10, BL=19/20）
       : new_chassis(basic::chassis::new_chassis_init({
             {
-                {vex::PORT7, vex::ratio6_1, true},
-                {vex::PORT8, vex::ratio6_1, true},
+                {vex::PORT1, vex::ratio6_1, true},
+                {vex::PORT2, vex::ratio6_1, true},
                 kVeloPidCfg,
                 kHeadingPidCfg,
                 kAngularVelocityPidCfg,
@@ -58,37 +59,17 @@ struct RobotHardware {
                 kMotorMaxRpm,     // motor_max_rpm（ratio6_1 蓝盒）
                 0.0,             // initial_angle_a（0 = 自动捕获）
                 0.0,             // initial_angle_b（0 = 自动捕获）
-                &brain.ThreeWirePort.A,  // analog_port（FR→A）
+                &brain.ThreeWirePort.B,  // analog_port（FR→B）
                 kAnalogFullScaleDeg,
                 kAnalogReversed,
-                kAnalogZeroRawFr,  // 持久标零：3663
+                kAnalogZeroRawFr,  // 持久标零：3535
                 kAnalogDeadbandRaw,
                 0,  // debug_id = FR
                 kAlignToleranceDeg,
                 kAlignTimeoutMs,
             },
             {
-                {vex::PORT5, vex::ratio6_1, true},
-                {vex::PORT6, vex::ratio6_1, true},
-                kVeloPidCfg,
-                kHeadingPidCfg,
-                kAngularVelocityPidCfg,
-                kAdrcCfg,
-                kAdrcCfg,
-                kMotorMaxRpm,
-                0.0,
-                0.0,
-                &brain.ThreeWirePort.C,  // analog_port（FL→C）
-                kAnalogFullScaleDeg,
-                kAnalogReversed,
-                kAnalogZeroRawFl,  // 持久标零：1310
-                kAnalogDeadbandRaw,
-                1,  // debug_id = FL
-                kAlignToleranceDeg,
-                kAlignTimeoutMs,
-            },
-            {
-                {vex::PORT1, vex::ratio6_1, true},
+                {vex::PORT11, vex::ratio6_1, true},
                 {vex::PORT13, vex::ratio6_1, true},
                 kVeloPidCfg,
                 kHeadingPidCfg,
@@ -98,18 +79,38 @@ struct RobotHardware {
                 kMotorMaxRpm,
                 0.0,
                 0.0,
-                &brain.ThreeWirePort.B,  // analog_port（BR→B）
+                &brain.ThreeWirePort.A,  // analog_port（FL→A）
                 kAnalogFullScaleDeg,
                 kAnalogReversed,
-                kAnalogZeroRawBr,  // 持久标零：3535
+                kAnalogZeroRawFl,  // 持久标零：3663
+                kAnalogDeadbandRaw,
+                1,  // debug_id = FL
+                kAlignToleranceDeg,
+                kAlignTimeoutMs,
+            },
+            {
+                {vex::PORT9, vex::ratio6_1, true},
+                {vex::PORT10, vex::ratio6_1, true},
+                kVeloPidCfg,
+                kHeadingPidCfg,
+                kAngularVelocityPidCfg,
+                kAdrcCfg,
+                kAdrcCfg,
+                kMotorMaxRpm,
+                0.0,
+                0.0,
+                &brain.ThreeWirePort.C,  // analog_port（BR→C）
+                kAnalogFullScaleDeg,
+                kAnalogReversed,
+                kAnalogZeroRawBr,  // 持久标零：1310
                 kAnalogDeadbandRaw,
                 2,  // debug_id = BR
                 kAlignToleranceDeg,
                 kAlignTimeoutMs,
             },
             {
-                {vex::PORT3, vex::ratio6_1, true},
-                {vex::PORT4, vex::ratio6_1, true},
+                {vex::PORT19, vex::ratio6_1, true},
+                {vex::PORT20, vex::ratio6_1, true},
                 kVeloPidCfg,
                 kHeadingPidCfg,
                 kAngularVelocityPidCfg,
