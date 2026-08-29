@@ -13,12 +13,12 @@ inline constexpr int kSensorLoopDelay = 50;
 // 每个占 1 个三线口（A-H）；分配（实际接线）：FL→A, FR→B, BR→C, BL→E
 inline constexpr double kAnalogFullScaleDeg = 360.0;  // 0-4095 满量程对应角度行程
 inline constexpr bool kAnalogReversed = false;        // 装车后若航向读数反向，改为 true
-// 标零位置已持久化（最新实测 zero 值，按 ADI 通道跟随编码器硬件）：
+// 标零位置已持久化（最新实测 zero 值，2026/8/29：A=3465, B=3567, C=1383, E=2509）：
 // 上电物理回正将转到这些位置
-inline constexpr double kAnalogZeroRawFr = 3535.0;    // 右前，ADI B
-inline constexpr double kAnalogZeroRawFl = 3663.0;    // 左前，ADI A
-inline constexpr double kAnalogZeroRawBr = 1310.0;    // 右后，ADI C
-inline constexpr double kAnalogZeroRawBl = 2416.0;    // 左后，ADI E
+inline constexpr double kAnalogZeroRawFr = 3567.0;    // 右前，ADI B
+inline constexpr double kAnalogZeroRawFl = 3465.0;    // 左前，ADI A
+inline constexpr double kAnalogZeroRawBr = 1383.0;    // 右后，ADI C
+inline constexpr double kAnalogZeroRawBl = 2509.0;    // 左后，ADI E
 inline constexpr double kAnalogDeadbandRaw = 8.0;     // 模拟读数滞环死区（raw，±8 = ±0.70°）
 inline constexpr double kMotorMaxRpm = 600.0;        // 轮组电机极速（ratio6_1 蓝盒 = 600rpm）
 inline constexpr double kAlignToleranceDeg = 1.0;     // 物理回正容差（度）
