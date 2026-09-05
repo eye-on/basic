@@ -3,6 +3,7 @@
 
 #include "chassis/bed_chassis.h"
 #include "mechanism/intake.h"
+#include "mechanism/pneumatic_gripper.h"
 #include "vex.h"
 
 namespace basic::hardware::bed {
@@ -14,6 +15,7 @@ struct RobotHardware {
   vex::controller controller{vex::controllerType::primary};
   basic::chassis::BedChassis bed_chassis;
   basic::mechanism::Intake intake;
+  basic::mechanism::PneumaticGripper pneumatic_gripper;
 
   // TODO(bed): 实际接线后替换下列占位端口与正反方向。
   // 每轮 2 电机驱动同一个轮：同轴同向安装则两个电机 reversed 相同；
@@ -47,6 +49,12 @@ struct RobotHardware {
             {vex::PORT9, vex::ratio6_1, false},   // TODO: 电机 A 端口/正反
             {vex::PORT10, vex::ratio6_1, false},  // TODO: 电机 B 端口/正反
             100.0,                                // intake_speed_pct（开环）
+        })),
+        // 气缸夹爪：抓握/松开两态，R1 边沿切换；TODO(bed): 接线后替换 ADI 口
+        // 与电磁阀极性（inverted：抓握对应高电平=false）
+        pneumatic_gripper(basic::mechanism::pneumatic_gripper_init({
+            {brain.ThreeWirePort.F},  // TODO: 气缸电磁阀三线口
+            false,                    // inverted
         })) {}
 
   void show_ready() {

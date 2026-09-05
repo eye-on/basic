@@ -3,12 +3,14 @@
 
 #include "hardware/shared/state_types.h"
 #include "mechanism/intake.h"
+#include "mechanism/pneumatic_gripper.h"
 
 namespace basic::hardware::bed {
 
 struct RobotState {
   basic::hardware::shared::ControllerInputState controller;
   basic::mechanism::IntakeState intake;
+  basic::mechanism::PneumaticGripperState pneumatic_gripper;
 };
 
 }  // namespace basic::hardware::bed

@@ -6,6 +6,7 @@
 #include "hardware/bed/robot_state.h"
 #include "input/controller.h"
 #include "mechanism/intake.h"
+#include "mechanism/pneumatic_gripper.h"
 
 namespace basic::hardware::bed {
 
@@ -48,6 +49,10 @@ class BedRobot final : public basic::app::Robot {
       basic::mechanism::intake_update(
           hardware_.intake,
           basic::mechanism::intake_command_from_controller(state_.controller));
+      basic::mechanism::pneumatic_gripper_update(
+          hardware_.pneumatic_gripper,
+          basic::mechanism::pneumatic_gripper_command_from_controller(
+              state_.controller));
       vex::this_thread::sleep_for(kRefreshTime);
     }
 
@@ -71,6 +76,7 @@ class BedRobot final : public basic::app::Robot {
     state_.controller = basic::hardware::shared::ControllerInputState{};
     basic::chassis::bed_chassis_stop(hardware_.bed_chassis, brake_type);
     basic::mechanism::intake_stop(hardware_.intake, vex::coast);
+    basic::mechanism::pneumatic_gripper_stop(hardware_.pneumatic_gripper);
   }
 
   RobotHardware hardware_;
