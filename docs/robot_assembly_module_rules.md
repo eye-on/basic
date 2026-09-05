@@ -150,3 +150,16 @@ xxx_state(Hw&)                                         // 状态读写（const �
 | kFootballRobot | football_robot | h_chassis | pneumatic_motor_actuator + vision |
 | kLooklook | looklook | x_chassis + heading_hold | linear_lift + gripper |
 | kBed | bed | bed_chassis = XDrive\<2,2,2,2\>（每轮 2 电机共 8） | intake（L1）+ pneumatic_gripper（R1）+ arm_2dof（上/下、X/B；暂开环速度）；底盘已接线 BR=1/2、FR=5/6、BL=7/8、FL=9/11，intake/arm 电机未接线占位 20 |
+
+## 附录 C：训练项目 `../bed`（新人训练，结构必须与本仓库一致）
+
+`C:\Users\a\Documents\local\bed` 是新人训练副本，**目录结构与 basic 完全对标**：
+- 每个文件都位于与 basic 相同的相对路径（`include/…` 头 + `src/…` 实现），无独有路径
+- 范围内所有共享文件与 basic **逐字节一致**（已校验），仅以下为**刻意差异**（改动任何一侧时必须同步评估另一侧）：
+  1. `robot_selector.{h,cpp}`：仅保留 kBed
+  2. `src/hardware/bed/*`：装配含四类机构（intake / pneumatic_gripper / arm_2dof / linear_lift，抬升为训练新增成员，键位 L2/R2），端口占位
+  3. `src/mechanism/{intake,pneumatic_gripper,arm_2dof,linear_lift}.cpp`：空实现（`TODO(训练)` + 期望说明）
+  4. `include/chassis/x_drive.h`：set_output/update/stop 空实现（训练用），底层设施保留
+  5. `src/control/motor_control.{h,cpp}`：已裁掉 ADRC 依赖（`adrc_torque_control`），`control/` 仅 pid
+- **结构变更规则**：在 basic 新增/移动/删除模块文件时，若属于 bed 保留范围（bed 底盘 + 四机构 + 其依赖），必须同步 bed 相同路径；bed 侧练习类改动不反向影响 basic
+- 训练项目不建 git 仓库（以 basic 为准源）
