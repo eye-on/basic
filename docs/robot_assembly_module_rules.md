@@ -149,4 +149,4 @@ xxx_state(Hw&)                                         // 状态读写（const �
 | kNewRobot | new_robot | new_chassis（舵轮 steering） | 同步对象 my_robot（PROS） |
 | kFootballRobot | football_robot | h_chassis | pneumatic_motor_actuator + vision |
 | kLooklook | looklook | x_chassis + heading_hold | linear_lift + gripper |
-| kBed | bed | bed_chassis = XDrive\<2,2,2,2\>（每轮 2 电机共 8） | intake（L1）+ pneumatic_gripper（R1）+ arm_2dof（上/下、X/B；暂开环速度）；未接线，端口占位 + TODO |
+| kBed | bed | bed_chassis = XDrive\<2,2,2,2\>（每轮 2 电机共 8） | intake（L1）+ pneumatic_gripper（R1）+ arm_2dof（上/下、X/B；暂开环速度）；底盘已接线 BR=1/2、FR=5/6、BL=7/8、FL=9/11，intake/arm 电机未接线占位 20 |
