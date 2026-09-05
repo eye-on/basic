@@ -6,8 +6,8 @@
 
 namespace basic::mechanism {
 
-/// 夹爪状态：松开 / 抓握
-enum class PneumaticGripperState {
+/// 夹爪模式：松开 / 抓握
+enum class PneumaticGripperMode {
   kRelease,
   kGrasp,
 };
@@ -22,7 +22,7 @@ struct PneumaticGripperCommand {
 };
 
 struct PneumaticGripperState {
-  PneumaticGripperState mode{PneumaticGripperState::kRelease};
+  PneumaticGripperMode mode{PneumaticGripperMode::kRelease};
 };
 
 class PneumaticGripper {
@@ -56,10 +56,10 @@ void pneumatic_gripper_update(
     PneumaticGripper& mechanism,
     const PneumaticGripperCommand& command);
 
-/// 直接设置状态（autonomous 用）
+/// 直接设置模式（autonomous 用）
 void pneumatic_gripper_set_state(
     PneumaticGripper& mechanism,
-    PneumaticGripperState state);
+    PneumaticGripperMode state);
 
 /// 停止并复位为松开（切断电磁阀）
 void pneumatic_gripper_stop(PneumaticGripper& mechanism);

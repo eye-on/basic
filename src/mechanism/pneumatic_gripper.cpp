@@ -7,7 +7,7 @@ namespace {
 void apply_output(PneumaticGripper& mechanism) {
   // 电平 = (抓握) XOR (inverted)：抓握是否对应高电平由接线决定
   const bool grasp_high =
-      mechanism.state().mode == PneumaticGripperState::kGrasp;
+      mechanism.state().mode == PneumaticGripperMode::kGrasp;
   mechanism.output().set(grasp_high != mechanism.config().inverted);
 }
 
@@ -44,16 +44,16 @@ void pneumatic_gripper_update(
   // 边沿触发：按一下切换状态（长按不重复触发）
   if (command.toggle) {
     mechanism.state().mode =
-        (mechanism.state().mode == PneumaticGripperState::kGrasp)
-            ? PneumaticGripperState::kRelease
-            : PneumaticGripperState::kGrasp;
+        (mechanism.state().mode == PneumaticGripperMode::kGrasp)
+            ? PneumaticGripperMode::kRelease
+            : PneumaticGripperMode::kGrasp;
   }
   apply_output(mechanism);
 }
 
 void pneumatic_gripper_set_state(
     PneumaticGripper& mechanism,
-    PneumaticGripperState state) {
+    PneumaticGripperMode state) {
   mechanism.state().mode = state;
   apply_output(mechanism);
 }
