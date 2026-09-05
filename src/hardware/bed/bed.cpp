@@ -5,6 +5,7 @@
 #include "hardware/bed/robot_hardware.h"
 #include "hardware/bed/robot_state.h"
 #include "input/controller.h"
+#include "mechanism/intake.h"
 
 namespace basic::hardware::bed {
 
@@ -44,6 +45,9 @@ class BedRobot final : public basic::app::Robot {
           basic::chassis::bed_chassis_command_from_controller(
               state_.controller,
               basic::chassis::bed_chassis_state(hardware_.bed_chassis).stop_brake_type));
+      basic::mechanism::intake_update(
+          hardware_.intake,
+          basic::mechanism::intake_command_from_controller(state_.controller));
       vex::this_thread::sleep_for(kRefreshTime);
     }
 
@@ -66,6 +70,7 @@ class BedRobot final : public basic::app::Robot {
   void stop_all_outputs(vex::brakeType brake_type) {
     state_.controller = basic::hardware::shared::ControllerInputState{};
     basic::chassis::bed_chassis_stop(hardware_.bed_chassis, brake_type);
+    basic::mechanism::intake_stop(hardware_.intake, vex::coast);
   }
 
   RobotHardware hardware_;

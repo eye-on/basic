@@ -2,6 +2,7 @@
 #define BASIC_SRC_HARDWARE_BED_ROBOT_HARDWARE_H_
 
 #include "chassis/bed_chassis.h"
+#include "mechanism/intake.h"
 #include "vex.h"
 
 namespace basic::hardware::bed {
@@ -12,6 +13,7 @@ struct RobotHardware {
   vex::brain brain;
   vex::controller controller{vex::controllerType::primary};
   basic::chassis::BedChassis bed_chassis;
+  basic::mechanism::Intake intake;
 
   // TODO(bed): 实际接线后替换下列占位端口与正反方向。
   // 每轮 2 电机驱动同一个轮：同轴同向安装则两个电机 reversed 相同；
@@ -39,6 +41,12 @@ struct RobotHardware {
             1.0,  // forward_sensitivity
             1.0,  // strafe_sensitivity
             1.0,  // turn_sensitivity
+        })),
+        // 吸入模块：2 电机开环定速；TODO(bed): 接线后替换端口/正反/转速
+        intake(basic::mechanism::intake_init({
+            {vex::PORT9, vex::ratio6_1, false},   // TODO: 电机 A 端口/正反
+            {vex::PORT10, vex::ratio6_1, false},  // TODO: 电机 B 端口/正反
+            100.0,                                // intake_speed_pct（开环）
         })) {}
 
   void show_ready() {
