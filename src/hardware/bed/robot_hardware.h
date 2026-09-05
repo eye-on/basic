@@ -2,6 +2,7 @@
 #define BASIC_SRC_HARDWARE_BED_ROBOT_HARDWARE_H_
 
 #include "chassis/bed_chassis.h"
+#include "mechanism/arm_2dof.h"
 #include "mechanism/intake.h"
 #include "mechanism/pneumatic_gripper.h"
 #include "vex.h"
@@ -16,6 +17,7 @@ struct RobotHardware {
   basic::chassis::BedChassis bed_chassis;
   basic::mechanism::Intake intake;
   basic::mechanism::PneumaticGripper pneumatic_gripper;
+  basic::mechanism::Arm2Dof arm_2dof;
 
   // TODO(bed): 实际接线后替换下列占位端口与正反方向。
   // 每轮 2 电机驱动同一个轮：同轴同向安装则两个电机 reversed 相同；
@@ -55,6 +57,16 @@ struct RobotHardware {
         pneumatic_gripper(basic::mechanism::pneumatic_gripper_init({
             {brain.ThreeWirePort.F},  // TODO: 气缸电磁阀三线口
             false,                    // inverted
+        })),
+        // 二自由度机械臂：开环速度（暂时）+ 闭环位置（待启用）；
+        // 键位：上/下=关节1，X/B=关节2；TODO(bed): 接线后替换端口/正反
+        arm_2dof(basic::mechanism::arm_2dof_init({
+            {vex::PORT11, vex::ratio36_1, false},  // TODO: 关节 1 电机（齿比按实际）
+            {vex::PORT12, vex::ratio36_1, false},  // TODO: 关节 2 电机（齿比按实际）
+            basic::mechanism::Arm2DofMode::kOpenLoopVelocity,  // 暂时开环速度
+            40.0,   // velocity_speed_pct
+            vex::deg,
+            30.0,   // position_speed_pct
         })) {}
 
   void show_ready() {

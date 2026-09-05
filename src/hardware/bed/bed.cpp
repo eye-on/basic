@@ -5,6 +5,7 @@
 #include "hardware/bed/robot_hardware.h"
 #include "hardware/bed/robot_state.h"
 #include "input/controller.h"
+#include "mechanism/arm_2dof.h"
 #include "mechanism/intake.h"
 #include "mechanism/pneumatic_gripper.h"
 
@@ -53,6 +54,9 @@ class BedRobot final : public basic::app::Robot {
           hardware_.pneumatic_gripper,
           basic::mechanism::pneumatic_gripper_command_from_controller(
               state_.controller));
+      basic::mechanism::arm_2dof_update(
+          hardware_.arm_2dof,
+          basic::mechanism::arm_2dof_command_from_controller(state_.controller));
       vex::this_thread::sleep_for(kRefreshTime);
     }
 
@@ -77,6 +81,7 @@ class BedRobot final : public basic::app::Robot {
     basic::chassis::bed_chassis_stop(hardware_.bed_chassis, brake_type);
     basic::mechanism::intake_stop(hardware_.intake, vex::coast);
     basic::mechanism::pneumatic_gripper_stop(hardware_.pneumatic_gripper);
+    basic::mechanism::arm_2dof_stop(hardware_.arm_2dof, vex::hold);
   }
 
   RobotHardware hardware_;

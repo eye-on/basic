@@ -14,7 +14,7 @@ enum class RobotIdentity {
   kBed,
 };
 
-inline constexpr RobotIdentity kSelectedRobot = RobotIdentity::kNewRobot;
+inline constexpr RobotIdentity kSelectedRobot = RobotIdentity::kBed;
 
 basic::app::Robot& get_current_robot();
 
