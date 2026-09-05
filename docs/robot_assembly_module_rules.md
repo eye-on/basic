@@ -139,3 +139,14 @@ xxx_state(Hw&)                                         // 状态读写（const �
 | 左后 BL | 19, 20 | E | 385 | 后左 |
 
 选择器：`kSelectedRobot = kNewRobot`（舵轮底盘，移植同步对象 my_robot）。
+
+## 附录 B：机器人清单（2026-08-29）
+
+| 枚举 | 目录 | 底盘 | 备注 |
+|---|---|---|---|
+| kBasicRobot | basic_robot | old_chassis | indexed_intake |
+| kSecondRobot | second_robot | second_chassis | roller_shooter |
+| kNewRobot | new_robot | new_chassis（舵轮 steering） | 同步对象 my_robot（PROS） |
+| kFootballRobot | football_robot | h_chassis | pneumatic_motor_actuator + vision |
+| kLooklook | looklook | x_chassis + heading_hold | linear_lift + gripper |
+| kBed | bed | bed_chassis = XDrive\<2,2,2,2\>（每轮 2 电机共 8） | 未接线，占位端口 1-8 + TODO |

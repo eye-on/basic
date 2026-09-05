@@ -11,6 +11,7 @@ enum class RobotIdentity {
   kNewRobot,
   kFootballRobot,
   kLooklook,
+  kBed,
 };
 
 inline constexpr RobotIdentity kSelectedRobot = RobotIdentity::kNewRobot;
