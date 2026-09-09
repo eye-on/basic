@@ -13,13 +13,14 @@ enum class IntakeMode {
 };
 
 struct IntakeConfig {
-  basic::device::MotorConfig motor_a;  // 驱动电机 A（两个电机同向驱动吸入轮）
+  basic::device::MotorConfig motor_a;  // 驱动电机 A（三个电机同向驱动吸球轮）
   basic::device::MotorConfig motor_b;  // 驱动电机 B
+  basic::device::MotorConfig motor_c;  // 驱动电机 C
   double speed_pct{100.0};             // 开环目标速度（pct，直接下发不经 PID）
 };
 
 struct IntakeCommand {
-  bool toggle{false};  // press_l1 → 边沿触发翻转 开/停
+  bool toggle{false};  // press_a → 边沿触发翻转 开/停
 };
 
 struct IntakeState {
@@ -33,8 +34,10 @@ class Intake {
 
   vex::motor& motor_a();
   vex::motor& motor_b();
+  vex::motor& motor_c();
   const vex::motor& motor_a() const;
   const vex::motor& motor_b() const;
+  const vex::motor& motor_c() const;
 
   IntakeConfig& config();
   const IntakeConfig& config() const;
@@ -46,13 +49,14 @@ class Intake {
   IntakeConfig config_;
   vex::motor motor_a_;
   vex::motor motor_b_;
+  vex::motor motor_c_;
   IntakeState state_;
 };
 
 /// 初始化吸入模块
 Intake intake_init(const IntakeConfig& config);
 
-/// 从遥控器输入生成控制指令（键位：L1 = 边沿启停）
+/// 从遥控器输入生成控制指令（键位：A = 边沿启停）
 IntakeCommand intake_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input);
 

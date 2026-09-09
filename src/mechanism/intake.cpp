@@ -14,15 +14,16 @@ vex::motor make_motor(const basic::device::MotorConfig& config) {
 }
 
 void apply_mode(Intake& mechanism) {
-  const auto& c = mechanism.config();
   const auto& s = mechanism.state();
   if (s.mode == IntakeMode::kRunning) {
-    // 开环：直接下发速度百分比，两个电机同速同向
+    // 开环：直接下发速度百分比，三个电机同速同向
     velocitycontrol(mechanism.motor_a(), s.speed_pct, vex::pct);
     velocitycontrol(mechanism.motor_b(), s.speed_pct, vex::pct);
+    velocitycontrol(mechanism.motor_c(), s.speed_pct, vex::pct);
   } else {
     stopcontrol(mechanism.motor_a(), vex::coast);
     stopcontrol(mechanism.motor_b(), vex::coast);
+    stopcontrol(mechanism.motor_c(), vex::coast);
   }
 }
 
@@ -31,12 +32,15 @@ void apply_mode(Intake& mechanism) {
 Intake::Intake(const IntakeConfig& config)
     : config_(config),
       motor_a_(make_motor(config.motor_a)),
-      motor_b_(make_motor(config.motor_b)) {}
+      motor_b_(make_motor(config.motor_b)),
+      motor_c_(make_motor(config.motor_c)) {}
 
 vex::motor& Intake::motor_a() { return motor_a_; }
 vex::motor& Intake::motor_b() { return motor_b_; }
+vex::motor& Intake::motor_c() { return motor_c_; }
 const vex::motor& Intake::motor_a() const { return motor_a_; }
 const vex::motor& Intake::motor_b() const { return motor_b_; }
+const vex::motor& Intake::motor_c() const { return motor_c_; }
 
 IntakeConfig& Intake::config() { return config_; }
 const IntakeConfig& Intake::config() const { return config_; }
@@ -51,7 +55,7 @@ Intake intake_init(const IntakeConfig& config) {
 IntakeCommand intake_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input) {
   IntakeCommand command;
-  command.toggle = input.press_l1;  // L1 按下沿 → 翻转 开/停
+  command.toggle = input.press_a;  // A 按下沿 → 翻转 开/停
   return command;
 }
 
@@ -81,6 +85,7 @@ void intake_stop(Intake& mechanism, vex::brakeType brake_type) {
   mechanism.state() = IntakeState{};
   stopcontrol(mechanism.motor_a(), brake_type);
   stopcontrol(mechanism.motor_b(), brake_type);
+  stopcontrol(mechanism.motor_c(), brake_type);
 }
 
 IntakeState& intake_state(Intake& mechanism) {
