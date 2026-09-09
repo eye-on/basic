@@ -57,6 +57,19 @@ class BedRobot final : public basic::app::Robot {
       basic::mechanism::arm_2dof_update(
           hardware_.arm_2dof,
           basic::mechanism::arm_2dof_command_from_controller(state_.controller));
+
+      // 调试：四轮组力矩打印（10Hz；每轮组 2 电机读数求和，单位 Nm）
+      if (++torque_print_tick_ >= 10) {
+        torque_print_tick_ = 0;
+        double fl_t = 0.0, fr_t = 0.0, bl_t = 0.0, br_t = 0.0;
+        for (vex::motor& m : hardware_.bed_chassis.fl_motors()) fl_t += m.torque(vex::Nm);
+        for (vex::motor& m : hardware_.bed_chassis.fr_motors()) fr_t += m.torque(vex::Nm);
+        for (vex::motor& m : hardware_.bed_chassis.bl_motors()) bl_t += m.torque(vex::Nm);
+        for (vex::motor& m : hardware_.bed_chassis.br_motors()) br_t += m.torque(vex::Nm);
+        printf("TORQ|FL:%7.2f FR:%7.2f BL:%7.2f BR:%7.2f (Nm)\n",
+               fl_t, fr_t, bl_t, br_t);
+      }
+
       vex::this_thread::sleep_for(kRefreshTime);
     }
 
@@ -87,6 +100,7 @@ class BedRobot final : public basic::app::Robot {
   RobotHardware hardware_;
   RobotState state_;
   vex::competition* competition_{nullptr};
+  int torque_print_tick_{0};
 
   friend BedRobot& current_bed();
 };
