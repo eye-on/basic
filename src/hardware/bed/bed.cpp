@@ -58,16 +58,19 @@ class BedRobot final : public basic::app::Robot {
           hardware_.arm_2dof,
           basic::mechanism::arm_2dof_command_from_controller(state_.controller));
 
-      // 调试：四轮组力矩打印（10Hz；每轮组 2 电机读数求和，单位 Nm）
-      if (++torque_print_tick_ >= 10) {
+      // 调试：打印四轮组每个电机力矩（50Hz/20ms；a/b = 同轮组两电机，单位 Nm）
+      if (++torque_print_tick_ >= 2) {
         torque_print_tick_ = 0;
-        double fl_t = 0.0, fr_t = 0.0, bl_t = 0.0, br_t = 0.0;
-        for (vex::motor& m : hardware_.bed_chassis.fl_motors()) fl_t += m.torque(vex::Nm);
-        for (vex::motor& m : hardware_.bed_chassis.fr_motors()) fr_t += m.torque(vex::Nm);
-        for (vex::motor& m : hardware_.bed_chassis.bl_motors()) bl_t += m.torque(vex::Nm);
-        for (vex::motor& m : hardware_.bed_chassis.br_motors()) br_t += m.torque(vex::Nm);
-        printf("TORQ|FL:%7.2f FR:%7.2f BL:%7.2f BR:%7.2f (Nm)\n",
-               fl_t, fr_t, bl_t, br_t);
+        auto& fl = hardware_.bed_chassis.fl_motors();
+        auto& fr = hardware_.bed_chassis.fr_motors();
+        auto& bl = hardware_.bed_chassis.bl_motors();
+        auto& br = hardware_.bed_chassis.br_motors();
+        printf("TORQ|FL a:%5.2f b:%5.2f FR a:%5.2f b:%5.2f"
+               " BL a:%5.2f b:%5.2f BR a:%5.2f b:%5.2f (Nm)\n",
+               fl[0].torque(vex::Nm), fl[1].torque(vex::Nm),
+               fr[0].torque(vex::Nm), fr[1].torque(vex::Nm),
+               bl[0].torque(vex::Nm), bl[1].torque(vex::Nm),
+               br[0].torque(vex::Nm), br[1].torque(vex::Nm));
       }
 
       vex::this_thread::sleep_for(kRefreshTime);
