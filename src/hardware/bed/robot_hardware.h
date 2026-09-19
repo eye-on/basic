@@ -71,7 +71,7 @@ struct RobotHardware {
   // 联锁：框住机构处于展开(松开)态时禁止机械臂展开（收回始终允许）——
   //       即开机默认（框住=展开）无法展开机械臂，需先按 B 让框住进入框住态。
   RobotHardware()
-      // IMU 航向保持：摇杆旋转轴积分出目标 yaw，IMU 闭环修正 turn 通道
+      // IMU 航向保持：目标 yaw = 底盘**整形后 turn 指令**的时域积分；IMU 闭环修正 turn 通道
       //   误差 deg → 修正 pct：kp / ki / 输出与积分限幅 ±20（参数见下，已实测调过）
       //   运行时：R1 = 把当前车头方向重设为锁定目标；R2 = 开关航向闭环
       //   ⚠ 当前状态：**暂时关闭**（enabled = false）→ 航向修正在第一行就返回 0，
@@ -79,12 +79,13 @@ struct RobotHardware {
       //     或把下面的 enabled 改回 true。
       : yaw_hold(basic::chassis::yaw_hold_init({
             {0.5, 0.00, 0.0, -20.0, 20.0, -8.0, 8.0, 0.4},  // pid: kp,ki,kd,out±,i±,deadzone
-            0,       // turn_deadzone：与底盘旋转轴死区一致
-            120.0,   // deg_per_sec_at_full_stick：满杆目标角速度（deg/s）
+            0,       // turn_deadzone：整形后 turn 指令的死区（pct，底盘已做死区，这里通常 0）
+            5.6,     // deg_per_sec_per_turn_pct：标定值（1 pct turn 指令 ≈ 5.6°/s）
             20.0,    // max_correction_pct：修正限幅
             12.0,    // max_turn_lead_deg：打杆期间允许的目标超前量（防积分跑飞）
             0.0,     // rate_damping_pct_per_dps：IMU 角速度阻尼（0 = 关，先用 P）
-            1,      // sign：方向修正（±1）
+            true,    // reanchor_on_release：松杆瞬间接受当前车头，消除"松手后又转几度"
+            1,       // sign：方向修正（±1）
             false,   // enabled：暂时关闭（true = 一直实时闭环；运行时可 R2 切换）
         })),
         bed_chassis(basic::chassis::bed_chassis_init({

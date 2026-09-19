@@ -130,16 +130,13 @@ class BedRobot final : public basic::app::Robot {
             state_.controller,
             basic::chassis::bed_chassis_state(hardware_.bed_chassis).stop_brake_type);
 
-    // IMU 航向保持：**每周期实时闭环**（静止/平移/原地旋转都在修正）
-    //   只有左摇杆旋转轴（axis4）能改变目标 yaw；被推歪会被闭环拉回目标
+    // IMU 航向保持：目标 yaw = 底盘**整形后 turn 指令**的积分；IMU 闭环修正 turn 通道
     //   R1 重锚定 / R2 开关；IMU 未插或在标定时自动不介入
-    const basic::hardware::shared::ControllerInputState& input = state_.controller;
     auto& chassis = hardware_.bed_chassis;
     basic::chassis::YawHoldInput yaw_input;
-    // 减零位偏置后再吸附一次：偏置本身可能是 ±1，否则残留抖动会被积分进目标 yaw
-    const int turn_excess = input.axis4 - chassis.axis_offset_turn();
-    yaw_input.turn_input_pct =
-        (std::abs(turn_excess) <= kAxisSnapPct) ? 0 : turn_excess;
+    // 用底盘**整形之后**的 turn 指令当目标速率基准（上一个周期发布，10ms 延迟可忽略）：
+    // 这样航向环和底盘用同一个量，不会出现"环按原始摇杆转、底盘按整形值转"的错配
+    yaw_input.turn_cmd_pct = chassis.state().turn_pct;
     yaw_input.yaw_deg = hardware_.imu.rotation(vex::deg);
     yaw_input.yaw_rate_dps = hardware_.imu.gyroRate(vex::zaxis, vex::dps);
     yaw_input.imu_ready = hardware_.imu.installed() && !hardware_.imu.isCalibrating();
@@ -281,8 +278,9 @@ class BedRobot final : public basic::app::Robot {
       debug_row_counter_ = 0;
       if (kDebugAxisOnly) {
         printf("# profile: axis-only —— 只打印手柄摇杆行（A，100Hz）\n");
-        printf("# A,t_ms,axis1,axis2,axis3,axis4,fl_x10,fr_x10,bl_x10,br_x10,corr_x10\n");
+        printf("# A,t_ms,axis1,axis2,axis3,axis4,fl_x10,fr_x10,bl_x10,br_x10,corr_x10,turn_x10,yaw_x10\n");
         printf("# axis1=右X(平移) axis2=右Y(前后) axis3=左Y(未用) axis4=左X(旋转)；fl/fr/bl/br=下发 pct×10\n");
+        printf("# corr=航向修正×10 turn=整形后 turn 指令×10 yaw=IMU 航向×10\n");
       } else {
         printf("# profile: full —— D(100Hz)+A(25Hz)+C/Y/K(10Hz)\n");
         printf("# D,t_ms,mode,rpm_fla,rpm_flb,rpm_fra,rpm_frb,rpm_bla,rpm_blb,rpm_bra,rpm_brb,pos_fl,pos_fr,pos_bl,pos_br,sat\n");
@@ -310,13 +308,15 @@ class BedRobot final : public basic::app::Robot {
 
     // [只打印摇杆] 模式：每周期输出一行 A（100Hz），其余行一律不打印
     if (kDebugAxisOnly) {
-      printf("A,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+      printf("A,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
              t_ms,
              state_.controller.axis1, state_.controller.axis2,
              state_.controller.axis3, state_.controller.axis4,
              round_int(s.fl_pct * 10.0), round_int(s.fr_pct * 10.0),
              round_int(s.bl_pct * 10.0), round_int(s.br_pct * 10.0),
-             round_int(state_.yaw_hold.correction_pct * 10.0));
+             round_int(state_.yaw_hold.correction_pct * 10.0),
+             round_int(s.turn_pct * 10.0),
+             round_int(state_.yaw_hold.yaw_deg * 10.0));
       return;
     }
 

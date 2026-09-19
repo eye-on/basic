@@ -131,6 +131,9 @@ struct XDriveState {
   double fr_rpm{0.0};
   double bl_rpm{0.0};
   double br_rpm{0.0};
+  // 曲线整形之后的 turn 通道指令（pct）：驾驶员真正要的转向量
+  // 供航向保持当"目标偏航角速度"的基准，保证外环和底盘用同一个量
+  double turn_pct{0.0};
   vex::brakeType stop_brake_type{vex::coast};
   XDriveOdometry odometry{};
 };
@@ -417,6 +420,10 @@ void x_drive_update(
   double out_fr = detail::shape_input(fr_pct);
   double out_bl = detail::shape_input(bl_pct);
   double out_br = detail::shape_input(br_pct);
+
+  // 发布 turn 通道的整形后指令（纯旋转时 fl=+t → out_fl 就是它的整形值）
+  // 航向保持用它当目标角速度基准：驾驶员要转多少，目标就按同样比例走
+  chassis.state().turn_pct = detail::shape_input(turn);
 
   // 航向修正（IMU/外部闭环注入）：以 turn 差分形式叠加在曲线整形之后
   //   放在整形之前会被 smoothstep 在小信号区压扁（斜率趋 0），修正量近乎无效
