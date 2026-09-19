@@ -11,6 +11,7 @@ namespace {
 
 using basic::control::get_done;
 using basic::control::get_position;
+using basic::control::get_velocity;
 using basic::control::stopcontrol;
 using basic::control::velocitycontrol;
 
@@ -79,42 +80,60 @@ LinearLiftCommand linear_lift_command_from_controller(
 }
 
 void linear_lift_update(LinearLift& mechanism, const LinearLiftCommand& command) {
+  LinearLiftState& state = mechanism.state();
+  const LinearLiftConfig& config = mechanism.config();
+
   // 边缘触发：按一下切换方向状态
+  // 堵转后同方向重按无效（已顶在该端），需先反向，避免对着限位持续顶
   if (command.toggle_up) {
-    mechanism.state().open_loop_up = !mechanism.state().open_loop_up;
-    mechanism.state().open_loop_down = false;
+    if (!(state.stalled && state.stalled_up)) {
+      state.open_loop_up = !state.open_loop_up;
+      state.open_loop_down = false;
+    }
   }
   if (command.toggle_down) {
-    mechanism.state().open_loop_down = !mechanism.state().open_loop_down;
-    mechanism.state().open_loop_up = false;
+    if (!(state.stalled && !state.stalled_up)) {
+      state.open_loop_down = !state.open_loop_down;
+      state.open_loop_up = false;
+    }
   }
 
-  const bool up = mechanism.state().open_loop_up;
-  const bool down = mechanism.state().open_loop_down;
-  const auto stop_brake = mechanism.config().stop_brake_type;
+  const bool up = state.open_loop_up;
+  const bool down = state.open_loop_down;
+  const auto stop_brake = config.stop_brake_type;
 
   if (!command.enabled || (!up && !down) || (up && down)) {
     stopcontrol(mechanism.lift_motor1(), stop_brake);
     stopcontrol(mechanism.lift_motor2(), stop_brake);
+    state.running = false;
+    state.stall_since_ms = 0;
     refresh_state(mechanism);
     return;
   }
 
-  const double speed = up ? +mechanism.config().open_loop_speed_pct
-                          : -mechanism.config().open_loop_speed_down_pct;
+  const int now = static_cast<int>(vex::timer::system());
+  if (!state.running) {  // 本次运行起点；新方向启动时清除堵转标记
+    state.running = true;
+    state.run_start_ms = now;
+    state.stall_since_ms = 0;
+    state.stalled = false;
+  }
 
-  const auto& motor1_slot = mechanism.config().lift_motor1;
-  const auto& motor2_slot = mechanism.config().lift_motor2;
+  const double speed = up ? +config.open_loop_speed_pct
+                          : -config.open_loop_speed_down_pct;
+
+  const auto& motor1_slot = config.lift_motor1;
+  const auto& motor2_slot = config.lift_motor2;
 
   // 各电机独立限位 + 减速区
-  const double threshold = mechanism.config().decel_threshold;
-  double pos1 = get_position(mechanism.lift_motor1(), mechanism.config().position_units);
-  double pos2 = get_position(mechanism.lift_motor2(), mechanism.config().position_units);
+  const double threshold = config.decel_threshold;
+  double pos1 = get_position(mechanism.lift_motor1(), config.position_units);
+  double pos2 = get_position(mechanism.lift_motor2(), config.position_units);
 
   const double factor1 = decel_factor(pos1, motor1_slot.position_min, motor1_slot.position_max, threshold, up);
   const double factor2 = decel_factor(pos2, motor2_slot.position_min, motor2_slot.position_max, threshold, up);
 
-  const double min_speed = mechanism.config().decel_min_speed_pct;
+  const double min_speed = config.decel_min_speed_pct;
 
   if (factor1 <= 0.0) {
     stopcontrol(mechanism.lift_motor1(), stop_brake);
@@ -130,6 +149,32 @@ void linear_lift_update(LinearLift& mechanism, const LinearLiftCommand& command)
     const double raw = speed * factor2;
     const double clamped = (raw > 0) ? std::max(raw, min_speed) : std::min(raw, -min_speed);
     velocitycontrol(mechanism.lift_motor2(), clamped, vex::pct);
+  }
+
+  // 堵转停止：走过起动宽限后，两电机速度持续低于阈值 → 判定顶到机械限位/受阻
+  if (config.stall_stop_enabled) {
+    const int elapsed = now - state.run_start_ms;
+    if (elapsed >= config.stall_grace_ms) {
+      const double v1 = std::fabs(get_velocity(mechanism.lift_motor1(), vex::rpm));
+      const double v2 = std::fabs(get_velocity(mechanism.lift_motor2(), vex::rpm));
+      if (v1 <= config.stall_velocity_rpm && v2 <= config.stall_velocity_rpm) {
+        if (state.stall_since_ms == 0) {
+          state.stall_since_ms = now;
+        } else if (now - state.stall_since_ms >= config.stall_confirm_ms) {
+          // 判定堵转：停机 + 锁定该方向（反向可正常解除）
+          stopcontrol(mechanism.lift_motor1(), stop_brake);
+          stopcontrol(mechanism.lift_motor2(), stop_brake);
+          state.stalled = true;
+          state.stalled_up = up;
+          state.open_loop_up = false;
+          state.open_loop_down = false;
+          state.running = false;
+          state.stall_since_ms = 0;
+        }
+      } else {
+        state.stall_since_ms = 0;
+      }
+    }
   }
 
   refresh_state(mechanism);

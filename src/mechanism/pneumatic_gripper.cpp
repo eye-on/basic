@@ -14,7 +14,10 @@ void apply_output(PneumaticGripper& mechanism) {
 }  // namespace
 
 PneumaticGripper::PneumaticGripper(const PneumaticGripperConfig& config)
-    : config_(config), output_(config.output.port) {}
+    : config_(config), output_(config.output.port) {
+  state_.mode = config.initial_mode;  // 上电即置于初始状态（默认展开/松开）
+  apply_output(*this);                // 构造时立刻下发电磁阀电平
+}
 
 vex::digital_out& PneumaticGripper::output() { return output_; }
 const vex::digital_out& PneumaticGripper::output() const { return output_; }
@@ -34,7 +37,7 @@ PneumaticGripper pneumatic_gripper_init(const PneumaticGripperConfig& config) {
 PneumaticGripperCommand pneumatic_gripper_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input) {
   PneumaticGripperCommand command;
-  command.toggle = input.press_r1;  // R1 按下沿 → 翻转 抓握/松开
+  command.toggle = input.press_x;  // X 按下沿 → 翻转 抓握/松开
   return command;
 }
 

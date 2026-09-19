@@ -77,12 +77,63 @@ inline double dynamic_smooth(int current, int previous, double rating, int deadz
   return previous * (1.0 - ratio);
 }
 
-inline void set_motor_output(vex::motor& motor, double pct, vex::brakeType brake_type) {
-  if (pct != 0.0) {
-    basic::control::velocitycontrol(motor, pct, vex::pct);
-  } else {
-    basic::control::stopcontrol(motor, brake_type);
+/// 力控（电压直驱）参数
+/// pct → 电压因子：±100 pct = ±12000 mV（与 PROS 舵轮版一致）
+inline constexpr double kPctToVoltageMv = 120.0;
+/// 静摩擦补偿：指令非零但幅值过小时提升到最小可动电压（pct 域）
+/// 消除"给了一点电压却不动"的死区；设为 0 可关闭
+inline constexpr double kFrictionKickPct = 2.0;
+/// 输出死区：小于此值视为停止（避免持续微小电压造成发热/嗡鸣）
+/// 1.0 pct ≈ 120 mV
+inline constexpr double kOutputDeadbandPct = 1.0;
+
+/// 输出限幅：±100 pct
+inline double clamp_pct(double pct) {
+  if (pct > 100.0) {
+    return 100.0;
   }
+  if (pct < -100.0) {
+    return -100.0;
+  }
+  return pct;
+}
+
+/// 组内平均实测转速（rpm）：软件速度环反馈 / 调试打印共用
+template <std::size_t Count>
+double group_rpm(std::array<vex::motor, Count>& motors) {
+  double sum = 0.0;
+  for (vex::motor& motor : motors) {
+    sum += motor.velocity(vex::rpm);
+  }
+  return (Count > 0) ? sum / static_cast<double>(Count) : 0.0;
+}
+
+/// 组内首个电机的轴角度（度）：用于观察"每圈固定位置"的相位
+template <std::size_t Count>
+double group_position_deg(std::array<vex::motor, Count>& motors) {
+  if (Count == 0) {
+    return 0.0;
+  }
+  return motors[0].position(vex::deg);
+}
+
+/// 单电机下发（力控）：方向由符号决定，幅值 pct → 电压 mV
+/// 扭矩 ∝ 电压，不经过电机固件速度环
+inline void set_motor_output(vex::motor& motor, double pct, vex::brakeType brake_type) {
+  if (pct > 100.0) pct = 100.0;
+  if (pct < -100.0) pct = -100.0;
+
+  const double mag = std::abs(pct);
+  if (mag < kOutputDeadbandPct) {
+    basic::control::stopcontrol(motor, brake_type);
+    return;
+  }
+
+  double out_pct = pct;
+  if (kFrictionKickPct > 0.0 && mag < kFrictionKickPct) {
+    out_pct = (pct > 0.0) ? kFrictionKickPct : -kFrictionKickPct;
+  }
+  basic::control::voltagecontrol(motor, out_pct * kPctToVoltageMv);
 }
 
 template <std::size_t Count>
@@ -92,6 +143,35 @@ void apply_group_output(
     vex::brakeType brake_type) {
   for (vex::motor& motor : motors) {
     set_motor_output(motor, pct, brake_type);
+  }
+}
+
+/// 单电机下发（固件速度环）：幅值 pct 直接作为 VEX 固件速度环的目标速度
+/// （pct 域，100 pct = 电机最高转速，与框架内 pct 语义一致）
+/// 固件内部以远高于控制循环的速率闭环且带速度前馈，
+/// 抗负载突变（如每圈固定位置的摩擦峰）远优于 100Hz 的软件环
+inline void set_motor_velocity_output(
+    vex::motor& motor,
+    double pct,
+    vex::brakeType brake_type) {
+  if (pct > 100.0) pct = 100.0;
+  if (pct < -100.0) pct = -100.0;
+
+  if (std::abs(pct) < kOutputDeadbandPct) {
+    basic::control::stopcontrol(motor, brake_type);
+    return;
+  }
+
+  basic::control::velocitycontrol(motor, pct, vex::pct);
+}
+
+template <std::size_t Count>
+void apply_group_velocity_output(
+    std::array<vex::motor, Count>& motors,
+    double pct,
+    vex::brakeType brake_type) {
+  for (vex::motor& motor : motors) {
+    set_motor_velocity_output(motor, pct, brake_type);
   }
 }
 

@@ -15,10 +15,11 @@ enum class PneumaticGripperMode {
 struct PneumaticGripperConfig {
   basic::device::DigitalOutConfig output;  // 气缸电磁阀（三线数字口）
   bool inverted{false};  // 电磁阀电平极性：true = 抓握对应输出低电平（视阀/气缸接线）
+  PneumaticGripperMode initial_mode{PneumaticGripperMode::kRelease};  // 上电初始状态：默认展开(松开)
 };
 
 struct PneumaticGripperCommand {
-  bool toggle{false};  // press_r1 → 边沿触发翻转 抓握/松开
+  bool toggle{false};  // press_x → 边沿触发翻转 抓握/松开
 };
 
 struct PneumaticGripperState {
@@ -47,7 +48,7 @@ class PneumaticGripper {
 /// 初始化气缸夹爪
 PneumaticGripper pneumatic_gripper_init(const PneumaticGripperConfig& config);
 
-/// 从遥控器输入生成控制指令（键位：R1 = 边沿切换 抓握/松开）
+/// 从遥控器输入生成控制指令（键位：X = 边沿切换 抓握/松开）
 PneumaticGripperCommand pneumatic_gripper_command_from_controller(
     const basic::hardware::shared::ControllerInputState& input);
 

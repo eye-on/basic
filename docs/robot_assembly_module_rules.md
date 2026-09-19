@@ -71,6 +71,8 @@ xxx_state(Hw&)                                         // 状态读写（const �
 - 头文件：Config / Command / State / class + 上述自由函数声明（参照 `include/mechanism/roller_shooter.h`）
 - 实现放 `src/mechanism/xxx.cpp` / `include/chassis/` 纯内联 + `src/`（参照 roller_shooter.cpp / x_chassis.h 包装内核模式）
 - 底盘模块常分「内核（如 XDrive/arcade_drive）+ 命名包装层（x_chassis.h）」两层，包装层只做类型别名与转发
+- **纯算法型底盘控制器不套四件套**：不直接持有设备、只做计算的（如 `include/chassis/heading_hold.h`、`include/chassis/yaw_hold.h`）
+  按「头文件内联 + `xxx_init(Config)` + `xxx_update(...)`（+ 可选 `xxx_reset()`）」组织，Config/State 随头文件给出
 
 ## 5. 手柄输入规则
 
@@ -112,6 +114,8 @@ xxx_state(Hw&)                                         // 状态读写（const �
 - 力控（电压直驱）约定：PID 输出 ±200 pct 预算 → ×120 mV/pct 下发 move_voltage；停止 = 零电压自然滑行；静摩擦 kick（转向 3%、驱动 2%）
 - 摇杆死区 ±3 pct；手柄映射（VEX 轴号）：轴3(左Y)=前后、轴4(左X)=平移、轴1(右X)=旋转，量程 ×127/100 对齐 PROS
 - 调试打印：模块级 10Hz 节流，一行 <60B/轮×4，115200 波特安全；全部设备打印统一格式 `FR|a:..rpm b:..rpm steer_v:.. wheel_v:.. tgt:..`
+- **例外（bed 摩擦/航向诊断流）**：100Hz 的 `D/C/Y/K` 行 CSV（实测 10.00ms 无丢帧），必须放**独立打印线程**，绝不进控制线程；
+  行首字母为行类型，`#` 行为注释（L1 开关打印、L2 切固定速度档），分析脚本见 `logs/`（不纳入版本控制）
 - 接线/标零数值改动必须**同步 basic 与 my_robot（PROS）两工程**，并更新注释中的实测日期与值
 
 ## 10. PROS（my_robot）同步规则
@@ -149,7 +153,7 @@ xxx_state(Hw&)                                         // 状态读写（const �
 | kNewRobot | new_robot | new_chassis（舵轮 steering） | 同步对象 my_robot（PROS） |
 | kFootballRobot | football_robot | h_chassis | pneumatic_motor_actuator + vision |
 | kLooklook | looklook | x_chassis + heading_hold | linear_lift + gripper |
-| kBed | bed | bed_chassis = XDrive\<2,2,2,2\>（每轮 2 电机共 8） | intake（L1）+ pneumatic_gripper（R1）+ arm_2dof（上/下、X/B；暂开环速度）；底盘已接线 BR=1/2、FR=5/6、BL=7/8、FL=9/11，intake/arm 电机未接线占位 20 |
+| kBed | bed | bed_chassis = XDrive\<2,2,2,2\>（每轮 2 电机共 8） | 底盘：固件速度环速控（pct 直发，无软件速度环/加减速限制；FL=4/5、FR=17/18、BL=1/3、BR=19/20）；机构：intake 6/7/8（A）、pneumatic_gripper ADI-B（X）、dual_pneumatic ADI-A/C（B，上电展开）、arm_2dof 13/10+14（Y 整臂按序）、linear_lift 9/11（上/下，限位 0~3500°）；IMU PORT12 + yaw_hold 航向保持（R1 重锚定 / R2 开关，**当前 enabled=false 暂时关闭**）；调试 L1 打印、L2 固定速度档 |
 
 ## 附录 C：训练项目 `../bed`（新人训练，结构必须与本仓库一致）
 
@@ -162,4 +166,7 @@ xxx_state(Hw&)                                         // 状态读写（const �
   4. `include/chassis/x_drive.h`：set_output/update/stop 空实现（训练用），底层设施保留
   5. `src/control/motor_control.{h,cpp}`：已裁掉 ADRC 依赖（`adrc_torque_control`），`control/` 仅 pid
 - **结构变更规则**：在 basic 新增/移动/删除模块文件时，若属于 bed 保留范围（bed 底盘 + 四机构 + 其依赖），必须同步 bed 相同路径；bed 侧练习类改动不反向影响 basic
+- **待同步（2026-09-19）**：本仓库 bed 范围新增但训练库尚无的文件：`include/chassis/yaw_hold.h`、
+  `include/mechanism/dual_pneumatic.h`、`src/mechanism/dual_pneumatic.cpp`；同步时按训练库空实现约定（`TODO(训练)`）
+  补齐，并在其 `robot_hardware.h` / `robot_state.h` / `bed.cpp` 骨架里加 dual_pneumatic 装配（键位自定）
 - 训练项目不建 git 仓库（以 basic 为准源）

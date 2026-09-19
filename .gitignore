@@ -1,5 +1,6 @@
 /bin
 /build
+/logs
 compile_commands.json
 /.cluade
 /.vscode
