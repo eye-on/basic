@@ -267,6 +267,7 @@ class BedRobot final : public basic::app::Robot {
       printf("# C,t_ms,cur_fla,cur_flb,cur_fra,cur_frb,cur_bla,cur_blb,cur_bra,cur_brb\n");
       printf("# Y,t_ms,yaw_x10,target_x10,err_x10,corr_x10,axis4,axis2,hold_on,active,imu_ok\n");
       printf("# K,t_ms,l1,l2,r1,r2,axis1,axis2,axis4,print_on\n");
+      printf("# A,t_ms,axis1,axis2,axis3,axis4,fl_x10,fr_x10,bl_x10,br_x10   (25Hz 摇杆+下发)\n");
       printf("# mode: 0=manual(摇杆) 1=30%% 2=50%% 3=100%% | a/b=同轮两个电机 | rpm=整数rpm | pos=电机deg(相对本次开始) | cur=占最大电流%%\n");
     }
 
@@ -284,6 +285,19 @@ class BedRobot final : public basic::app::Robot {
            round_int(pos_fl - debug_pos0_fl_), round_int(pos_fr - debug_pos0_fr_),
            round_int(pos_bl - debug_pos0_bl_), round_int(pos_br - debug_pos0_br_),
            sat);
+
+    // 摇杆行（25Hz，每 kDebugAxisEveryN 个数据行一条）：手柄四轴原始值 + 最终四轮指令 pct×10
+    //   axis1=右X(平移) axis2=右Y(前后) axis3=左Y(未用) axis4=左X(旋转)
+    //   fl/fr/bl/br = 整形与航向修正之后的实际下发值（×10），与 D 行同一 t_ms 对齐
+    //   带宽预算：D 行 ~85B@100Hz ≈ 8.5kB/s（实测 10.00ms 无丢帧），本行 ~54B@25Hz ≈ 1.4kB/s
+    if ((debug_row_counter_ % kDebugAxisEveryN) == 0) {
+      printf("A,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+             t_ms,
+             state_.controller.axis1, state_.controller.axis2,
+             state_.controller.axis3, state_.controller.axis4,
+             round_int(s.fl_pct * 10.0), round_int(s.fr_pct * 10.0),
+             round_int(s.bl_pct * 10.0), round_int(s.br_pct * 10.0));
+    }
 
     // 电流行：每 kDebugCurrentEveryN 个数据行一条（100Hz/10 = 10Hz）
     debug_row_counter_ += 1;
@@ -361,6 +375,7 @@ class BedRobot final : public basic::app::Robot {
   // 调试打印线程（L1 开关）：数据行周期 10ms = 100Hz；电流/航向行每 10 个数据行一条 = 10Hz
   static constexpr int kDebugPrintPeriodMs = 10;
   static constexpr int kDebugCurrentEveryN = 10;
+  static constexpr int kDebugAxisEveryN = 4;  // 摇杆行节流：100Hz/4 = 25Hz
   bool debug_print_enabled_{true};  // 默认开机即打印；L1 边沿切换（要按 L1 才开始就改回 false）
   bool debug_session_active_{false};
   int debug_t0_ms_{0};
