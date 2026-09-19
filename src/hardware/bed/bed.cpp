@@ -225,6 +225,16 @@ class BedRobot final : public basic::app::Robot {
       }
     }
 
+    // R2 切换航向环时补一行事件（axis-only 模式下也能从日志看到）
+    if (hardware_.yaw_hold.config.enabled != debug_yaw_seen_enabled_) {
+      debug_yaw_seen_enabled_ = hardware_.yaw_hold.config.enabled;
+      if (hardware_.yaw_hold.config.enabled) {
+        printf("# yaw hold -> ON\n");
+      } else {
+        printf("# yaw hold -> OFF\n");
+      }
+    }
+
     if (!debug_print_enabled_) {
       debug_session_active_ = false;
       return;
@@ -271,7 +281,7 @@ class BedRobot final : public basic::app::Robot {
       debug_row_counter_ = 0;
       if (kDebugAxisOnly) {
         printf("# profile: axis-only —— 只打印手柄摇杆行（A，100Hz）\n");
-        printf("# A,t_ms,axis1,axis2,axis3,axis4,fl_x10,fr_x10,bl_x10,br_x10\n");
+        printf("# A,t_ms,axis1,axis2,axis3,axis4,fl_x10,fr_x10,bl_x10,br_x10,corr_x10\n");
         printf("# axis1=右X(平移) axis2=右Y(前后) axis3=左Y(未用) axis4=左X(旋转)；fl/fr/bl/br=下发 pct×10\n");
       } else {
         printf("# profile: full —— D(100Hz)+A(25Hz)+C/Y/K(10Hz)\n");
@@ -279,9 +289,15 @@ class BedRobot final : public basic::app::Robot {
         printf("# C,t_ms,cur_fla,cur_flb,cur_fra,cur_frb,cur_bla,cur_blb,cur_bra,cur_brb\n");
         printf("# Y,t_ms,yaw_x10,target_x10,err_x10,corr_x10,axis4,axis2,hold_on,active,imu_ok\n");
         printf("# K,t_ms,l1,l2,r1,r2,axis1,axis2,axis4,print_on\n");
-        printf("# A,t_ms,axis1,axis2,axis3,axis4,fl_x10,fr_x10,bl_x10,br_x10   (25Hz 摇杆+下发)\n");
+        printf("# A,t_ms,axis1,axis2,axis3,axis4,fl_x10,fr_x10,bl_x10,br_x10,corr_x10   (25Hz 摇杆+下发)\n");
         printf("# mode: 0=manual(摇杆) 1=30%% 2=50%% 3=100%% | a/b=同轮两个电机 | rpm=整数rpm | pos=电机deg(相对本次开始) | cur=占最大电流%%\n");
       }
+      // 航向环状态（开机即报，用于确认是否真的启用）
+      debug_yaw_seen_enabled_ = hardware_.yaw_hold.config.enabled;
+      printf("# yaw hold: cfg_enabled=%d imu_ok=%d test_mode=%d snap=%d (R2 运行时切换)\n",
+             hardware_.yaw_hold.config.enabled ? 1 : 0,
+             (hardware_.imu.installed() && !hardware_.imu.isCalibrating()) ? 1 : 0,
+             kYawHoldInTestMode ? 1 : 0, kAxisSnapPct);
     }
 
     // 模式切换打一行注释（便于在数据里分段）
@@ -294,12 +310,13 @@ class BedRobot final : public basic::app::Robot {
 
     // [只打印摇杆] 模式：每周期输出一行 A（100Hz），其余行一律不打印
     if (kDebugAxisOnly) {
-      printf("A,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+      printf("A,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
              t_ms,
              state_.controller.axis1, state_.controller.axis2,
              state_.controller.axis3, state_.controller.axis4,
              round_int(s.fl_pct * 10.0), round_int(s.fr_pct * 10.0),
-             round_int(s.bl_pct * 10.0), round_int(s.br_pct * 10.0));
+             round_int(s.bl_pct * 10.0), round_int(s.br_pct * 10.0),
+             round_int(state_.yaw_hold.correction_pct * 10.0));
       return;
     }
 
@@ -316,12 +333,13 @@ class BedRobot final : public basic::app::Robot {
     //   fl/fr/bl/br = 整形与航向修正之后的实际下发值（×10），与 D 行同一 t_ms 对齐
     //   带宽预算：D 行 ~85B@100Hz ≈ 8.5kB/s（实测 10.00ms 无丢帧），本行 ~54B@25Hz ≈ 1.4kB/s
     if ((debug_row_counter_ % kDebugAxisEveryN) == 0) {
-      printf("A,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+      printf("A,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
              t_ms,
              state_.controller.axis1, state_.controller.axis2,
              state_.controller.axis3, state_.controller.axis4,
              round_int(s.fl_pct * 10.0), round_int(s.fr_pct * 10.0),
-             round_int(s.bl_pct * 10.0), round_int(s.br_pct * 10.0));
+             round_int(s.bl_pct * 10.0), round_int(s.br_pct * 10.0),
+             round_int(state_.yaw_hold.correction_pct * 10.0));
     }
 
     // 电流行：每 kDebugCurrentEveryN 个数据行一条（100Hz/10 = 10Hz）
@@ -408,6 +426,7 @@ class BedRobot final : public basic::app::Robot {
   int debug_row_counter_{0};
   int debug_toggle_seq_{0};       // 控制线程递增；打印线程据此补打 "# print ON/OFF"
   int debug_seen_toggle_seq_{0};  // 打印线程已处理到的序号
+  bool debug_yaw_seen_enabled_{false};  // 航向环开关的上次状态（R2 事件行用）
   double debug_pos0_fl_{0.0};
   double debug_pos0_fr_{0.0};
   double debug_pos0_bl_{0.0};
