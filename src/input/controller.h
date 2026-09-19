@@ -9,14 +9,20 @@ namespace basic::input {
 /// （10ms 循环下 3 帧 = 30ms，滤掉抖动/接触噪声；<=1 表示不保护）
 inline constexpr int kButtonDebounceFrames = 3;
 
+/// 摇杆零位吸附默认值（pct）：松手时 |轴值| ≤ 该值直接归零
+/// 手柄 ADC 松手后会有 ±1 的量化抖动；0 = 不吸附（保持原始读数）
+inline constexpr int kAxisSnapPct = 0;
+
 /// 读取手柄并更新共享状态（摇杆 + 按键电平 + press_* 按下沿）
 /// - 12 个按键全部做帧保护：按下、松开都需连续 button_debounce_frames 帧一致
 /// - press_* 边沿由保护后的电平产生，因此开关类操作同样受保护
+/// - axis_snap_pct：|原始轴值| ≤ 该值时按 0 输出（消掉松手 ±1 抖动），0 = 关闭
 void controller_update(
     vex::brain& brain,
     vex::controller& controller,
     basic::hardware::shared::ControllerInputState& state,
-    int button_debounce_frames = kButtonDebounceFrames);
+    int button_debounce_frames = kButtonDebounceFrames,
+    int axis_snap_pct = kAxisSnapPct);
 
 }  // namespace basic::input
 

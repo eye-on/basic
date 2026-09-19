@@ -102,7 +102,10 @@ class BedRobot final : public basic::app::Robot {
 
   /// 单次手动控制迭代：读手柄 → 底盘 → 各机构（联锁在内）
   void control_step() {
-    basic::input::controller_update(hardware_.brain, hardware_.controller, state_.controller);
+    basic::input::controller_update(hardware_.brain, hardware_.controller,
+                                    state_.controller,
+                                    basic::input::kButtonDebounceFrames,
+                                    kAxisSnapPct);  // 松手 ±1 抖动吸附为 0
 
     // 调试键位：L1 开关打印；L2 循环切换固定速度测试模式
     //   （0 = 手动跟摇杆 → 30 → 50 → 100 pct → 0 …，见 kTestSpeedPct）
@@ -133,7 +136,10 @@ class BedRobot final : public basic::app::Robot {
     const basic::hardware::shared::ControllerInputState& input = state_.controller;
     auto& chassis = hardware_.bed_chassis;
     basic::chassis::YawHoldInput yaw_input;
-    yaw_input.turn_input_pct = input.axis4 - chassis.axis_offset_turn();
+    // 减零位偏置后再吸附一次：偏置本身可能是 ±1，否则残留抖动会被积分进目标 yaw
+    const int turn_excess = input.axis4 - chassis.axis_offset_turn();
+    yaw_input.turn_input_pct =
+        (std::abs(turn_excess) <= kAxisSnapPct) ? 0 : turn_excess;
     yaw_input.yaw_deg = hardware_.imu.rotation(vex::deg);
     yaw_input.yaw_rate_dps = hardware_.imu.gyroRate(vex::zaxis, vex::dps);
     yaw_input.imu_ready = hardware_.imu.installed() && !hardware_.imu.isCalibrating();

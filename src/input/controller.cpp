@@ -92,7 +92,8 @@ void controller_update(
     vex::brain& brain,
     vex::controller& controller,
     basic::hardware::shared::ControllerInputState& input,
-    int button_debounce_frames) {
+    int button_debounce_frames,
+    int axis_snap_pct) {
 
   input.last_axis1 = input.axis1;
   input.last_axis2 = input.axis2;
@@ -119,6 +120,15 @@ void controller_update(
   input.axis2 = controller.Axis2.position(vex::percentUnits::pct);
   input.axis3 = controller.Axis3.position(vex::percentUnits::pct);
   input.axis4 = controller.Axis4.position(vex::percentUnits::pct);
+
+  // 零位吸附：松手时手柄 ADC 仍有 ±1 的量化抖动，|值| ≤ snap 时按 0 输出
+  // （0 = 关闭；底盘死区能挡住它，但航向环的摇杆积分不希望把抖动积进目标 yaw）
+  if (axis_snap_pct > 0) {
+    if (std::abs(input.axis1) <= axis_snap_pct) input.axis1 = 0;
+    if (std::abs(input.axis2) <= axis_snap_pct) input.axis2 = 0;
+    if (std::abs(input.axis3) <= axis_snap_pct) input.axis3 = 0;
+    if (std::abs(input.axis4) <= axis_snap_pct) input.axis4 = 0;
+  }
 
   // 按键：原始读数 → 帧保护（按下/松开均需连续 N 帧确认）
   // 传入上一帧已确认电平（input.last_*，此刻尚未被覆盖）用于外部复位同步

@@ -29,6 +29,10 @@ inline constexpr bool kYawHoldInTestMode = true;
 //   false         = 完整诊断流（D 100Hz + A 25Hz + C/Y/K 10Hz）
 inline constexpr bool kDebugAxisOnly = true;
 
+// 摇杆零位吸附（pct）：松手时手柄 ADC 有 ±1 量化抖动，|轴值| ≤ 此值按 0 处理
+// 底盘死区本来就能挡住 ±1，但航向保持会把 axis4 的抖动积分进目标 yaw（turn_deadzone=0 时约 1.2°/s 漂移）
+inline constexpr int kAxisSnapPct = 1;
+
 // 抬升限位：下限 = 电机起始位置（上电编码器为 0），上限 = 起始位置 + 行程增量
 inline constexpr double kLiftStartDeg = 0.0;    // 电机起始位置（默认 0）
 inline constexpr double kLiftTravelDeg = 3500.0;  // 行程增量（上限 = 起始 + 3500°）
