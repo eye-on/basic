@@ -263,12 +263,19 @@ class BedRobot final : public basic::app::Robot {
       debug_pos0_br_ = pos_br;
       debug_last_mode_ = test_speed_index_;
       debug_row_counter_ = 0;
-      printf("# D,t_ms,mode,rpm_fla,rpm_flb,rpm_fra,rpm_frb,rpm_bla,rpm_blb,rpm_bra,rpm_brb,pos_fl,pos_fr,pos_bl,pos_br,sat\n");
-      printf("# C,t_ms,cur_fla,cur_flb,cur_fra,cur_frb,cur_bla,cur_blb,cur_bra,cur_brb\n");
-      printf("# Y,t_ms,yaw_x10,target_x10,err_x10,corr_x10,axis4,axis2,hold_on,active,imu_ok\n");
-      printf("# K,t_ms,l1,l2,r1,r2,axis1,axis2,axis4,print_on\n");
-      printf("# A,t_ms,axis1,axis2,axis3,axis4,fl_x10,fr_x10,bl_x10,br_x10   (25Hz 摇杆+下发)\n");
-      printf("# mode: 0=manual(摇杆) 1=30%% 2=50%% 3=100%% | a/b=同轮两个电机 | rpm=整数rpm | pos=电机deg(相对本次开始) | cur=占最大电流%%\n");
+      if (kDebugAxisOnly) {
+        printf("# profile: axis-only —— 只打印手柄摇杆行（A，100Hz）\n");
+        printf("# A,t_ms,axis1,axis2,axis3,axis4,fl_x10,fr_x10,bl_x10,br_x10\n");
+        printf("# axis1=右X(平移) axis2=右Y(前后) axis3=左Y(未用) axis4=左X(旋转)；fl/fr/bl/br=下发 pct×10\n");
+      } else {
+        printf("# profile: full —— D(100Hz)+A(25Hz)+C/Y/K(10Hz)\n");
+        printf("# D,t_ms,mode,rpm_fla,rpm_flb,rpm_fra,rpm_frb,rpm_bla,rpm_blb,rpm_bra,rpm_brb,pos_fl,pos_fr,pos_bl,pos_br,sat\n");
+        printf("# C,t_ms,cur_fla,cur_flb,cur_fra,cur_frb,cur_bla,cur_blb,cur_bra,cur_brb\n");
+        printf("# Y,t_ms,yaw_x10,target_x10,err_x10,corr_x10,axis4,axis2,hold_on,active,imu_ok\n");
+        printf("# K,t_ms,l1,l2,r1,r2,axis1,axis2,axis4,print_on\n");
+        printf("# A,t_ms,axis1,axis2,axis3,axis4,fl_x10,fr_x10,bl_x10,br_x10   (25Hz 摇杆+下发)\n");
+        printf("# mode: 0=manual(摇杆) 1=30%% 2=50%% 3=100%% | a/b=同轮两个电机 | rpm=整数rpm | pos=电机deg(相对本次开始) | cur=占最大电流%%\n");
+      }
     }
 
     // 模式切换打一行注释（便于在数据里分段）
@@ -278,6 +285,18 @@ class BedRobot final : public basic::app::Robot {
     }
 
     const int t_ms = now_ms - debug_t0_ms_;
+
+    // [只打印摇杆] 模式：每周期输出一行 A（100Hz），其余行一律不打印
+    if (kDebugAxisOnly) {
+      printf("A,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+             t_ms,
+             state_.controller.axis1, state_.controller.axis2,
+             state_.controller.axis3, state_.controller.axis4,
+             round_int(s.fl_pct * 10.0), round_int(s.fr_pct * 10.0),
+             round_int(s.bl_pct * 10.0), round_int(s.br_pct * 10.0));
+      return;
+    }
+
     printf("D,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
            t_ms, test_speed_index_,
            rpm_of(fl[0]), rpm_of(fl[1]), rpm_of(fr[0]), rpm_of(fr[1]),
