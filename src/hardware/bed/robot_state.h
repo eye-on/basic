@@ -13,6 +13,7 @@ namespace basic::hardware::bed {
 
 struct RobotState {
   basic::hardware::shared::ControllerInputState controller;
+  basic::hardware::shared::AutonomousState autonomous;
   basic::chassis::YawHoldState yaw_hold;
   basic::mechanism::IntakeState intake;
   basic::mechanism::PneumaticGripperState pneumatic_gripper;
